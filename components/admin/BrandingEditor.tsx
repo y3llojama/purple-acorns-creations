@@ -30,7 +30,7 @@ const PREVIEW_STRIP_VARS: Array<keyof ThemeVars> = [
 
 function initPreset(settings: Settings): Preset {
   if (settings.theme === 'warm-artisan' || settings.theme === 'soft-botanical') {
-    return PRESETS.find(p => p.theme === settings.theme)!
+    return PRESETS.find(p => p.theme === settings.theme) ?? PRESETS[0]
   }
   if (settings.theme === 'custom' && settings.custom_primary && settings.custom_accent) {
     const match = PRESETS.find(p => p.primary === settings.custom_primary && p.accent === settings.custom_accent)

@@ -7,11 +7,13 @@ interface Props { tagline: string; subtext: string; heroImageUrl?: string | null
 
 export default function HeroSection({ tagline, subtext, heroImageUrl }: Props) {
   const bgImage = heroImageUrl ?? HERO_PLACEHOLDER
+  // Quote and escape the URL inside url() to prevent CSS injection via crafted hero URLs
+  const bgImageCss = `url("${bgImage.replace(/"/g, '%22')}")`
   return (
     <section style={{
       minHeight: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', textAlign: 'center', padding: '80px 24px',
-      backgroundImage: `url(${bgImage})`,
+      backgroundImage: bgImageCss,
       backgroundSize: 'cover', backgroundPosition: 'center',
       position: 'relative',
     }}>
