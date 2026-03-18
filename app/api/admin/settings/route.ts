@@ -50,8 +50,16 @@ export async function POST(request: Request) {
 
   update.updated_at = new Date().toISOString()
   const supabase = createServiceRoleClient()
-  // settings has exactly one row — no WHERE clause needed
-  const { error: dbError } = await supabase.from('settings').update(update)
-  if (dbError) return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 })
+  // Fetch the single settings row ID first, then update by ID
+  const { data: row, error: fetchError } = await supabase.from('settings').select('id').limit(1).maybeSingle()
+  if (fetchError || !row) {
+    console.error('[settings] fetch error:', fetchError?.message)
+    return NextResponse.json({ error: 'Failed to load settings row' }, { status: 500 })
+  }
+  const { error: dbError } = await supabase.from('settings').update(update).eq('id', row.id)
+  if (dbError) {
+    console.error('[settings] update error:', dbError.message)
+    return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 })
+  }
   return NextResponse.json({ success: true })
 }
