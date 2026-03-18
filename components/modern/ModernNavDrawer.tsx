@@ -96,7 +96,7 @@ export default function ModernNavDrawer() {
         .mnd-drawer {
           max-height: 0;
           overflow: hidden;
-          transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: max-height 0.4s cubic-bezier(0.46, 0.01, 0.32, 1);
           background: var(--color-surface);
           border-bottom: 2px solid var(--color-border);
         }
@@ -240,7 +240,7 @@ export default function ModernNavDrawer() {
             display: block;
             overflow: hidden;
             max-height: 0;
-            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: max-height 0.4s cubic-bezier(0.46, 0.01, 0.32, 1);
             background: var(--color-surface);
           }
 

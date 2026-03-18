@@ -5,6 +5,7 @@ import ModernHeader from './ModernHeader'
 import ModernNavDrawer from './ModernNavDrawer'
 import ModernFooter from './ModernFooter'
 import ModernFAB from './ModernFAB'
+import PageLoadOverlay from './PageLoadOverlay'
 
 interface Props {
   children: React.ReactNode
@@ -44,6 +45,7 @@ export default function ModernLayout({
       <ModernFooter settings={settings} />
       <ModernFAB />
       <AnalyticsTracker />
+      <PageLoadOverlay />
     </>
   )
 }

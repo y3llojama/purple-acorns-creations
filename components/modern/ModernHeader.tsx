@@ -66,7 +66,7 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
           align-items: center;
           overflow: hidden;
           max-width: 0;
-          transition: max-width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: max-width 0.4s cubic-bezier(0.46, 0.01, 0.32, 1);
         }
 
         .modern-header-search-wrap.open {
