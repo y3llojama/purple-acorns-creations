@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { stripControlChars } from '@/lib/validate'
+import { interpolate, buildVars } from '@/lib/variables'
 
 interface SendEmailOptions {
   to: string
@@ -91,14 +92,15 @@ export async function sendContactNotification(name: string, email: string, messa
 export async function sendReply(to: string, toName: string, body: string) {
   const settings = await getSmtpSettings()
   const businessName = settings?.business_name ?? 'Purple Acorns Creations'
+  const resolvedBody = interpolate(body, buildVars(businessName))
   const safeName = escapeHtml(stripControlChars(toName))
-  const safeBody = escapeHtml(body)
+  const safeBody = escapeHtml(resolvedBody)
   const safeBusinessName = escapeHtml(businessName)
 
   return sendEmail({
     to,
     subject: `Reply from ${businessName}`,
-    text: `Hi ${stripControlChars(toName)},\n\n${body}\n\n— ${businessName}`,
+    text: `Hi ${stripControlChars(toName)},\n\n${resolvedBody}\n\n— ${businessName}`,
     html: `<p>Hi ${safeName},</p>
 <p>${safeBody.replace(/\n/g, '<br />')}</p>
 <p>— ${safeBusinessName}</p>`,

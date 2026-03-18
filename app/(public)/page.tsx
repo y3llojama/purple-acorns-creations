@@ -2,6 +2,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getAllContent } from '@/lib/content'
 import { getSettings } from '@/lib/theme'
 import { sanitizeText } from '@/lib/sanitize'
+import { interpolate, buildVars } from '@/lib/variables'
 import HeroSection from '@/components/home/HeroSection'
 import StoryTeaser from '@/components/home/StoryTeaser'
 import FeaturedPieces from '@/components/home/FeaturedPieces'
@@ -28,14 +29,16 @@ export default async function HomePage() {
     console.error('[HomePage] events query error:', eventResult.error.message)
   }
 
+  const vars = buildVars(settings.business_name)
+
   return (
     <>
       <HeroSection
-        tagline={sanitizeText(content.hero_tagline ?? '')}
-        subtext={sanitizeText(content.hero_subtext ?? '')}
+        tagline={sanitizeText(interpolate(content.hero_tagline ?? '', vars))}
+        subtext={sanitizeText(interpolate(content.hero_subtext ?? '', vars))}
         heroImageUrl={settings.hero_image_url}
       />
-      <StoryTeaser teaser={sanitizeText(content.story_teaser ?? '')} />
+      <StoryTeaser teaser={sanitizeText(interpolate(content.story_teaser ?? '', vars))} />
       <FeaturedPieces items={featured} watermark={settings.gallery_watermark} />
       <GalleryStrip items={gallery} watermark={settings.gallery_watermark} />
       <NextEvent event={eventResult.data ?? null} />

@@ -358,6 +358,11 @@ export default function ContentEditor({
         )}
       </div>
 
+      {/* Template variable hint */}
+      <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '6px 0 0' }}>
+        Variables: <code>{'${BUSINESS_NAME}'}</code> · <code>{'${CONTACT_FORM}'}</code>
+      </p>
+
       {/* Validation warning */}
       {warning && (
         <p role="alert" style={{ fontSize: '13px', color: '#b45309', margin: '6px 0 0', display: 'flex', gap: '6px', alignItems: 'flex-start' }}>

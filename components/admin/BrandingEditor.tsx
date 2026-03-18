@@ -355,6 +355,9 @@ export default function BrandingEditor({ settings }: Props) {
           <div style={{ marginBottom: '12px' }}>
             <label htmlFor="ann-text" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Announcement Text (max 300 chars)</label>
             <input id="ann-text" value={announcementText} onChange={e => setAnnouncementText(e.target.value)} maxLength={300} style={{ width: '100%', padding: '8px', fontSize: '16px', borderRadius: '4px', border: '1px solid var(--color-border)' }} />
+            <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+              Variables: <code>{'${BUSINESS_NAME}'}</code> · <code>{'${CONTACT_FORM}'}</code>
+            </p>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
             <div>

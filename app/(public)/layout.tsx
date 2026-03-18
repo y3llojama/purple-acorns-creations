@@ -1,5 +1,6 @@
 import { getSettings } from '@/lib/theme'
 import { sanitizeText } from '@/lib/sanitize'
+import { interpolate, buildVars } from '@/lib/variables'
 import AnnouncementBanner from '@/components/layout/AnnouncementBanner'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
@@ -7,7 +8,10 @@ import AnalyticsTracker from '@/components/AnalyticsTracker'
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const settings = await getSettings()
-  const announcementText = settings.announcement_text ? sanitizeText(settings.announcement_text) : ''
+  const vars = buildVars(settings.business_name)
+  const announcementText = settings.announcement_text
+    ? sanitizeText(interpolate(settings.announcement_text, vars))
+    : ''
 
   return (
     <>
