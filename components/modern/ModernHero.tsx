@@ -1,0 +1,141 @@
+import Link from 'next/link'
+
+interface Props {
+  tagline: string
+  subtext: string
+  heroImageUrl: string | null | undefined
+}
+
+export default function ModernHero({ tagline, subtext, heroImageUrl }: Props) {
+  return (
+    <section>
+      <style>{`
+        .modern-hero {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          min-height: 480px;
+        }
+
+        @media (max-width: 768px) {
+          .modern-hero {
+            grid-template-columns: 1fr;
+          }
+          .modern-hero-image-panel {
+            order: -1;
+          }
+          .modern-hero-text-panel {
+            order: 1;
+          }
+        }
+
+        .modern-hero-cta-btn:hover {
+          opacity: 0.9;
+        }
+      `}</style>
+      <div className="modern-hero">
+        {/* Left panel */}
+        <div
+          className="modern-hero-text-panel"
+          style={{
+            background: 'var(--color-primary)',
+            padding: 'clamp(40px, 6vw, 80px)',
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          <div>
+            <p
+              style={{
+                color: 'var(--color-accent)',
+                fontSize: '11px',
+                letterSpacing: '0.2em',
+                textTransform: 'uppercase',
+                marginBottom: '16px',
+                margin: '0 0 16px 0',
+              }}
+            >
+              Purple Acorns Creations
+            </p>
+            <h1
+              style={{
+                color: '#fff',
+                fontFamily: 'var(--font-display)',
+                fontSize: 'clamp(28px, 4vw, 52px)',
+                fontWeight: 700,
+                letterSpacing: '-0.01em',
+                lineHeight: 1.1,
+                margin: 0,
+              }}
+            >
+              {tagline}
+            </h1>
+            <p
+              style={{
+                color: '#fff',
+                opacity: 0.7,
+                fontSize: 'clamp(15px, 1.8vw, 18px)',
+                marginTop: '16px',
+              }}
+            >
+              {subtext}
+            </p>
+            <Link
+              href="/shop"
+              className="modern-hero-cta-btn"
+              style={{
+                display: 'inline-block',
+                background: 'var(--color-accent)',
+                color: 'var(--color-primary)',
+                border: 'none',
+                padding: '14px 32px',
+                fontSize: '13px',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                fontWeight: 600,
+                marginTop: '32px',
+                cursor: 'pointer',
+                textDecoration: 'none',
+              }}
+            >
+              Shop Now
+            </Link>
+          </div>
+        </div>
+
+        {/* Right panel */}
+        <div className="modern-hero-image-panel">
+          {heroImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={heroImageUrl}
+              alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'cover', minHeight: '400px', display: 'block' }}
+            />
+          ) : (
+            <div
+              style={{
+                background: 'linear-gradient(135deg, var(--color-accent) 0%, #e8d5a0 50%, var(--color-secondary) 100%)',
+                minHeight: '400px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <p
+                style={{
+                  fontStyle: 'italic',
+                  color: 'var(--color-primary)',
+                  opacity: 0.4,
+                  fontSize: '24px',
+                  margin: 0,
+                }}
+              >
+                Handmade with love
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
