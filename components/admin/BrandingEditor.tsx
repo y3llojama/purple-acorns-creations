@@ -2,30 +2,86 @@
 import { useState } from 'react'
 import ImageUploader from './ImageUploader'
 import SiteMap from './SiteMap'
+import { deriveCustomThemeVars } from '@/lib/color'
+import type { ThemeVars } from '@/lib/color'
 import type { Settings } from '@/lib/supabase/types'
 
 interface Props { settings: Settings }
 
-const THEMES = [
-  { value: 'warm-artisan', label: 'Warm Artisan', primary: '#2d1b4e', accent: '#d4a853' },
-  { value: 'soft-botanical', label: 'Soft Botanical', primary: '#9b7bb8', accent: '#f0e8f5' },
-] as const
+type NamedTheme = 'warm-artisan' | 'soft-botanical'
+type Preset =
+  | { name: string; theme: NamedTheme; primary: string; accent: string }
+  | { name: string; theme: 'custom'; primary: string; accent: string }
+
+const PRESETS: Preset[] = [
+  { name: 'Warm Artisan',   theme: 'warm-artisan',   primary: '#2d1b4e', accent: '#d4a853' },
+  { name: 'Soft Botanical', theme: 'soft-botanical',  primary: '#3d2b4e', accent: '#9b7bb8' },
+  { name: 'Forest Dusk',    theme: 'custom',          primary: '#1a3d2b', accent: '#c8a86b' },
+  { name: 'Rose & Rust',    theme: 'custom',          primary: '#6b1a2e', accent: '#d4916b' },
+  { name: 'Midnight Ink',   theme: 'custom',          primary: '#1a2040', accent: '#8bb4d4' },
+  { name: 'Mauve Bloom',    theme: 'custom',          primary: '#3d1a2e', accent: '#e8a0c0' },
+  { name: 'Harvest Gold',   theme: 'custom',          primary: '#3d2800', accent: '#e8c060' },
+  { name: 'Slate & Sage',   theme: 'custom',          primary: '#2e3d35', accent: '#9fb89f' },
+]
+
+const PREVIEW_STRIP_VARS: Array<keyof ThemeVars> = [
+  '--color-bg', '--color-surface', '--color-primary', '--color-accent', '--color-text', '--color-text-muted',
+]
+
+function initPreset(settings: Settings): Preset {
+  if (settings.theme === 'warm-artisan' || settings.theme === 'soft-botanical') {
+    return PRESETS.find(p => p.theme === settings.theme)!
+  }
+  if (settings.theme === 'custom' && settings.custom_primary && settings.custom_accent) {
+    const match = PRESETS.find(p => p.primary === settings.custom_primary && p.accent === settings.custom_accent)
+    if (match) return match
+    return { name: 'Custom', theme: 'custom', primary: settings.custom_primary, accent: settings.custom_accent }
+  }
+  return PRESETS[0]
+}
+
+function safeDerive(primary: string, accent: string): ThemeVars | null {
+  try { return deriveCustomThemeVars(primary, accent) } catch { return null }
+}
 
 export default function BrandingEditor({ settings }: Props) {
-  const [theme, setTheme] = useState(settings.theme ?? 'warm-artisan')
-  const [themeSaved, setThemeSaved] = useState(false)
-  const [announcementEnabled, setAnnouncementEnabled] = useState(settings.announcement_enabled)
-  const [announcementText, setAnnouncementText] = useState(settings.announcement_text ?? '')
-  const [announcementLinkUrl, setAnnouncementLinkUrl] = useState(settings.announcement_link_url ?? '')
-  const [announcementLinkLabel, setAnnouncementLinkLabel] = useState(settings.announcement_link_label ?? '')
-  const [announcementSaved, setAnnouncementSaved] = useState(false)
+  const [selectedPreset, setSelectedPreset] = useState<Preset>(() => initPreset(settings))
+  const [pickerPrimary, setPickerPrimary]   = useState(selectedPreset.primary)
+  const [pickerAccent, setPickerAccent]     = useState(selectedPreset.accent)
+  const [previewVars, setPreviewVars]       = useState<ThemeVars | null>(() => safeDerive(selectedPreset.primary, selectedPreset.accent))
+  const [themeSaved, setThemeSaved]         = useState(false)
 
-  async function saveTheme(t: string) {
-    setTheme(t)
+  const [announcementEnabled, setAnnouncementEnabled]     = useState(settings.announcement_enabled)
+  const [announcementText, setAnnouncementText]           = useState(settings.announcement_text ?? '')
+  const [announcementLinkUrl, setAnnouncementLinkUrl]     = useState(settings.announcement_link_url ?? '')
+  const [announcementLinkLabel, setAnnouncementLinkLabel] = useState(settings.announcement_link_label ?? '')
+  const [announcementSaved, setAnnouncementSaved]         = useState(false)
+
+  function handlePresetClick(preset: Preset) {
+    setSelectedPreset(preset)
+    setPickerPrimary(preset.primary)
+    setPickerAccent(preset.accent)
+    setPreviewVars(safeDerive(preset.primary, preset.accent))
+    setThemeSaved(false)
+  }
+
+  function handlePickerChange(primary: string, accent: string) {
+    setPickerPrimary(primary)
+    setPickerAccent(accent)
+    const match = PRESETS.find(p => p.primary === primary && p.accent === accent)
+    setSelectedPreset(match ?? { name: 'Custom', theme: 'custom', primary, accent })
+    setPreviewVars(safeDerive(primary, accent))
+    setThemeSaved(false)
+  }
+
+  async function saveTheme() {
+    const body = selectedPreset.theme === 'warm-artisan' || selectedPreset.theme === 'soft-botanical'
+      ? { theme: selectedPreset.theme, custom_primary: null, custom_accent: null }
+      : { theme: 'custom', custom_primary: pickerPrimary, custom_accent: pickerAccent }
     const res = await fetch('/api/admin/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ theme: t }),
+      body: JSON.stringify(body),
     })
     if (res.ok) setThemeSaved(true)
   }
@@ -53,63 +109,140 @@ export default function BrandingEditor({ settings }: Props) {
     })
   }
 
+  async function handleHeroUpload(url: string, _altText: string) {
+    await fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hero_image_url: url }),
+    })
+  }
+
   return (
     <div>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', color: 'var(--color-primary)', marginBottom: '32px' }}>Branding</h1>
 
-      {/* Theme selection */}
+      {/* Theme */}
       <section style={{ marginBottom: '40px' }}>
-        <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Theme</h2>
-        <div style={{ display: 'flex', gap: '16px' }}>
-          {THEMES.map(t => (
-            <button
-              key={t.value}
-              onClick={() => saveTheme(t.value)}
-              aria-pressed={theme === t.value}
-              style={{
-                padding: '20px 28px',
-                border: `3px solid ${theme === t.value ? t.primary : '#ddd'}`,
-                borderRadius: '8px',
-                cursor: 'pointer',
-                background: '#fff',
-                minWidth: '160px',
-                minHeight: '80px',
-              }}
-            >
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: t.primary, display: 'inline-block' }} />
-                <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: t.accent, display: 'inline-block' }} />
-              </div>
-              <div style={{ fontWeight: '600', fontSize: '14px' }}>{t.label}</div>
-              {theme === t.value && <div style={{ fontSize: '12px', color: 'green', marginTop: '4px' }}>✓ Active</div>}
-            </button>
-          ))}
+        <h2 style={{ fontSize: '20px', marginBottom: '6px' }}>Theme</h2>
+        <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
+          Choose a preset or set your own colors. The site updates for all visitors after saving.
+        </p>
+
+        {/* Preset grid */}
+        <div style={{ marginBottom: '8px' }}>
+          <span style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-text-muted)' }}>Presets</span>
         </div>
-        {themeSaved && <p role="status" aria-live="polite" style={{ color: 'green', marginTop: '8px', fontSize: '14px' }}>Theme saved ✓</p>}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 80px)', gap: '10px', marginBottom: '24px' }}>
+          {PRESETS.map(preset => {
+            const isActive = selectedPreset.name === preset.name
+            return (
+              <button
+                key={preset.name}
+                onClick={() => handlePresetClick(preset)}
+                aria-pressed={isActive}
+                style={{
+                  background: 'none', border: 'none', padding: 0,
+                  cursor: 'pointer', textAlign: 'center',
+                }}
+              >
+                <div style={{
+                  border: `3px solid ${isActive ? preset.primary : '#ddd'}`,
+                  borderRadius: '8px', overflow: 'hidden', marginBottom: '4px',
+                }}>
+                  <div style={{ height: '28px', background: preset.primary }} />
+                  <div style={{ height: '28px', background: preset.accent }} />
+                </div>
+                <span style={{ fontSize: '10px', color: isActive ? preset.primary : '#888', fontWeight: isActive ? 700 : 400 }}>
+                  {preset.name}{isActive ? <span aria-hidden="true"> ✓</span> : ''}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Custom pickers */}
+        <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '20px', marginBottom: '16px' }}>
+          <span style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '14px' }}>
+            Custom Colors
+          </span>
+          <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label htmlFor="picker-primary" style={{ fontSize: '13px', fontWeight: 500 }}>Primary</label>
+              <input
+                id="picker-primary"
+                type="color"
+                value={pickerPrimary}
+                onChange={e => handlePickerChange(e.target.value, pickerAccent)}
+                aria-label="Primary color"
+                style={{ width: '44px', height: '44px', border: '2px solid var(--color-border)', borderRadius: '6px', cursor: 'pointer', padding: '2px' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label htmlFor="picker-accent" style={{ fontSize: '13px', fontWeight: 500 }}>Accent</label>
+              <input
+                id="picker-accent"
+                type="color"
+                value={pickerAccent}
+                onChange={e => handlePickerChange(pickerPrimary, e.target.value)}
+                aria-label="Accent color"
+                style={{ width: '44px', height: '44px', border: '2px solid var(--color-border)', borderRadius: '6px', cursor: 'pointer', padding: '2px' }}
+              />
+            </div>
+
+            {/* Preview strip */}
+            {previewVars && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 500 }}>Preview</span>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {PREVIEW_STRIP_VARS.map(key => (
+                    <div
+                      key={key}
+                      title={key}
+                      style={{ width: '24px', height: '44px', borderRadius: '3px', background: previewVars[key], border: '1px solid #ddd' }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '10px' }}>
+            Tip: Primary is used for headings and borders. Accent is used for highlights and buttons.
+          </p>
+        </div>
+
+        <button
+          onClick={saveTheme}
+          style={{ background: 'var(--color-primary)', color: 'var(--color-accent)', padding: '12px 24px', fontSize: '16px', border: 'none', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}
+        >
+          Save Theme
+        </button>
+        {themeSaved && <span role="status" aria-live="polite" style={{ marginLeft: '12px', color: 'green' }}>Saved ✓</span>}
       </section>
 
       {/* Logo */}
       <section style={{ marginBottom: '40px' }}>
         <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Logo</h2>
-        <SiteMap
-          highlight="header"
-          label="Site Header"
-          description="Your logo appears in the top-left corner of every page."
-        />
+        <SiteMap highlight="header" label="Site Header" description="Your logo appears in the top-left corner of every page." />
         {settings.logo_url && (
           <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginBottom: '12px' }}>Current logo set. Upload a new one to replace it.</p>
         )}
         <ImageUploader bucket="branding" onUpload={handleLogoUpload} label="Upload Logo" />
       </section>
 
+      {/* Hero Image */}
+      <section style={{ marginBottom: '40px' }}>
+        <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Hero Image</h2>
+        <SiteMap highlight="hero" label="Hero Section" description="Full-width background image on the homepage hero." />
+        {settings.hero_image_url && (
+          <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginBottom: '12px' }}>Current hero image set. Upload a new one to replace it.</p>
+        )}
+        <ImageUploader bucket="branding" onUpload={handleHeroUpload} label="Upload Hero Image" />
+      </section>
+
       {/* Announcement banner */}
       <section>
         <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Announcement Banner</h2>
-        <SiteMap
-          highlight="announcement"
-          label="Announcement Bar"
-          description="Slim banner displayed above the header on every page."
-        />
+        <SiteMap highlight="announcement" label="Announcement Bar" description="Slim banner displayed above the header on every page." />
         <form onSubmit={saveAnnouncement}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '16px', cursor: 'pointer' }}>
             <input
