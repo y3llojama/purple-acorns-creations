@@ -9,10 +9,10 @@ interface Props {
 }
 
 const MAX_SIZE = 5 * 1024 * 1024
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml']
 
 function validateFile(file: File): string | null {
-  if (!ALLOWED_TYPES.includes(file.type)) return 'Only JPEG, PNG, WebP, and GIF images are allowed.'
+  if (!ALLOWED_TYPES.includes(file.type)) return 'Only JPEG, PNG, WebP, GIF, and SVG images are allowed.'
   if (file.size > MAX_SIZE) return 'Image must be under 5MB.'
   return null
 }
@@ -84,7 +84,7 @@ export default function ImageUploader({ bucket, onUpload, label = 'Upload Image'
       <input
         ref={fileRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
+        accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
         onChange={handleChange}
         style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
         aria-hidden="true"

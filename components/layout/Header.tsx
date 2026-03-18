@@ -1,7 +1,6 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 
 const NAV_LINKS = [
   { href: '/shop', label: 'Shop' },
@@ -20,7 +19,8 @@ export default function Header({ logoUrl, businessName }: Props) {
       <nav aria-label="Main navigation" style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '72px' }}>
         <Link href="/" aria-label={`${businessName} — home`}>
           {logoUrl
-            ? <Image src={logoUrl} alt={businessName} height={48} width={160} style={{ objectFit: 'contain' }} />
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={logoUrl} alt={businessName} style={{ height: '48px', maxWidth: '160px', objectFit: 'contain' }} />
             : <span style={{ fontFamily: 'var(--font-display)', fontSize: '26px', fontWeight: 600, letterSpacing: '0.01em', color: 'var(--color-primary)' }}>{businessName}</span>
           }
         </Link>
