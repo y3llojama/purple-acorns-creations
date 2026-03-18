@@ -18,6 +18,7 @@ export interface Settings {
   smtp_port: number | null
   smtp_user: string | null
   smtp_pass: string | null
+  business_name: string
   updated_at: string
 }
 

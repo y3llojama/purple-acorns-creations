@@ -14,6 +14,7 @@ const DEFAULT_SETTINGS: Settings = {
   social_pinterest: null, social_x: null, behold_widget_id: null,
   custom_primary: null, custom_accent: null, hero_image_url: null, gallery_watermark: null, follow_along_mode: 'widget',
   smtp_host: 'smtp.gmail.com', smtp_port: 587, smtp_user: null, smtp_pass: null,
+  business_name: 'Purple Acorns Creations',
   updated_at: '',
 }
 
