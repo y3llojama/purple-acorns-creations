@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import type { Settings } from '@/lib/supabase/types'
 import { isValidHttpsUrl } from '@/lib/validate'
-import ContactForm from './ContactForm'
 
 interface Props { settings: Settings }
 
@@ -18,37 +17,29 @@ const SOCIALS: SocialDef[] = [
 export default function Footer({ settings }: Props) {
   const year = new Date().getFullYear()
   return (
-    <footer id="contact" style={{ background: 'var(--color-primary)', color: 'var(--color-bg)', padding: '48px 24px' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px' }}>
-        <div>
-          <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-accent)', marginBottom: '8px', fontSize: '28px' }}>
-            Say Hello
-          </h2>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '16px', marginBottom: '24px', lineHeight: 1.6 }}>
-            Questions, custom orders, or just want to chat — we&apos;d love to hear from you.
-          </p>
-          <ContactForm />
+    <footer style={{ background: 'var(--color-primary)', color: 'var(--color-bg)', padding: '48px 24px' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '24px' }}>
+          <Link href="/contact" style={{ color: 'var(--color-accent)', fontSize: '18px' }}>
+            Contact Us
+          </Link>
+          {SOCIALS.map(({ key, label, buildUrl }) => {
+            const val = settings[key] as string | null
+            if (!val) return null
+            const href = buildUrl(val)
+            if (!isValidHttpsUrl(href)) return null
+            return (
+              <a key={key} href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)', fontSize: '18px' }}>
+                {label}
+              </a>
+            )
+          })}
         </div>
-        <div>
-          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '24px' }}>
-            {SOCIALS.map(({ key, label, buildUrl }) => {
-              const val = settings[key] as string | null
-              if (!val) return null
-              const href = buildUrl(val)
-              if (!isValidHttpsUrl(href)) return null
-              return (
-                <a key={key} href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)', fontSize: '18px' }}>
-                  {label}
-                </a>
-              )
-            })}
-          </div>
-          <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.5)', marginTop: '16px' }}>
-            © {year} Purple Acorns Creations ·{' '}
-            <Link href="/privacy" style={{ color: 'rgba(255,255,255,0.5)' }}>Privacy Policy</Link> ·{' '}
-            <Link href="/terms" style={{ color: 'rgba(255,255,255,0.5)' }}>Terms of Service</Link>
-          </p>
-        </div>
+        <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.5)' }}>
+          © {year} Purple Acorns Creations ·{' '}
+          <Link href="/privacy" style={{ color: 'rgba(255,255,255,0.5)' }}>Privacy Policy</Link> ·{' '}
+          <Link href="/terms" style={{ color: 'rgba(255,255,255,0.5)' }}>Terms of Service</Link>
+        </p>
       </div>
     </footer>
   )
