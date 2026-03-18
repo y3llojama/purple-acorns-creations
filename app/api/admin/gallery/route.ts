@@ -17,13 +17,29 @@ export async function POST(request: Request) {
   const category = body.category && ALLOWED_CATEGORIES.includes(String(body.category) as typeof ALLOWED_CATEGORIES[number])
     ? String(body.category)
     : null
+  const watermark_text = body.watermark_text ? sanitizeText(clampLength(String(body.watermark_text), 100)) : null
   const supabase = createServiceRoleClient()
   const { data, error: dbError } = await supabase.from('gallery').insert({
-    url, alt_text, category,
+    url, alt_text, category, watermark_text,
     sort_order: Number(body.sort_order) || 0,
   }).select().single()
   if (dbError) return NextResponse.json({ error: 'Failed to add gallery item' }, { status: 500 })
   return NextResponse.json(data, { status: 201 })
+}
+
+export async function PATCH(request: Request) {
+  const { error } = await requireAdminSession()
+  if (error) return error
+  const body = await request.json().catch(() => ({} as Record<string, unknown>))
+  if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+  const update: Record<string, string | null> = {}
+  if (body.watermark_text !== undefined) {
+    update.watermark_text = body.watermark_text ? sanitizeText(clampLength(String(body.watermark_text), 100)) : null
+  }
+  const supabase = createServiceRoleClient()
+  const { error: dbError } = await supabase.from('gallery').update(update).eq('id', String(body.id))
+  if (dbError) return NextResponse.json({ error: 'Failed to update gallery item' }, { status: 500 })
+  return NextResponse.json({ success: true })
 }
 
 export async function DELETE(request: Request) {

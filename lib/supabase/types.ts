@@ -21,7 +21,8 @@ export interface Event {
 }
 
 export interface GalleryItem {
-  id: string; url: string; alt_text: string; category: Category | null; sort_order: number; created_at: string
+  id: string; url: string; alt_text: string; category: Category | null; sort_order: number
+  watermark_text: string | null; created_at: string
 }
 
 export interface FeaturedProduct {

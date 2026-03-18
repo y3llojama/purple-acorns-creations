@@ -33,7 +33,7 @@ export default function ContactForm() {
   const fieldStyle: React.CSSProperties = {
     width: '100%', padding: '12px 14px', fontSize: '16px', borderRadius: '6px',
     border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.08)',
-    color: '#fff', outline: 'none', boxSizing: 'border-box',
+    color: '#fff', outline: 'none', boxSizing: 'border-box', minHeight: '48px',
   }
   const labelStyle: React.CSSProperties = {
     display: 'block', marginBottom: '6px', color: 'rgba(255,255,255,0.75)', fontSize: '14px', fontWeight: '500', letterSpacing: '0.03em',
@@ -70,7 +70,7 @@ export default function ContactForm() {
           {status === 'loading' ? 'Sending…' : 'Send Message'}
         </button>
         <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px', margin: 0 }}>
-          <Link href="/privacy" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'underline' }}>Privacy Policy</Link>
+          By submitting, you agree to our <Link href="/privacy" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'underline' }}>Privacy Policy</Link>.
         </p>
       </div>
     </form>

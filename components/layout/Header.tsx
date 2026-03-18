@@ -10,7 +10,7 @@ export default function Header({ logoUrl }: Props) {
         <Link href="/" aria-label="Purple Acorns Creations — home">
           {logoUrl
             ? <Image src={logoUrl} alt="Purple Acorns Creations" height={48} width={160} style={{ objectFit: 'contain' }} />
-            : <span style={{ fontFamily: 'var(--font-display)', fontSize: '22px', color: 'var(--color-primary)' }}>Purple Acorns Creations</span>
+            : <span style={{ fontFamily: 'var(--font-display)', fontSize: '22px', fontWeight: 500, color: 'var(--color-primary)' }}>Purple Acorns Creations</span>
           }
         </Link>
         <ul style={{ listStyle: 'none', display: 'flex', gap: '32px', alignItems: 'center' }}>
@@ -18,7 +18,7 @@ export default function Header({ logoUrl }: Props) {
             { href: '/shop', label: 'Shop' },
             { href: '/our-story', label: 'Our Story' },
             { href: '/#events', label: 'Events' },
-            { href: '/#contact', label: 'Contact' },
+            { href: '/contact', label: 'Contact' },
           ].map(({ href, label }) => (
             <li key={href}>
               <Link href={href} style={{ color: 'var(--color-text)', textDecoration: 'none', fontSize: '18px', fontWeight: '500' }}>

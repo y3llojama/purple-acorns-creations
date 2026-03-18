@@ -55,6 +55,23 @@ export default function GalleryManager({ initialItems }: Props) {
             <Image src={item.url} alt={item.alt_text} width={200} height={200} style={{ width: '100%', height: '200px', objectFit: 'cover' }} />
             <div style={{ padding: '8px' }}>
               <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '8px', lineHeight: 1.3 }}>{item.alt_text}</p>
+              <input
+                type="text"
+                placeholder="Watermark text (optional)"
+                defaultValue={item.watermark_text ?? ''}
+                onBlur={async (e) => {
+                  const val = e.target.value.trim()
+                  const prev = item.watermark_text ?? ''
+                  if (val === prev) return
+                  const res = await fetch('/api/admin/gallery', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: item.id, watermark_text: val || null }),
+                  })
+                  if (res.ok) setItems(prev => prev.map(i => i.id === item.id ? { ...i, watermark_text: val || null } : i))
+                }}
+                style={{ width: '100%', padding: '6px 8px', fontSize: '13px', borderRadius: '4px', border: '1px solid var(--color-border)', marginBottom: '8px', minHeight: '48px' }}
+              />
               <button
                 onClick={() => setDeleteId(item.id)}
                 aria-label={`Delete ${item.alt_text}`}
