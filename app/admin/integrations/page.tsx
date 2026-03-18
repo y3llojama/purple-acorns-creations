@@ -1,7 +1,6 @@
 'use client'
 import { useState } from 'react'
 
-export const metadata = { title: 'Admin — Integrations' }
 
 function SavedStatus({ saved }: { saved: boolean }) {
   if (!saved) return null

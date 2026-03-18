@@ -44,7 +44,7 @@ export default function BrandingEditor({ settings }: Props) {
     if (res.ok) setAnnouncementSaved(true)
   }
 
-  async function handleLogoUpload(url: string) {
+  async function handleLogoUpload(url: string, _altText: string) {
     await fetch('/api/admin/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -39,8 +39,11 @@ export default function EventsManager({ initialEvents }: Props) {
   }
 
   async function handleDelete(id: string) {
-    await fetch('/api/admin/events', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-    setEvents(ev => ev.filter(e => e.id !== id))
+    try {
+      const res = await fetch('/api/admin/events', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+      if (!res.ok) { setDeleteId(null); return }
+      setEvents(ev => ev.filter(e => e.id !== id))
+    } catch { /* Network error — keep item in list */ }
     setDeleteId(null)
   }
 

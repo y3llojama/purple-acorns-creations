@@ -43,7 +43,7 @@ export default function ContentEditor({ contentKey, label, initialValue, rows }:
         <button
           onClick={handleSave}
           disabled={status === 'saving'}
-          style={{ background: 'var(--color-primary)', color: 'var(--color-accent)', padding: '10px 20px', fontSize: '16px', border: 'none', borderRadius: '4px', cursor: 'pointer', minHeight: '44px' }}
+          style={{ background: 'var(--color-primary)', color: 'var(--color-accent)', padding: '10px 20px', fontSize: '16px', border: 'none', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}
         >
           {status === 'saving' ? 'Saving…' : 'Save'}
         </button>

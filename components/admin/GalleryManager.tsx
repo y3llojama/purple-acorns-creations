@@ -10,10 +10,9 @@ interface Props { initialItems: GalleryItem[] }
 export default function GalleryManager({ initialItems }: Props) {
   const [items, setItems] = useState<GalleryItem[]>(initialItems)
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [altText, setAltText] = useState('')
 
-  // ImageUploader calls onUpload with the public URL; we then POST to /api/admin/gallery
-  async function handleUpload(url: string) {
+  // ImageUploader calls onUpload with the public URL and alt text; we then POST to /api/admin/gallery
+  async function handleUpload(url: string, altText: string) {
     const res = await fetch('/api/admin/gallery', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -26,12 +25,15 @@ export default function GalleryManager({ initialItems }: Props) {
   }
 
   async function handleDelete(id: string) {
-    await fetch('/api/admin/gallery', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    })
-    setItems(prev => prev.filter(i => i.id !== id))
+    try {
+      const res = await fetch('/api/admin/gallery', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      if (!res.ok) { setDeleteId(null); return }
+      setItems(prev => prev.filter(i => i.id !== id))
+    } catch { /* Network error — keep item in list */ }
     setDeleteId(null)
   }
 
@@ -41,10 +43,6 @@ export default function GalleryManager({ initialItems }: Props) {
 
       <div style={{ background: 'var(--color-surface)', padding: '24px', borderRadius: '8px', border: '1px solid var(--color-border)', marginBottom: '32px' }}>
         <h2 style={{ fontSize: '18px', marginBottom: '16px' }}>Add Photo</h2>
-        <div style={{ marginBottom: '12px' }}>
-          <label htmlFor="gallery-alt" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Alt text</label>
-          <input id="gallery-alt" value={altText} onChange={e => setAltText(e.target.value)} placeholder="Describe the photo" style={{ width: '100%', padding: '8px', fontSize: '16px', borderRadius: '4px', border: '1px solid var(--color-border)', marginBottom: '8px' }} />
-        </div>
         <ImageUploader bucket="gallery" onUpload={handleUpload} label="Upload Photo" />
       </div>
 
@@ -57,7 +55,7 @@ export default function GalleryManager({ initialItems }: Props) {
               <button
                 onClick={() => setDeleteId(item.id)}
                 aria-label={`Delete ${item.alt_text}`}
-                style={{ background: 'none', border: '1px solid #c05050', color: '#c05050', padding: '4px 12px', fontSize: '13px', borderRadius: '4px', cursor: 'pointer', width: '100%', minHeight: '36px' }}
+                style={{ background: 'none', border: '1px solid #c05050', color: '#c05050', padding: '4px 12px', fontSize: '13px', borderRadius: '4px', cursor: 'pointer', width: '100%', minHeight: '48px' }}
               >
                 Delete
               </button>
