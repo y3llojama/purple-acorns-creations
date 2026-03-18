@@ -2,7 +2,6 @@ import { Settings } from '@/lib/supabase/types'
 import AnnouncementBanner from '@/components/layout/AnnouncementBanner'
 import AnalyticsTracker from '@/components/AnalyticsTracker'
 import ModernHeader from './ModernHeader'
-import ModernNavDrawer from './ModernNavDrawer'
 import ModernFooter from './ModernFooter'
 import ModernFAB from './ModernFAB'
 import PageLoadOverlay from './PageLoadOverlay'
@@ -38,7 +37,6 @@ export default function ModernLayout({
         businessName={settings.business_name}
         squareStoreUrl={settings.square_store_url}
       />
-      <ModernNavDrawer />
       <main id="main-content" style={{ minHeight: '60vh' }}>
         {children}
       </main>
