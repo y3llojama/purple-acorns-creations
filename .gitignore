@@ -44,3 +44,12 @@ next-env.d.ts
 # Worktrees
 .worktrees/
 worktrees/
+
+# Terraform
+infra/.terraform/
+infra/terraform.tfstate
+infra/terraform.tfstate.backup
+infra/*.tfvars
+
+# Backups — settings contains API keys, never commit
+backups/settings.sql
