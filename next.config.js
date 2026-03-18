@@ -30,7 +30,7 @@ const nextConfig = {
   },
   images: {
     localPatterns: [
-      { pathname: '/api/gallery/image', search: '?url=*' },
+      { pathname: '/api/gallery/image' },
     ],
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },
