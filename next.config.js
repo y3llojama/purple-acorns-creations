@@ -18,7 +18,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "frame-src 'self' https://*.squarespace.com https://*.square.site https://*.squareup.com",
-              "img-src 'self' data: https://*.supabase.co https://cdn.behold.so",
+              "img-src 'self' data: https://*.supabase.co https://cdn.behold.so https://live.staticflickr.com",
               "connect-src 'self' https://*.supabase.co https://*.mailchimp.com",
               "frame-ancestors 'self'",
             ].join('; '),
@@ -31,6 +31,7 @@ const nextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },
+      { protocol: 'https', hostname: 'live.staticflickr.com' },
     ],
   },
 }

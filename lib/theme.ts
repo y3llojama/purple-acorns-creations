@@ -15,7 +15,7 @@ const DEFAULT_SETTINGS: Settings = {
 
 export async function getSettings(): Promise<Settings> {
   const supabase = createServiceRoleClient()
-  const { data, error } = await supabase.from('settings').select('*').single()
+  const { data, error } = await supabase.from('settings').select('*').limit(1).maybeSingle()
   if (error || !data) {
     console.error('[getSettings] Failed to load settings:', error?.message)
     return DEFAULT_SETTINGS

@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { getSettings } from '@/lib/theme'
-import { sanitizeText } from '@/lib/sanitize'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -21,21 +20,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const settings = await getSettings()
   const theme = settings.theme ?? 'warm-artisan'
 
-  // Sanitize announcement text before rendering (defense-in-depth)
-  const announcementText = settings.announcement_text
-    ? sanitizeText(settings.announcement_text)
-    : ''
-
   return (
     <html lang="en" data-theme={theme}>
       <body>
         <a href="#main-content" className="skip-link">
           Skip to main content
         </a>
-        {settings.announcement_enabled && announcementText && (
-          <div id="announcement-placeholder" data-text={announcementText} data-link-url={settings.announcement_link_url ?? ''} data-link-label={settings.announcement_link_label ?? ''} />
-        )}
-        <main id="main-content">{children}</main>
+        {children}
         <Analytics />
         <SpeedInsights />
       </body>
