@@ -26,6 +26,6 @@ export async function getSettings(): Promise<Settings> {
     console.error('[getSettings] Failed to load settings:', error?.message)
     return DEFAULT_SETTINGS
   }
-  return data as Settings
+  return { ...DEFAULT_SETTINGS, ...data } as Settings
 }
 

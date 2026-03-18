@@ -1,4 +1,6 @@
+'use client'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import type { Settings } from '@/lib/supabase/types'
 import { isValidHttpsUrl } from '@/lib/validate'
 
@@ -16,13 +18,16 @@ const SOCIALS: SocialDef[] = [
 
 export default function Footer({ settings }: Props) {
   const year = new Date().getFullYear()
+  const pathname = usePathname()
   return (
     <footer style={{ background: 'var(--color-primary)', color: 'var(--color-bg)', padding: '48px 24px' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '24px' }}>
-          <Link href="/contact" style={{ color: 'var(--color-accent)', fontSize: '18px' }}>
-            Contact Us
-          </Link>
+          {pathname !== '/contact' && (
+            <Link href="/contact" style={{ color: 'var(--color-accent)', fontSize: '18px' }}>
+              Contact Us
+            </Link>
+          )}
           {SOCIALS.map(({ key, label, buildUrl }) => {
             const val = settings[key] as string | null
             if (!val) return null

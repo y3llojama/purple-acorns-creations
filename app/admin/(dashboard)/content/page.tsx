@@ -1,4 +1,5 @@
 import { getAllContent, type ContentFormat } from '@/lib/content'
+import { getSettings } from '@/lib/theme'
 import ContentEditor from '@/components/admin/ContentEditor'
 import SiteMap from '@/components/admin/SiteMap'
 
@@ -25,7 +26,8 @@ const LEGAL_FIELDS = [
 const HTML_KEYS = ['story_full', 'privacy_policy', 'terms_of_service'] as const
 
 export default async function ContentAdminPage() {
-  const content = await getAllContent()
+  const [content, settings] = await Promise.all([getAllContent(), getSettings()])
+  const businessName = settings.business_name
 
   function formatFor(key: string): ContentFormat {
     const v = content[`${key}__format`]
@@ -38,12 +40,12 @@ export default async function ContentAdminPage() {
 
       <SiteMap highlight="hero" label="Hero Section" description="The large opening section every visitor sees first on the homepage." />
       {HERO_FIELDS.map(({ key, label, rows }) => (
-        <ContentEditor key={key} contentKey={key} label={label} initialValue={content[key] ?? ''} rows={rows} />
+        <ContentEditor key={key} contentKey={key} label={label} initialValue={content[key] ?? ''} rows={rows} businessName={businessName} />
       ))}
 
       <SiteMap highlight="story" label="Story Teaser" description="Short excerpt on the homepage that links to your full story." />
       {STORY_TEASER_FIELDS.map(({ key, label, rows }) => (
-        <ContentEditor key={key} contentKey={key} label={label} initialValue={content[key] ?? ''} rows={rows} />
+        <ContentEditor key={key} contentKey={key} label={label} initialValue={content[key] ?? ''} rows={rows} businessName={businessName} />
       ))}
 
       <SiteMap highlight="our-story" label="Our Story Page" description="The full story shown on the /our-story page, not the homepage." />
@@ -51,7 +53,7 @@ export default async function ContentAdminPage() {
         <ContentEditor
           key={key} contentKey={key} label={label}
           initialValue={content[key] ?? ''} rows={rows}
-          supportsMarkdown initialFormat={formatFor(key)}
+          supportsMarkdown initialFormat={formatFor(key)} businessName={businessName}
         />
       ))}
 
@@ -59,7 +61,7 @@ export default async function ContentAdminPage() {
         <ContentEditor
           key={key} contentKey={key} label={label}
           initialValue={content[key] ?? ''} rows={rows}
-          supportsMarkdown initialFormat={formatFor(key)}
+          supportsMarkdown initialFormat={formatFor(key)} businessName={businessName}
         />
       ))}
     </div>

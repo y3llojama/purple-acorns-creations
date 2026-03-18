@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { marked } from 'marked'
+import { interpolate, buildVars } from '@/lib/variables'
 
 type Format = 'html' | 'markdown'
 type Tab = 'edit' | 'preview'
@@ -12,6 +13,7 @@ interface Props {
   rows: number
   supportsMarkdown?: boolean
   initialFormat?: Format
+  businessName?: string
 }
 
 // Tags the sanitizer allows — anything else will be stripped on publish.
@@ -105,6 +107,7 @@ export default function ContentEditor({
   rows,
   supportsMarkdown = false,
   initialFormat = 'html',
+  businessName,
 }: Props) {
   const [value, setValue] = useState(initialValue)
   const [format, setFormat] = useState<Format>(initialFormat)
@@ -128,12 +131,14 @@ export default function ContentEditor({
 
   useEffect(() => {
     if (tab !== 'preview') return
+    const vars = buildVars(businessName ?? '')
+    const resolved = interpolate(value, vars)
     if (format === 'markdown') {
-      Promise.resolve(marked(value, { gfm: true, breaks: true })).then(html => setPreview(html))
+      Promise.resolve(marked(resolved, { gfm: true, breaks: true })).then(html => setPreview(html))
     } else {
-      setPreview(value)
+      setPreview(resolved)
     }
-  }, [tab, value, format])
+  }, [tab, value, format, businessName])
 
   const warning = tab === 'edit'
     ? (format === 'html' ? validateHtml(value) : validateMarkdown(value))
