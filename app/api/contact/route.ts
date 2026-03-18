@@ -1,21 +1,39 @@
 import { NextResponse } from 'next/server'
-import { isValidEmail, clampLength } from '@/lib/validate'
+import { isValidEmail, clampLength, stripControlChars } from '@/lib/validate'
 import { sanitizeText } from '@/lib/sanitize'
 
 // Rate limiter: 1 submission per IP per 60 seconds
 const rateLimitMap = new Map<string, number>()
 
+// Prune stale entries every 5 minutes to prevent memory leak
+const PRUNE_INTERVAL = 5 * 60_000
+const RATE_WINDOW = 60_000
+let lastPrune = Date.now()
+
+function pruneRateLimitMap() {
+  const now = Date.now()
+  if (now - lastPrune < PRUNE_INTERVAL) return
+  lastPrune = now
+  for (const [ip, timestamp] of rateLimitMap) {
+    if (now - timestamp > RATE_WINDOW) rateLimitMap.delete(ip)
+  }
+}
+
 export async function POST(request: Request) {
+  pruneRateLimitMap()
+
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ?? 'unknown'
   const now = Date.now()
-  if ((rateLimitMap.get(ip) ?? 0) + 60_000 > now) {
+  if ((rateLimitMap.get(ip) ?? 0) + RATE_WINDOW > now) {
     return NextResponse.json({ error: 'Too many requests. Please wait a minute.' }, { status: 429 })
   }
   rateLimitMap.set(ip, now)
 
   const body = await request.json().catch(() => ({} as Record<string, unknown>))
-  const name = sanitizeText(clampLength(String(body.name ?? ''), 100))
-  const email = sanitizeText(String(body.email ?? '').trim().toLowerCase())
+
+  // Sanitize: strip HTML tags, control characters, and clamp length
+  const name = stripControlChars(sanitizeText(clampLength(String(body.name ?? ''), 100)))
+  const email = stripControlChars(sanitizeText(String(body.email ?? '').trim().toLowerCase()))
   const message = sanitizeText(clampLength(String(body.message ?? ''), 2000))
 
   if (!name) return NextResponse.json({ error: 'Name is required.' }, { status: 400 })
@@ -24,15 +42,19 @@ export async function POST(request: Request) {
 
   const { createServiceRoleClient } = await import('@/lib/supabase/server')
   const supabase = createServiceRoleClient()
-  const { data: settings } = await supabase.from('settings').select('contact_email').single()
 
-  if (!settings?.contact_email) {
-    return NextResponse.json({ error: 'Contact form not yet configured. Please email us directly.' }, { status: 503 })
+  // Save message to database (Supabase uses parameterized queries — no SQL injection)
+  const { error: dbError } = await supabase.from('messages').insert({ name, email, message })
+  if (dbError) {
+    console.error('[Contact] DB error:', dbError.message)
+    return NextResponse.json({ error: 'Failed to save message. Please try again.' }, { status: 500 })
   }
 
-  // In production: integrate with Resend/Postmark/etc. for actual email delivery
-  // For now: log server-side (replace with actual send before launch)
-  console.log(`[Contact] From: ${name} <${email}> | To: ${settings.contact_email} | Message: ${message}`)
+  // Send notification email to admin (non-blocking — don't fail the request if email fails)
+  const { sendContactNotification } = await import('@/lib/email')
+  sendContactNotification(name, email, message).catch(err => {
+    console.error('[Contact] Notification email error:', err)
+  })
 
   return NextResponse.json({ success: true })
 }

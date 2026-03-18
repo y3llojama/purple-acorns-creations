@@ -31,7 +31,12 @@ export async function PATCH(request: Request) {
   if (error) return error
   const body = await request.json().catch(() => ({} as Record<string, unknown>))
   if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 })
-  const update: Record<string, string | boolean | number> = {}
+  const update: Record<string, string | boolean | number | null> = {}
+  if (body.url !== undefined) {
+    const url = String(body.url)
+    if (!isValidHttpsUrl(url)) return NextResponse.json({ error: 'Valid https image URL required' }, { status: 400 })
+    update.url = url
+  }
   if (body.alt_text !== undefined) {
     const alt_text = sanitizeText(clampLength(String(body.alt_text), 500))
     if (!alt_text) return NextResponse.json({ error: 'Description required for accessibility' }, { status: 400 })
@@ -42,6 +47,11 @@ export async function PATCH(request: Request) {
   }
   if (body.sort_order !== undefined) {
     update.sort_order = Number(body.sort_order) || 0
+  }
+  if (body.square_url !== undefined) {
+    const url = String(body.square_url || '')
+    if (url && !isValidHttpsUrl(url)) return NextResponse.json({ error: 'Square URL must be a valid https URL' }, { status: 400 })
+    update.square_url = url || null
   }
   if (Object.keys(update).length === 0) return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
   const supabase = createServiceRoleClient()

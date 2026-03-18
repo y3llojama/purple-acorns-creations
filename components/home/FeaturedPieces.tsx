@@ -17,23 +17,37 @@ export default function FeaturedPieces({ items, watermark }: Props) {
             const src = watermark
               ? `/api/gallery/image?url=${encodeURIComponent(item.url)}`
               : item.url
+            const Wrapper = item.square_url
+              ? ({ children }: { children: React.ReactNode }) => (
+                  <a href={item.square_url!} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>
+                    {children}
+                  </a>
+                )
+              : ({ children }: { children: React.ReactNode }) => <>{children}</>
             return (
-              <figure key={item.id} style={{ margin: 0, background: 'var(--color-surface)', borderRadius: '8px', overflow: 'hidden' }}>
-                <div style={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
-                  <Image
-                    src={src}
-                    alt={item.alt_text}
-                    fill
-                    style={{ objectFit: 'cover' }}
-                    sizes="(max-width: 768px) 100vw, 280px"
-                  />
-                </div>
-                {item.alt_text && (
-                  <figcaption style={{ padding: '16px', fontSize: '16px', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
-                    {item.alt_text}
-                  </figcaption>
-                )}
-              </figure>
+              <Wrapper key={item.id}>
+                <figure style={{ margin: 0, background: 'var(--color-surface)', borderRadius: '8px', overflow: 'hidden' }}>
+                  <div style={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
+                    <Image
+                      src={src}
+                      alt={item.alt_text}
+                      fill
+                      style={{ objectFit: 'cover' }}
+                      sizes="(max-width: 768px) 100vw, 280px"
+                    />
+                  </div>
+                  {item.alt_text && (
+                    <figcaption style={{ padding: '16px', fontSize: '16px', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+                      {item.alt_text}
+                      {item.square_url && (
+                        <span style={{ display: 'block', marginTop: '8px' }}>
+                          <span style={{ color: 'var(--color-accent)', fontSize: '14px' }}>Shop this piece →</span>
+                        </span>
+                      )}
+                    </figcaption>
+                  )}
+                </figure>
+              </Wrapper>
             )
           })}
         </div>

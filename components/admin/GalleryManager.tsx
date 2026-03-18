@@ -1,31 +1,51 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Image from 'next/image'
+import { createClient } from '@/lib/supabase/client'
 import ImageUploader from './ImageUploader'
 import ConfirmDialog from './ConfirmDialog'
 import SiteMap from './SiteMap'
 import type { GalleryItem } from '@/lib/supabase/types'
 
-function EditableDescription({ id, value, onSave }: { id: string; value: string; onSave: (id: string, v: string) => void }) {
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const MAX_SIZE = 5 * 1024 * 1024
+
+function EditableField({ id, value, onSave, label, placeholder, rows = 2, maxLength = 500, type = 'textarea' }: {
+  id: string; value: string; onSave: (id: string, v: string) => void
+  label: string; placeholder?: string; rows?: number; maxLength?: number; type?: 'textarea' | 'url'
+}) {
   const [text, setText] = useState(value)
   const [saved, setSaved] = useState(false)
   const changed = text !== value
 
+  const inputStyle = { width: '100%', fontSize: '13px', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--color-border)', resize: 'vertical' as const, lineHeight: 1.3, fontFamily: 'inherit' }
+
   return (
     <div style={{ marginBottom: '8px' }}>
-      <textarea
-        value={text}
-        onChange={e => { setText(e.target.value); setSaved(false) }}
-        rows={2}
-        maxLength={500}
-        style={{ width: '100%', fontSize: '13px', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--color-border)', resize: 'vertical', lineHeight: 1.3, fontFamily: 'inherit' }}
-      />
+      {type === 'textarea' ? (
+        <textarea
+          value={text}
+          onChange={e => { setText(e.target.value); setSaved(false) }}
+          rows={rows}
+          maxLength={maxLength}
+          placeholder={placeholder}
+          style={inputStyle}
+        />
+      ) : (
+        <input
+          type="url"
+          value={text}
+          onChange={e => { setText(e.target.value); setSaved(false) }}
+          placeholder={placeholder}
+          style={{ ...inputStyle, minHeight: '36px' }}
+        />
+      )}
       {changed && (
         <button
           onClick={() => { onSave(id, text.trim()); setSaved(true) }}
           style={{ background: 'var(--color-primary)', color: 'var(--color-accent)', border: 'none', borderRadius: '4px', padding: '4px 12px', fontSize: '12px', cursor: 'pointer', marginTop: '4px', minHeight: '48px', width: '100%' }}
         >
-          Save Description
+          Save {label}
         </button>
       )}
       {saved && !changed && <span style={{ fontSize: '12px', color: 'green' }}>Saved ✓</span>}
@@ -38,6 +58,8 @@ interface Props { initialItems: GalleryItem[]; watermark: string | null }
 export default function GalleryManager({ initialItems, watermark }: Props) {
   const [items, setItems] = useState<GalleryItem[]>(initialItems)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [replacingId, setReplacingId] = useState<string | null>(null)
+  const replaceInputRef = useRef<HTMLInputElement>(null)
   const [watermarkText, setWatermarkText] = useState(watermark ?? '')
   const [watermarkSaved, setWatermarkSaved] = useState(false)
   const [watermarkError, setWatermarkError] = useState<string | null>(null)
@@ -108,6 +130,29 @@ export default function GalleryManager({ initialItems, watermark }: Props) {
     ])
   }
 
+  function startReplace(id: string) {
+    setReplacingId(id)
+    setTimeout(() => replaceInputRef.current?.click(), 0)
+  }
+
+  async function handleReplace(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !replacingId) { setReplacingId(null); return }
+    if (!ALLOWED_TYPES.includes(file.type)) { setReplacingId(null); return }
+    if (file.size > MAX_SIZE) { setReplacingId(null); return }
+    try {
+      const supabase = createClient()
+      const ext = file.name.split('.').pop()
+      const path = `${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage.from('gallery').upload(path, file)
+      if (uploadError) throw uploadError
+      const { data } = supabase.storage.from('gallery').getPublicUrl(path)
+      await handlePatch(replacingId, { url: data.publicUrl })
+    } catch { /* upload failed — keep existing image */ }
+    setReplacingId(null)
+    if (replaceInputRef.current) replaceInputRef.current.value = ''
+  }
+
   async function saveWatermark() {
     setWatermarkError(null)
     const res = await fetch('/api/admin/settings', {
@@ -164,6 +209,13 @@ export default function GalleryManager({ initialItems, watermark }: Props) {
           <div key={item.id} style={{ position: 'relative', background: 'var(--color-surface)', borderRadius: '8px', overflow: 'hidden', border: item.is_featured ? '2px solid var(--color-primary)' : '1px solid var(--color-border)' }}>
             <Image src={item.url} alt={item.alt_text} width={200} height={200} style={{ width: '100%', height: '200px', objectFit: 'cover' }} />
             <div style={{ padding: '8px' }}>
+              <button
+                onClick={() => startReplace(item.id)}
+                disabled={replacingId === item.id}
+                style={{ width: '100%', minHeight: '48px', fontSize: '13px', cursor: 'pointer', background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', marginBottom: '8px' }}
+              >
+                {replacingId === item.id ? 'Uploading…' : 'Replace Photo'}
+              </button>
               <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
                 <button
                   onClick={() => handleMove(idx, -1)}
@@ -182,10 +234,19 @@ export default function GalleryManager({ initialItems, watermark }: Props) {
                   →
                 </button>
               </div>
-              <EditableDescription
+              <EditableField
                 id={item.id}
                 value={item.alt_text}
                 onSave={(id, v) => handlePatch(id, { alt_text: v })}
+                label="Description"
+              />
+              <EditableField
+                id={item.id}
+                value={item.square_url ?? ''}
+                onSave={(id, v) => handlePatch(id, { square_url: v || null })}
+                label="Square Link"
+                placeholder="https://squareup.com/..."
+                type="url"
               />
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', marginBottom: '8px', minHeight: '48px' }}>
                 <input
@@ -207,6 +268,16 @@ export default function GalleryManager({ initialItems, watermark }: Props) {
           </div>
         ))}
       </div>
+
+      <input
+        ref={replaceInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        onChange={handleReplace}
+        style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+        aria-hidden="true"
+        tabIndex={-1}
+      />
 
       {deleteId && (
         <ConfirmDialog

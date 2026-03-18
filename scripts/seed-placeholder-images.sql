@@ -4,7 +4,6 @@
 
 -- Clear existing placeholder data (skip if you have real data you want to keep)
 DELETE FROM gallery;
-DELETE FROM featured_products;
 
 -- Gallery images (mix of categories)
 INSERT INTO gallery (url, alt_text, category, sort_order) VALUES
@@ -38,20 +37,5 @@ INSERT INTO gallery (url, alt_text, category, sort_order) VALUES
   ('https://live.staticflickr.com/3077/3247078310_cdf30325fd_b.jpg',
    'Artisan handmade jewelry collection', 'other', 10);
 
--- Featured products
-INSERT INTO featured_products (name, price, description, image_url, sort_order, is_active) VALUES
-  ('Luna Pendant Necklace', 48.00,
-   'Handcrafted briolette pendant on a delicate sterling silver chain. Each piece is one of a kind.',
-   'https://live.staticflickr.com/3114/3238697956_7bef4b18ef_b.jpg', 1, true),
-
-  ('Silver Ring Set', 36.00,
-   'A matching set of gold and silver rings, perfect for stacking. Handmade with care.',
-   'https://live.staticflickr.com/5606/15367822050_a5c7f07a60.jpg', 2, true),
-
-  ('Crochet Bead Bracelet', 28.00,
-   'Hand-crocheted with love using seed beads in our signature color palette. No two are alike.',
-   'https://live.staticflickr.com/4104/4988209903_c4f3f0a9a1_b.jpg', 3, true),
-
-  ('Briolette Drop Earrings', 42.00,
-   'Elegant peridot briolette drop earrings on sterling silver hooks. Light, airy, and beautiful.',
-   'https://live.staticflickr.com/3273/2948282925_ed69243b0a_b.jpg', 4, true);
+-- Mark first 4 gallery items as featured
+UPDATE gallery SET is_featured = true WHERE sort_order <= 4;

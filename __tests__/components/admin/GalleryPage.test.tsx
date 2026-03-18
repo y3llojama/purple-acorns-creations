@@ -14,8 +14,8 @@ jest.mock('@/components/admin/SiteMap', () => ({
 }))
 
 const mockItems: GalleryItem[] = [
-  { id: '1', url: 'https://example.com/photo1.jpg', alt_text: 'A silver ring', category: 'rings', sort_order: 0, created_at: '2026-01-01' },
-  { id: '2', url: 'https://example.com/photo2.jpg', alt_text: 'A necklace', category: 'necklaces', sort_order: 1, created_at: '2026-01-02' },
+  { id: '1', url: 'https://example.com/photo1.jpg', alt_text: 'A silver ring', category: 'rings', sort_order: 0, is_featured: false, square_url: null, created_at: '2026-01-01' },
+  { id: '2', url: 'https://example.com/photo2.jpg', alt_text: 'A necklace', category: 'necklaces', sort_order: 1, is_featured: true, square_url: 'https://squareup.com/store/necklace', created_at: '2026-01-02' },
 ]
 
 describe('GalleryManager', () => {

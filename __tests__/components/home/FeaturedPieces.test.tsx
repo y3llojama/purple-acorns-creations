@@ -10,6 +10,7 @@ const mockItems: GalleryItem[] = [
     category: 'rings',
     sort_order: 1,
     is_featured: true,
+    square_url: 'https://squareup.com/store/ring-1',
     created_at: '2026-01-01',
   },
   {
@@ -19,6 +20,7 @@ const mockItems: GalleryItem[] = [
     category: 'necklaces',
     sort_order: 2,
     is_featured: true,
+    square_url: null,
     created_at: '2026-01-01',
   },
 ]

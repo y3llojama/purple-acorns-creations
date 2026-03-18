@@ -85,7 +85,8 @@ pg_dump "$DATABASE_URL" \
   --table=content \
   --table=events \
   --table=gallery \
-  --table=featured_products \
+  --table=messages \
+  --table=message_replies \
   --no-owner \
   --no-acl \
   --data-only \

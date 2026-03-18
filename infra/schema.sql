@@ -18,6 +18,10 @@ create table if not exists settings (
   social_pinterest text,
   social_x text,
   behold_widget_id text,
+  smtp_host text default 'smtp.gmail.com',
+  smtp_port integer default 587,
+  smtp_user text,
+  smtp_pass text,
   updated_at timestamptz default now()
 );
 insert into settings (id) values (gen_random_uuid())
@@ -43,19 +47,27 @@ create table if not exists gallery (
   alt_text text not null,
   category text check (category in ('rings','necklaces','earrings','bracelets','crochet','other')),
   sort_order integer not null default 0,
+  is_featured boolean not null default false,
+  square_url text,
   created_at timestamptz default now()
 );
 
--- Featured products
-create table if not exists featured_products (
+-- Messages from contact form
+create table if not exists messages (
   id uuid primary key default gen_random_uuid(),
   name text not null,
-  price numeric(10,2) not null,
-  description text,
-  image_url text not null,
-  square_url text,
-  sort_order integer not null default 0,
-  is_active boolean not null default true
+  email text not null,
+  message text not null,
+  is_read boolean not null default false,
+  created_at timestamptz default now()
+);
+
+-- Admin replies to messages
+create table if not exists message_replies (
+  id uuid primary key default gen_random_uuid(),
+  message_id uuid not null references messages(id) on delete cascade,
+  body text not null,
+  created_at timestamptz default now()
 );
 
 -- Content key-value store
@@ -79,8 +91,9 @@ on conflict (key) do nothing;
 alter table settings enable row level security;
 alter table events enable row level security;
 alter table gallery enable row level security;
-alter table featured_products enable row level security;
 alter table content enable row level security;
+alter table messages enable row level security;
+alter table message_replies enable row level security;
 
 -- Public read policies (safe tables only — settings excluded)
 do $$ begin
@@ -93,11 +106,6 @@ do $$ begin
     select 1 from pg_policies where tablename = 'gallery' and policyname = 'Public read gallery'
   ) then
     execute 'create policy "Public read gallery" on gallery for select using (true)';
-  end if;
-  if not exists (
-    select 1 from pg_policies where tablename = 'featured_products' and policyname = 'Public read products'
-  ) then
-    execute 'create policy "Public read products" on featured_products for select using (true)';
   end if;
   if not exists (
     select 1 from pg_policies where tablename = 'content' and policyname = 'Public read content'

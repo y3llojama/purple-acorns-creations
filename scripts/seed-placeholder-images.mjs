@@ -38,27 +38,21 @@ const gallery = [
   { url: 'https://live.staticflickr.com/3077/3247078310_cdf30325fd_b.jpg', alt_text: 'Artisan handmade jewelry collection flat lay',             category: 'other',     sort_order: 10 },
 ]
 
-const products = [
-  { name: 'Luna Pendant Necklace',  price: 48.00, description: 'Handcrafted briolette pendant on a delicate sterling silver chain. Each piece is one of a kind.', image_url: 'https://live.staticflickr.com/3114/3238697956_7bef4b18ef_b.jpg', sort_order: 1, is_active: true },
-  { name: 'Silver Ring Set',        price: 36.00, description: 'A matching set of gold and silver rings, perfect for stacking. Handmade with care.',               image_url: 'https://live.staticflickr.com/5606/15367822050_a5c7f07a60.jpg',  sort_order: 2, is_active: true },
-  { name: 'Crochet Bead Bracelet',  price: 28.00, description: 'Hand-crocheted with love using seed beads in our signature color palette. No two are alike.',     image_url: 'https://live.staticflickr.com/4104/4988209903_c4f3f0a9a1_b.jpg', sort_order: 3, is_active: true },
-  { name: 'Briolette Drop Earrings',price: 42.00, description: 'Elegant peridot briolette drop earrings on sterling silver hooks. Light, airy, and beautiful.',   image_url: 'https://live.staticflickr.com/3273/2948282925_ed69243b0a_b.jpg', sort_order: 4, is_active: true },
-]
-
 async function seed() {
-  console.log('Clearing existing gallery and featured_products...')
+  console.log('Clearing existing gallery...')
   await supabase.from('gallery').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-  await supabase.from('featured_products').delete().neq('id', '00000000-0000-0000-0000-000000000000')
 
   console.log('Inserting gallery images...')
   const { error: gErr } = await supabase.from('gallery').insert(gallery)
   if (gErr) { console.error('gallery insert error:', gErr.message); process.exit(1) }
 
-  console.log('Inserting featured products...')
-  const { error: pErr } = await supabase.from('featured_products').insert(products)
-  if (pErr) { console.error('featured_products insert error:', pErr.message); process.exit(1) }
+  // Mark first 4 items as featured (these show in the Featured Pieces section)
+  const ids = (await supabase.from('gallery').select('id').order('sort_order').limit(4)).data ?? []
+  for (const { id } of ids) {
+    await supabase.from('gallery').update({ is_featured: true }).eq('id', id)
+  }
 
-  console.log('Done! Seeded', gallery.length, 'gallery images and', products.length, 'featured products.')
+  console.log('Done! Seeded', gallery.length, 'gallery images (' + ids.length + ' featured).')
 }
 
 seed()
