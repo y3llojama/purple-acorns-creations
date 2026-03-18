@@ -29,7 +29,11 @@ export default async function HomePage() {
 
   return (
     <>
-      <HeroSection tagline={sanitizeText(content.hero_tagline ?? '')} subtext={sanitizeText(content.hero_subtext ?? '')} />
+      <HeroSection
+        tagline={sanitizeText(content.hero_tagline ?? '')}
+        subtext={sanitizeText(content.hero_subtext ?? '')}
+        heroImageUrl={settings.hero_image_url}
+      />
       <StoryTeaser teaser={sanitizeText(content.story_teaser ?? '')} />
       <FeaturedPieces products={products} />
       <GalleryStrip items={gallery} />
