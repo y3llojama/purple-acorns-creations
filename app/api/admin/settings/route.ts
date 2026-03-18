@@ -4,7 +4,7 @@ import { requireAdminSession } from '@/lib/auth'
 import { isValidHttpsUrl, isValidEmail } from '@/lib/validate'
 import { sanitizeText } from '@/lib/sanitize'
 
-const ALLOWED_THEMES = ['warm-artisan', 'soft-botanical'] as const
+const ALLOWED_THEMES = ['warm-artisan', 'soft-botanical', 'custom'] as const
 type Theme = typeof ALLOWED_THEMES[number]
 
 export async function POST(request: Request) {
@@ -16,9 +16,25 @@ export async function POST(request: Request) {
   if (body.theme !== undefined) {
     if (!ALLOWED_THEMES.includes(String(body.theme) as Theme)) return NextResponse.json({ error: 'Invalid theme' }, { status: 400 })
     update.theme = String(body.theme)
+    if (body.theme === 'warm-artisan' || body.theme === 'soft-botanical') {
+      update.custom_primary = null
+      update.custom_accent  = null
+    }
+  }
+  // Hex color fields — validate format, return 400 if invalid
+  for (const field of ['custom_primary', 'custom_accent'] as const) {
+    if (body[field] !== undefined) {
+      if (body[field] === null) {
+        update[field] = null
+      } else {
+        const val = String(body[field])
+        if (!/^#[0-9a-fA-F]{6}$/.test(val)) return NextResponse.json({ error: `Invalid hex color for ${field}` }, { status: 400 })
+        update[field] = val
+      }
+    }
   }
   // URL fields — only store validated https URLs
-  for (const field of ['logo_url', 'square_store_url', 'announcement_link_url'] as const) {
+  for (const field of ['logo_url', 'square_store_url', 'announcement_link_url', 'hero_image_url'] as const) {
     if (body[field] !== undefined) {
       const val = String(body[field] ?? '')
       update[field] = val ? (isValidHttpsUrl(val) ? val : null) : null
