@@ -18,7 +18,7 @@ export default async function HomePage() {
     getAllContent(),
     getSettings(),
     supabase.from('gallery').select('*').eq('is_featured', true).order('sort_order').then(r => r.data ?? []),
-    supabase.from('gallery').select('*').order('sort_order').limit(8).then(r => r.data ?? []),
+    supabase.from('gallery').select('*').eq('is_featured', false).order('sort_order').limit(8).then(r => r.data ?? []),
     supabase.from('events').select('*').gte('date', today).order('date').limit(1).single(),
   ])
 
