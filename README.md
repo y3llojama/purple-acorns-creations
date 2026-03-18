@@ -19,6 +19,7 @@ Website for Purple Acorns Creations — a handmade jewellery and crochet shop. B
 - [Database Backups](#database-backups)
 - [Deployment](#deployment)
 - [Theming](#theming)
+- [Template Variables](#template-variables)
 - [Security](#security)
 
 ---
@@ -401,6 +402,57 @@ Two themes: `warm-artisan` (default) and `soft-botanical`. Controlled via the `d
 - All colours defined as CSS custom properties in `app/globals.css`
 - No hardcoded colour values outside `globals.css`
 - Toggle available in the admin Branding editor
+
+---
+
+## Template Variables
+
+Certain admin text fields support `${VARIABLE}` placeholders that are substituted at render time. This means you can write them once and they stay correct even after a business rename or URL change.
+
+### Available variables
+
+| Variable | Expands to | Example output |
+|---|---|---|
+| `${BUSINESS_NAME}` | The business name from Admin → Branding | `Purple Acorns Creations` |
+| `${CONTACT_FORM}` | Full URL to the `/contact` page (uses `NEXT_PUBLIC_APP_URL`) | `https://purple-acorns-creations.vercel.app/contact` |
+
+### Where variables are supported
+
+| Location | Field |
+|---|---|
+| Admin → Branding | Announcement banner text |
+| Admin → Content | Hero tagline, hero subtext, story teaser |
+| Admin → Content | Our Story, Privacy Policy, Terms of Service |
+| Admin → Messages | Email reply body |
+
+### Usage examples
+
+**Announcement banner**
+```
+Now booking for spring — reach out at ${CONTACT_FORM}
+```
+
+**Our Story (HTML mode)**
+```html
+<p>Welcome to <strong>${BUSINESS_NAME}</strong>, where every piece tells a story.</p>
+<p>Have a question? <a href="${CONTACT_FORM}">Get in touch.</a></p>
+```
+
+**Our Story (Markdown mode)**
+```markdown
+Welcome to **${BUSINESS_NAME}**, where every piece tells a story.
+
+Have a question? Visit ${CONTACT_FORM}.
+```
+
+**Email reply**
+```
+Thanks for reaching out! We'll have your order ready shortly.
+
+— ${BUSINESS_NAME}
+```
+
+> **Note:** `${CONTACT_FORM}` in HTML `href` attributes requires `NEXT_PUBLIC_APP_URL` to be set to a full `https://` URL, otherwise the link will be stripped by the HTML sanitizer. Plain-text uses (email body, announcement text) work with any value including `http://localhost:3000`.
 
 ---
 
