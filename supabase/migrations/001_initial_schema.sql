@@ -80,11 +80,12 @@ alter table gallery enable row level security;
 alter table featured_products enable row level security;
 alter table content enable row level security;
 
--- Public reads
-create policy "Public read settings" on settings for select using (true);
+-- Public reads for safe, non-sensitive tables
+-- settings is intentionally excluded: it contains mailchimp_api_key and other secrets.
+-- All settings reads use createServiceRoleClient() (server-side only) which bypasses RLS.
 create policy "Public read events" on events for select using (true);
 create policy "Public read gallery" on gallery for select using (true);
 create policy "Public read products" on featured_products for select using (true);
 create policy "Public read content" on content for select using (true);
 
--- All writes go through service_role key (server-side only, bypasses RLS)
+-- All writes and all settings reads go through service_role key (server-side only, bypasses RLS)

@@ -22,6 +22,20 @@ describe('sanitizeContent', () => {
     const result = sanitizeContent('<a href="https://example.com">Link</a>')
     expect(result).toContain('href="https://example.com"')
   })
+  it('injects noopener noreferrer and target=_blank on safe links', () => {
+    const result = sanitizeContent('<a href="https://example.com">Link</a>')
+    expect(result).toContain('rel="noopener noreferrer"')
+    expect(result).toContain('target="_blank"')
+  })
+  it('strips http:// links (https only)', () => {
+    const result = sanitizeContent('<a href="http://evil.com">Click</a>')
+    expect(result).not.toContain('href="http://evil.com"')
+    expect(result).not.toContain('<a ')
+  })
+  it('strips img onerror XSS', () => {
+    const result = sanitizeContent('<img src="x" onerror="alert(1)">')
+    expect(result).not.toContain('onerror')
+  })
 })
 
 describe('sanitizeText', () => {

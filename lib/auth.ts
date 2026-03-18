@@ -2,20 +2,21 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 export async function requireAdminSession(): Promise<
-  { session: { user: { email: string } }; error: null } |
-  { session: null; error: NextResponse }
+  { user: { email: string }; error: null } |
+  { user: null; error: NextResponse }
 > {
   const supabase = createServerSupabaseClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  // getUser() performs server-side JWT verification — never use getSession() for auth
+  const { data: { user }, error } = await supabase.auth.getUser()
 
-  if (!session) {
-    return { session: null, error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+  if (!user || error) {
+    return { user: null, error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
   }
 
   const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim())
-  if (!adminEmails.includes(session.user.email ?? '')) {
-    return { session: null, error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+  if (!adminEmails.includes(user.email ?? '')) {
+    return { user: null, error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
 
-  return { session: session as { user: { email: string } }, error: null }
+  return { user: user as { email: string }, error: null }
 }
