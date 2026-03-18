@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import ImageUploader from './ImageUploader'
 import SiteMap from './SiteMap'
 import { deriveCustomThemeVars } from '@/lib/color'
@@ -45,11 +46,13 @@ function safeDerive(primary: string, accent: string): ThemeVars | null {
 }
 
 export default function BrandingEditor({ settings }: Props) {
+  const router = useRouter()
   const [selectedPreset, setSelectedPreset] = useState<Preset>(() => initPreset(settings))
   const [pickerPrimary, setPickerPrimary]   = useState(selectedPreset.primary)
   const [pickerAccent, setPickerAccent]     = useState(selectedPreset.accent)
   const [previewVars, setPreviewVars]       = useState<ThemeVars | null>(() => safeDerive(selectedPreset.primary, selectedPreset.accent))
   const [themeSaved, setThemeSaved]         = useState(false)
+  const [themeError, setThemeError]         = useState<string | null>(null)
 
   const [announcementEnabled, setAnnouncementEnabled]     = useState(settings.announcement_enabled)
   const [announcementText, setAnnouncementText]           = useState(settings.announcement_text ?? '')
@@ -57,24 +60,61 @@ export default function BrandingEditor({ settings }: Props) {
   const [announcementLinkLabel, setAnnouncementLinkLabel] = useState(settings.announcement_link_label ?? '')
   const [announcementSaved, setAnnouncementSaved]         = useState(false)
 
+  function applyThemePreview(preset: Preset) {
+    const html = document.documentElement
+    // CSSStyleDeclaration doesn't enumerate custom properties via Object.keys,
+    // so remove them explicitly by known key names.
+    const allVarKeys: Array<keyof ThemeVars> = [
+      '--color-primary', '--color-accent', '--color-bg', '--color-surface',
+      '--color-text', '--color-text-muted', '--color-border', '--color-secondary', '--color-focus',
+    ]
+    if (preset.theme === 'warm-artisan' || preset.theme === 'soft-botanical') {
+      html.setAttribute('data-theme', preset.theme)
+      for (const key of allVarKeys) html.style.removeProperty(key)
+    } else {
+      html.setAttribute('data-theme', 'custom')
+      const vars = safeDerive(preset.primary, preset.accent)
+      if (vars) {
+        for (const [k, v] of Object.entries(vars)) html.style.setProperty(k, v)
+      }
+    }
+  }
+
   function handlePresetClick(preset: Preset) {
     setSelectedPreset(preset)
     setPickerPrimary(preset.primary)
     setPickerAccent(preset.accent)
     setPreviewVars(safeDerive(preset.primary, preset.accent))
     setThemeSaved(false)
+    setThemeError(null)
+    applyThemePreview(preset)
+    // Auto-save preset selection
+    const body = preset.theme === 'warm-artisan' || preset.theme === 'soft-botanical'
+      ? { theme: preset.theme, custom_primary: null, custom_accent: null }
+      : { theme: 'custom', custom_primary: preset.primary, custom_accent: preset.accent }
+    fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then(res => {
+      if (res.ok) { setThemeSaved(true); router.refresh() }
+      else res.json().catch(() => ({})).then(d => setThemeError(`Save failed (${res.status}): ${d.error ?? res.statusText}`))
+    })
   }
 
   function handlePickerChange(primary: string, accent: string) {
     setPickerPrimary(primary)
     setPickerAccent(accent)
     const match = PRESETS.find(p => p.primary === primary && p.accent === accent)
-    setSelectedPreset(match ?? { name: 'Custom', theme: 'custom', primary, accent })
+    const preset = match ?? { name: 'Custom', theme: 'custom' as const, primary, accent }
+    setSelectedPreset(preset)
     setPreviewVars(safeDerive(primary, accent))
     setThemeSaved(false)
+    applyThemePreview(preset)
   }
 
   async function saveTheme() {
+    setThemeError(null)
     const body = selectedPreset.theme === 'warm-artisan' || selectedPreset.theme === 'soft-botanical'
       ? { theme: selectedPreset.theme, custom_primary: null, custom_accent: null }
       : { theme: 'custom', custom_primary: pickerPrimary, custom_accent: pickerAccent }
@@ -83,7 +123,13 @@ export default function BrandingEditor({ settings }: Props) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-    if (res.ok) setThemeSaved(true)
+    if (res.ok) {
+      setThemeSaved(true)
+      router.refresh()
+    } else {
+      const data = await res.json().catch(() => ({}))
+      setThemeError(`Save failed (${res.status}): ${data.error ?? res.statusText}`)
+    }
   }
 
   async function saveAnnouncement(e: React.FormEvent) {
@@ -217,6 +263,7 @@ export default function BrandingEditor({ settings }: Props) {
           Save Theme
         </button>
         {themeSaved && <span role="status" aria-live="polite" style={{ marginLeft: '12px', color: 'green' }}>Saved ✓</span>}
+        {themeError && <span role="alert" style={{ marginLeft: '12px', color: 'red' }}>{themeError}</span>}
       </section>
 
       {/* Logo */}

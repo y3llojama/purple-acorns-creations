@@ -2,6 +2,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import BrandingEditor from '@/components/admin/BrandingEditor'
 import type { Settings } from '@/lib/supabase/types'
 
+const mockRefresh = jest.fn()
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: mockRefresh }),
+}))
+
 jest.mock('@/components/admin/ImageUploader', () => ({
   __esModule: true,
   default: ({ onUpload, label }: { onUpload: (url: string, alt: string) => void; label: string }) => (

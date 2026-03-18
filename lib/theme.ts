@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from 'next/cache'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import type { Settings, Theme } from '@/lib/supabase/types'
 
@@ -16,6 +17,7 @@ const DEFAULT_SETTINGS: Settings = {
 }
 
 export async function getSettings(): Promise<Settings> {
+  noStore()
   const supabase = createServiceRoleClient()
   const { data, error } = await supabase.from('settings').select('*').limit(1).maybeSingle()
   if (error || !data) {

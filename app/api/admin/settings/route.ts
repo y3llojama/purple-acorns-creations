@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { requireAdminSession } from '@/lib/auth'
 import { isValidHttpsUrl, isValidEmail } from '@/lib/validate'
@@ -81,5 +82,6 @@ export async function POST(request: Request) {
     console.error('[settings] update error:', dbError.message)
     return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 })
   }
+  revalidatePath('/', 'layout')
   return NextResponse.json({ success: true })
 }
