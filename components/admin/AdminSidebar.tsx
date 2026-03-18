@@ -46,8 +46,7 @@ export default function AdminSidebar() {
 
   return (
     <aside
-      className={collapsed ? 'sidebar-collapsed' : undefined}
-      style={{ width, minHeight: '100vh', background: 'var(--color-primary)', color: 'var(--color-accent)', display: 'flex', flexDirection: 'column', flexShrink: 0, transition: 'width 0.2s ease', overflow: 'hidden' }}
+      style={{ width, minHeight: '100vh', background: 'var(--color-primary)', color: 'var(--color-accent)', display: 'flex', flexDirection: 'column', flexShrink: 0, transition: 'width 0.2s ease', overflow: 'hidden', position: 'relative' }}
     >
       {/* Header */}
       <div style={{ padding: collapsed ? '20px 0' : '0 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', minHeight: '72px' }}>
@@ -71,11 +70,12 @@ export default function AdminSidebar() {
           {NAV_ITEMS.map(({ href, label, Icon }) => {
             const isActive = pathname === href
             return (
-              <li key={href} className="sidebar-nav-item">
+              <li key={href}>
                 <Link
                   href={href}
                   aria-current={isActive ? 'page' : undefined}
                   aria-label={collapsed ? label : undefined}
+                  title={collapsed ? label : undefined}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -94,7 +94,6 @@ export default function AdminSidebar() {
                   <Icon size={20} style={{ flexShrink: 0 }} />
                   {!collapsed && label}
                 </Link>
-                {collapsed && <span className="sidebar-tooltip">{label}</span>}
               </li>
             )
           })}

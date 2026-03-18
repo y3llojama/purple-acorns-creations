@@ -117,27 +117,3 @@ h5 { font-size: 22px; }
   .header-nav-mobile { display: none; }
 }
 
-/* Admin sidebar tooltip for collapsed state */
-.sidebar-nav-item {
-  position: relative;
-}
-.sidebar-nav-item .sidebar-tooltip {
-  display: none;
-  position: absolute;
-  left: 100%;
-  top: 50%;
-  transform: translateY(-50%);
-  background: var(--color-primary);
-  color: var(--color-accent);
-  padding: 4px 10px;
-  font-size: 13px;
-  white-space: nowrap;
-  border-radius: 4px;
-  margin-left: 8px;
-  pointer-events: none;
-  z-index: 200;
-  border: 1px solid rgba(255,255,255,0.2);
-}
-.sidebar-collapsed .sidebar-nav-item:hover .sidebar-tooltip {
-  display: block;
-}
