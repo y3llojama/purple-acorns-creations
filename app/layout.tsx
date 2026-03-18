@@ -29,6 +29,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     } catch {
       themeAttr = 'warm-artisan'
     }
+  } else if (settings.theme === 'custom') {
+    themeAttr = 'warm-artisan'
   }
 
   return (
