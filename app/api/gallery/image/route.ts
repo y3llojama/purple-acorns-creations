@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <pattern id="wm" x="0" y="0" width="${fontSize * watermark.length * 0.7}" height="${fontSize * 4}" patternUnits="userSpaceOnUse" patternTransform="rotate(-30)">
-          <text x="0" y="${fontSize}" font-family="serif" font-size="${fontSize}" fill="white" opacity="0.25">${escapeXml(watermark)}</text>
+          <text x="0" y="${fontSize}" font-family="sans-serif" font-size="${fontSize}" fill="white" opacity="0.25">${escapeXml(watermark)}</text>
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill="url(#wm)" />
