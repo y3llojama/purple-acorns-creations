@@ -26,18 +26,18 @@
   --color-focus: #9b7bb8;
 }
 
-/* Modern theme — deep navy, warm gold, purple announcement */
+/* Modern theme — purple + white */
 [data-theme="modern"] {
-  --color-bg: #f9f7f4;
+  --color-bg: #fafafa;
   --color-surface: #ffffff;
-  --color-primary: #1b1a40;
-  --color-accent: #b1a15f;
-  --color-secondary: #957ab2;
-  --color-text: #1b1a40;
-  --color-text-muted: #888888;
-  --color-border: #e6e6e6;
-  --color-focus: #b1a15f;
-  --color-announce-bg: #957ab2;
+  --color-primary: #7b5ea7;
+  --color-accent: #a590c8;
+  --color-secondary: #c4b0dc;
+  --color-text: #1a1a2e;
+  --color-text-muted: #7a7a8c;
+  --color-border: #e8e0f0;
+  --color-focus: #7b5ea7;
+  --color-announce-bg: #b09dce;
   --color-announce-text: #ffffff;
   --font-display: 'Jost', 'DM Sans', sans-serif;
   --font-body: 'Jost', 'DM Sans', sans-serif;
