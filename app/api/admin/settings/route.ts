@@ -21,15 +21,19 @@ export async function POST(request: Request) {
       update.custom_accent  = null
     }
   }
-  // Hex color fields — validate format, return 400 if invalid
-  for (const field of ['custom_primary', 'custom_accent'] as const) {
-    if (body[field] !== undefined) {
-      if (body[field] === null) {
-        update[field] = null
-      } else {
-        const val = String(body[field])
-        if (!/^#[0-9a-fA-F]{6}$/.test(val)) return NextResponse.json({ error: `Invalid hex color for ${field}` }, { status: 400 })
-        update[field] = val
+  // Hex color fields — only processed when saving a custom theme
+  // (named presets always clear these server-side, ignoring what the client sends)
+  const savingNamedPreset = body.theme === 'warm-artisan' || body.theme === 'soft-botanical'
+  if (!savingNamedPreset) {
+    for (const field of ['custom_primary', 'custom_accent'] as const) {
+      if (body[field] !== undefined) {
+        if (body[field] === null) {
+          update[field] = null
+        } else {
+          const val = String(body[field])
+          if (!/^#[0-9a-fA-F]{6}$/.test(val)) return NextResponse.json({ error: `Invalid hex color for ${field}` }, { status: 400 })
+          update[field] = val
+        }
       }
     }
   }
