@@ -1,0 +1,9 @@
+# Copy this file to terraform.tfvars and fill in real values.
+# terraform.tfvars is gitignored — never commit it.
+
+supabase_access_token    = "sbp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+supabase_organization_id = "org_xxxxxxxxxxxxxxxxxxxx"
+db_password              = "a-very-strong-password-here"
+google_client_id         = "xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com"
+google_client_secret     = "GOCSPX-xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+site_url                 = "https://your-project.vercel.app"
