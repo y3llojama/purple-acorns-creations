@@ -6,4 +6,8 @@ module.exports = createJestConfig({
   // setupFilesAfterEnv runs after test framework loads — use for jest-dom matchers
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'jest-environment-jsdom',
+  // Ensure @/ path alias is resolvable by Jest's module resolver (needed for jest.mock())
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/$1',
+  },
 })
