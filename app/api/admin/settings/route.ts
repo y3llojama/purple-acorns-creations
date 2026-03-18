@@ -67,6 +67,10 @@ export async function POST(request: Request) {
     update.follow_along_mode = ['gallery', 'widget'].includes(mode) ? mode : 'widget'
   }
   if (body.gallery_watermark !== undefined) update.gallery_watermark = sanitizeText(String(body.gallery_watermark ?? '')).slice(0, 100) || null
+  if (body.business_name !== undefined) {
+    const name = sanitizeText(String(body.business_name ?? '')).slice(0, 200).trim()
+    if (name) update.business_name = name
+  }
   if (body.mailchimp_api_key !== undefined) update.mailchimp_api_key = sanitizeText(String(body.mailchimp_api_key ?? '')) || null
   if (body.mailchimp_audience_id !== undefined) update.mailchimp_audience_id = sanitizeText(String(body.mailchimp_audience_id ?? '')) || null
   if (body.ai_provider !== undefined) {

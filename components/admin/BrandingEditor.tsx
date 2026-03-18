@@ -54,6 +54,10 @@ export default function BrandingEditor({ settings }: Props) {
   const [themeSaved, setThemeSaved]         = useState(false)
   const [themeError, setThemeError]         = useState<string | null>(null)
 
+  const [businessName, setBusinessName]                   = useState(settings.business_name ?? 'Purple Acorns Creations')
+  const [businessNameSaved, setBusinessNameSaved]         = useState(false)
+  const [businessNameError, setBusinessNameError]         = useState<string | null>(null)
+
   const [announcementEnabled, setAnnouncementEnabled]     = useState(settings.announcement_enabled)
   const [announcementText, setAnnouncementText]           = useState(settings.announcement_text ?? '')
   const [announcementLinkUrl, setAnnouncementLinkUrl]     = useState(settings.announcement_link_url ?? '')
@@ -132,6 +136,23 @@ export default function BrandingEditor({ settings }: Props) {
     }
   }
 
+  async function saveBusinessName(e: React.FormEvent) {
+    e.preventDefault()
+    setBusinessNameError(null)
+    const trimmed = businessName.trim()
+    if (!trimmed) { setBusinessNameError('Business name cannot be empty.'); return }
+    const res = await fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ business_name: trimmed }),
+    })
+    if (res.ok) { setBusinessNameSaved(true); router.refresh() }
+    else {
+      const data = await res.json().catch(() => ({}))
+      setBusinessNameError(`Save failed (${res.status}): ${data.error ?? res.statusText}`)
+    }
+  }
+
   async function saveAnnouncement(e: React.FormEvent) {
     e.preventDefault()
     const res = await fetch('/api/admin/settings', {
@@ -168,6 +189,36 @@ export default function BrandingEditor({ settings }: Props) {
   return (
     <div>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', color: 'var(--color-primary)', marginBottom: '32px' }}>Branding</h1>
+
+      {/* Business Name */}
+      <section style={{ marginBottom: '40px' }}>
+        <h2 style={{ fontSize: '20px', marginBottom: '6px' }}>Business Name</h2>
+        <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
+          Displayed in the site header, footer, emails, and page titles.
+        </p>
+        <form onSubmit={saveBusinessName} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '240px' }}>
+            <label htmlFor="business-name" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Business Name (max 200 chars)</label>
+            <input
+              id="business-name"
+              type="text"
+              value={businessName}
+              onChange={e => { setBusinessName(e.target.value); setBusinessNameSaved(false); setBusinessNameError(null) }}
+              maxLength={200}
+              required
+              style={{ width: '100%', padding: '10px 12px', fontSize: '16px', borderRadius: '4px', border: '1px solid var(--color-border)', minHeight: '48px' }}
+            />
+          </div>
+          <button
+            type="submit"
+            style={{ background: 'var(--color-primary)', color: 'var(--color-accent)', padding: '12px 24px', fontSize: '16px', border: 'none', borderRadius: '4px', cursor: 'pointer', minHeight: '48px', alignSelf: 'flex-end' }}
+          >
+            Save Name
+          </button>
+        </form>
+        {businessNameSaved && <span role="status" aria-live="polite" style={{ display: 'block', marginTop: '8px', color: 'green' }}>Saved ✓</span>}
+        {businessNameError && <span role="alert" style={{ display: 'block', marginTop: '8px', color: 'red' }}>{businessNameError}</span>}
+      </section>
 
       {/* Theme */}
       <section style={{ marginBottom: '40px' }}>
