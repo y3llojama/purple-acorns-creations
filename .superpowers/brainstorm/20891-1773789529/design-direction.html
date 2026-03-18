@@ -1,0 +1,92 @@
+<h2>Design Direction</h2>
+<p class="subtitle">Three aesthetic directions for Purple Acorns Creations — click to select the one that feels right</p>
+
+<div class="cards">
+
+  <!-- Direction A: Warm Artisan -->
+  <div class="card" data-choice="warm-artisan" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#2d1b4e; padding:0; overflow:hidden; height:220px; position:relative;">
+      <div style="position:absolute;inset:0;background:linear-gradient(135deg,#2d1b4e 0%,#4a2c6e 50%,#2d1b4e 100%);"></div>
+      <div style="position:absolute;inset:0;opacity:0.08;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2260%22><circle cx=%2230%22 cy=%2230%22 r=%221.5%22 fill=%22%23fff%22/></svg>');background-size:30px 30px;"></div>
+      <div style="position:relative;z-index:1;padding:20px;font-family:Georgia,serif;">
+        <div style="color:#d4a853;font-size:10px;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;">Purple Acorns Creations</div>
+        <div style="color:#f5ede0;font-size:22px;font-weight:400;line-height:1.3;margin-bottom:16px;">Handcrafted<br>with love</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <div style="width:48px;height:48px;background:#d4a853;border-radius:50%;opacity:0.9;"></div>
+          <div style="width:48px;height:48px;background:#8b6fa8;border-radius:4px;opacity:0.9;"></div>
+          <div style="width:48px;height:48px;background:#c9956b;border-radius:2px;opacity:0.9;"></div>
+        </div>
+        <div style="background:rgba(212,168,83,0.15);border:1px solid rgba(212,168,83,0.4);color:#d4a853;font-size:9px;letter-spacing:2px;padding:6px 12px;display:inline-block;text-transform:uppercase;">Shop Collection</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Warm Artisan</h3>
+      <p>Deep plum + antique gold + warm cream. Rich, jewel-toned warmth. Feels like a high-end craft boutique. Serif accents, textured backgrounds, warm amber lighting. Evokes handmade luxury.</p>
+      <div style="display:flex;gap:6px;margin-top:10px;">
+        <div style="width:18px;height:18px;border-radius:50%;background:#2d1b4e;border:2px solid #eee;"></div>
+        <div style="width:18px;height:18px;border-radius:50%;background:#d4a853;border:2px solid #eee;"></div>
+        <div style="width:18px;height:18px;border-radius:50%;background:#f5ede0;border:2px solid #eee;"></div>
+        <div style="width:18px;height:18px;border-radius:50%;background:#c9956b;border:2px solid #eee;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Direction B: Modern Eclectic -->
+  <div class="card" data-choice="modern-eclectic" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0d0d0d; padding:0; overflow:hidden; height:220px; position:relative;">
+      <div style="position:absolute;top:-40px;right:-40px;width:180px;height:180px;background:radial-gradient(circle,#7b2ff7 0%,transparent 70%);opacity:0.6;"></div>
+      <div style="position:absolute;bottom:-20px;left:-20px;width:120px;height:120px;background:radial-gradient(circle,#c9a227 0%,transparent 70%);opacity:0.4;"></div>
+      <div style="position:relative;z-index:1;padding:20px;font-family:'Helvetica Neue',sans-serif;">
+        <div style="color:#7b2ff7;font-size:9px;letter-spacing:4px;text-transform:uppercase;margin-bottom:12px;">✦ Est. 2024 ✦</div>
+        <div style="color:#ffffff;font-size:24px;font-weight:700;letter-spacing:-0.5px;margin-bottom:4px;">PURPLE</div>
+        <div style="color:#c9a227;font-size:24px;font-weight:700;letter-spacing:-0.5px;margin-bottom:16px;">ACORNS.</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <div style="border:1px solid rgba(123,47,247,0.6);color:#fff;font-size:8px;padding:4px 10px;letter-spacing:2px;">RINGS</div>
+          <div style="border:1px solid rgba(123,47,247,0.6);color:#fff;font-size:8px;padding:4px 10px;letter-spacing:2px;">CROCHET</div>
+          <div style="background:#7b2ff7;color:#fff;font-size:8px;padding:4px 10px;letter-spacing:2px;">SILVER</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Modern Eclectic</h3>
+      <p>Near-black + electric violet + gold. Bold, editorial, high-contrast. Feels like a contemporary art gallery meets indie jeweler. Strong typography, neon-ish accents, dramatic lighting.</p>
+      <div style="display:flex;gap:6px;margin-top:10px;">
+        <div style="width:18px;height:18px;border-radius:50%;background:#0d0d0d;border:2px solid #eee;"></div>
+        <div style="width:18px;height:18px;border-radius:50%;background:#7b2ff7;border:2px solid #eee;"></div>
+        <div style="width:18px;height:18px;border-radius:50%;background:#c9a227;border:2px solid #eee;"></div>
+        <div style="width:18px;height:18px;border-radius:50%;background:#f0f0f0;border:2px solid #eee;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Direction C: Soft Botanical -->
+  <div class="card" data-choice="soft-botanical" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8f4f0; padding:0; overflow:hidden; height:220px; position:relative;">
+      <div style="position:absolute;inset:0;background:linear-gradient(160deg,#f0e8f5 0%,#f8f4f0 60%,#e8f0e8 100%);"></div>
+      <div style="position:relative;z-index:1;padding:20px;font-family:Georgia,serif;">
+        <div style="color:#9b7bb8;font-size:10px;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">purple acorns</div>
+        <div style="color:#3d2b4e;font-size:20px;font-style:italic;margin-bottom:4px;">Creations</div>
+        <div style="width:40px;height:1px;background:#b89fd4;margin:10px 0;"></div>
+        <div style="color:#6b5b7b;font-size:10px;line-height:1.6;margin-bottom:14px;">Mother · Daughter · Handmade</div>
+        <div style="display:flex;gap:8px;">
+          <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#d4b8e8,#b89fd4);opacity:0.85;"></div>
+          <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#c8e0c8,#9fb89f);opacity:0.85;"></div>
+          <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#e8d4b8,#d4b89f);opacity:0.85;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Soft Botanical</h3>
+      <p>Soft lavender + sage green + warm cream on a light background. Airy, nature-inspired, gentle. Feels like a farmers market with elevated taste. Organic curves, hand-feel, very Instagram-friendly.</p>
+      <div style="display:flex;gap:6px;margin-top:10px;">
+        <div style="width:18px;height:18px;border-radius:50%;background:#f0e8f5;border:2px solid #eee;"></div>
+        <div style="width:18px;height:18px;border-radius:50%;background:#9b7bb8;border:2px solid #eee;"></div>
+        <div style="width:18px;height:18px;border-radius:50%;background:#9fb89f;border:2px solid #eee;"></div>
+        <div style="width:18px;height:18px;border-radius:50%;background:#d4b89f;border:2px solid #eee;"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:24px;">You can also mix elements — e.g. "A's colors with C's lightness" — just say so in the terminal.</p>

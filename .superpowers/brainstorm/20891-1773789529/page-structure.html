@@ -1,0 +1,92 @@
+<h2>Page Architecture</h2>
+<p class="subtitle">How consolidated should the site feel? Three approaches — click to select.</p>
+
+<div class="cards">
+
+  <!-- Option A: Scattered multi-page -->
+  <div class="card" data-choice="multi-page" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f5f0fa;padding:16px;height:220px;overflow:hidden;">
+      <div style="font-size:9px;color:#9b7bb8;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">Navigation bar with 6 links</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="background:#2d1b4e;color:#d4a853;padding:6px 10px;border-radius:3px;font-size:9px;letter-spacing:1px;">/ HOME — hero image + brief intro + CTAs</div>
+        <div style="background:#4a2c6e;color:#f5ede0;padding:6px 10px;border-radius:3px;font-size:9px;letter-spacing:1px;">/shop — Square embed only</div>
+        <div style="background:#4a2c6e;color:#f5ede0;padding:6px 10px;border-radius:3px;font-size:9px;letter-spacing:1px;">/our-story — text + photos</div>
+        <div style="background:#4a2c6e;color:#f5ede0;padding:6px 10px;border-radius:3px;font-size:9px;letter-spacing:1px;">/gallery — photo grid</div>
+        <div style="background:#4a2c6e;color:#f5ede0;padding:6px 10px;border-radius:3px;font-size:9px;letter-spacing:1px;">/events — calendar list</div>
+        <div style="background:#4a2c6e;color:#f5ede0;padding:6px 10px;border-radius:3px;font-size:9px;letter-spacing:1px;">/contact — form</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Scattered Multi-Page</h3>
+      <p>Every section lives on its own page. Visitor must click around to discover the brand. Works for large stores but feels thin for a boutique studio. Easy to add pages later.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Clean per-page SEO</li><li>Shareable deep links</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Low first-visit impact</li><li>Story gets buried</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option B: Full one-pager -->
+  <div class="card" data-choice="one-pager" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f5f0fa;padding:16px;height:220px;overflow:hidden;">
+      <div style="font-size:9px;color:#9b7bb8;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">One long scroll — everything on home</div>
+      <div style="display:flex;gap:8px;height:170px;">
+        <div style="flex:1;display:flex;flex-direction:column;gap:3px;">
+          <div style="background:#2d1b4e;flex:2;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#d4a853;font-size:8px;">HERO</div>
+          <div style="background:#9b7bb8;flex:1.5;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;">OUR STORY</div>
+          <div style="background:#c9956b;flex:1.5;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;">SHOP PREVIEW</div>
+          <div style="background:#6b9b6b;flex:1;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;">GALLERY</div>
+          <div style="background:#4a2c6e;flex:1;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#f5ede0;font-size:8px;">EVENTS</div>
+          <div style="background:#333;flex:0.8;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;">CONTACT</div>
+        </div>
+        <div style="width:60px;font-size:7px;color:#aaa;display:flex;flex-direction:column;gap:3px;padding-top:2px;">
+          <div style="color:#2d1b4e;font-weight:bold;">↓ scroll</div>
+          <div>Full story</div>
+          <div>Products</div>
+          <div>Photos</div>
+          <div>Fairs</div>
+          <div>Reach us</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Full One-Pager</h3>
+      <p>Everything lives on the homepage as stacked scroll sections. Immersive brand journey. Great for Instagram link-in-bio. The shop section shows featured pieces with a "view all on Square" link.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Immersive, no friction</li><li>Perfect for mobile</li><li>Single link in bio</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Can feel heavy to scroll</li><li>Less SEO surface</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option C: Hybrid (recommended) -->
+  <div class="card" data-choice="hybrid" onclick="toggleSelect(this)" style="border:2px solid #7b2ff7;">
+    <div style="background:#7b2ff7;color:#fff;font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:5px 14px;">★ Recommended</div>
+    <div class="card-image" style="background:#f5f0fa;padding:16px;height:220px;overflow:hidden;">
+      <div style="font-size:9px;color:#9b7bb8;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">Home = full story · Shop = own page</div>
+      <div style="display:flex;gap:8px;height:170px;">
+        <div style="flex:1.4;display:flex;flex-direction:column;gap:3px;">
+          <div style="background:#2d1b4e;flex:1.5;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#d4a853;font-size:8px;">HERO</div>
+          <div style="background:#9b7bb8;flex:1;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;">STORY TEASER → /our-story</div>
+          <div style="background:#c9956b;flex:1;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;">FEATURED PIECES → /shop</div>
+          <div style="background:#6b9b6b;flex:0.8;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;">GALLERY STRIP</div>
+          <div style="background:#4a2c6e;flex:0.7;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#f5ede0;font-size:8px;">NEXT EVENT</div>
+          <div style="background:#333;flex:0.6;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;">INSTAGRAM + CONTACT</div>
+        </div>
+        <div style="flex:0.6;display:flex;flex-direction:column;gap:3px;">
+          <div style="background:#2d1b4e;flex:1;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#d4a853;font-size:7px;text-align:center;">/shop<br>Full Square</div>
+          <div style="background:#4a2c6e;flex:1;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#f5ede0;font-size:7px;text-align:center;">/our-story<br>Deep dive</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Hybrid ★</h3>
+      <p>Homepage is a rich scroll showcasing everything — story teaser, featured pieces, gallery strip, next event, Instagram. Two dedicated pages: /shop (full Square embed) and /our-story (long-form). Everything else lives on home.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Strong first impression</li><li>Shop has own clean URL</li><li>Best of both worlds</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Homepage needs good photos</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>

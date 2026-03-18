@@ -1,0 +1,131 @@
+<h2>Admin Panel Layout</h2>
+<p class="subtitle">Simple, friendly dashboard for both admins — large targets, plain language, no jargon</p>
+
+<div style="display:flex;gap:20px;align-items:flex-start;">
+
+  <!-- Sidebar nav -->
+  <div style="width:140px;flex-shrink:0;">
+    <div style="background:#2d1b4e;border-radius:8px;overflow:hidden;">
+      <div style="padding:14px;border-bottom:1px solid rgba(255,255,255,0.1);">
+        <div style="color:#d4a853;font-size:9px;letter-spacing:2px;text-transform:uppercase;">Purple Acorns</div>
+        <div style="color:rgba(255,255,255,0.5);font-size:8px;margin-top:2px;">Admin Panel</div>
+      </div>
+      <div style="padding:8px;">
+        <div style="color:#d4a853;background:rgba(212,168,83,0.15);border-radius:4px;padding:8px 10px;font-size:10px;margin-bottom:3px;cursor:pointer;">🏠 Dashboard</div>
+        <div style="color:rgba(255,255,255,0.7);padding:8px 10px;font-size:10px;margin-bottom:3px;cursor:pointer;">✏️ Content</div>
+        <div style="color:rgba(255,255,255,0.7);padding:8px 10px;font-size:10px;margin-bottom:3px;cursor:pointer;">📅 Events</div>
+        <div style="color:rgba(255,255,255,0.7);padding:8px 10px;font-size:10px;margin-bottom:3px;cursor:pointer;">🖼 Gallery</div>
+        <div style="color:rgba(255,255,255,0.7);padding:8px 10px;font-size:10px;margin-bottom:3px;cursor:pointer;">🎨 Branding</div>
+        <div style="color:rgba(255,255,255,0.7);padding:8px 10px;font-size:10px;cursor:pointer;">🔗 Integrations</div>
+      </div>
+      <div style="padding:10px;border-top:1px solid rgba(255,255,255,0.1);">
+        <div style="color:rgba(255,255,255,0.4);font-size:8px;cursor:pointer;">← View Live Site</div>
+        <div style="color:rgba(255,255,255,0.4);font-size:8px;margin-top:4px;cursor:pointer;">Sign Out</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main content panels -->
+  <div style="flex:1;display:flex;flex-direction:column;gap:12px;min-width:0;">
+
+    <!-- Dashboard overview -->
+    <div style="background:#fff;border-radius:8px;border:1px solid #e0d8f0;padding:14px;">
+      <div style="font-size:10px;color:#9b7bb8;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">Dashboard — Quick Actions</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+        <div style="background:#f5f0fa;border-radius:6px;padding:10px;text-align:center;">
+          <div style="font-size:16px;margin-bottom:4px;">📅</div>
+          <div style="font-size:9px;color:#4a2c6e;font-weight:bold;">Add Event</div>
+        </div>
+        <div style="background:#f5f0fa;border-radius:6px;padding:10px;text-align:center;">
+          <div style="font-size:16px;margin-bottom:4px;">🖼</div>
+          <div style="font-size:9px;color:#4a2c6e;font-weight:bold;">Upload Photo</div>
+        </div>
+        <div style="background:#f5f0fa;border-radius:6px;padding:10px;text-align:center;">
+          <div style="font-size:16px;margin-bottom:4px;">✏️</div>
+          <div style="font-size:9px;color:#4a2c6e;font-weight:bold;">Edit Story</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Events section -->
+    <div style="background:#fff;border-radius:8px;border:1px solid #e0d8f0;padding:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:10px;color:#9b7bb8;letter-spacing:2px;text-transform:uppercase;">Events</div>
+        <div style="background:#2d1b4e;color:#d4a853;font-size:8px;padding:5px 10px;border-radius:4px;cursor:pointer;">+ Add New Event</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#f8f4ff;border-radius:4px;padding:8px 10px;">
+          <div>
+            <div style="font-size:10px;color:#2d1b4e;font-weight:bold;">Riverside Craft Fair</div>
+            <div style="font-size:8px;color:#888;">April 12, 2026 · Riverside Park, Brooklyn</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <div style="font-size:8px;color:#9b7bb8;cursor:pointer;padding:3px 6px;border:1px solid #e0d0f0;border-radius:3px;">Edit</div>
+            <div style="font-size:8px;color:#c05050;cursor:pointer;padding:3px 6px;border:1px solid #f0d0d0;border-radius:3px;">Delete</div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#f8f4ff;border-radius:4px;padding:8px 10px;">
+          <div>
+            <div style="font-size:10px;color:#2d1b4e;font-weight:bold;">Brooklyn Night Market</div>
+            <div style="font-size:8px;color:#888;">May 3, 2026 · Williamsburg, Brooklyn</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <div style="font-size:8px;color:#9b7bb8;cursor:pointer;padding:3px 6px;border:1px solid #e0d0f0;border-radius:3px;">Edit</div>
+            <div style="font-size:8px;color:#c05050;cursor:pointer;padding:3px 6px;border:1px solid #f0d0d0;border-radius:3px;">Delete</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gallery management -->
+    <div style="background:#fff;border-radius:8px;border:1px solid #e0d8f0;padding:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:10px;color:#9b7bb8;letter-spacing:2px;text-transform:uppercase;">Gallery</div>
+        <div style="background:#2d1b4e;color:#d4a853;font-size:8px;padding:5px 10px;border-radius:4px;cursor:pointer;">+ Upload Photos</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <div style="width:52px;height:52px;background:#d4b8e8;border-radius:4px;position:relative;">
+          <div style="position:absolute;top:-4px;right:-4px;width:14px;height:14px;background:#c05050;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;cursor:pointer;">×</div>
+        </div>
+        <div style="width:52px;height:52px;background:#c9956b;border-radius:4px;position:relative;">
+          <div style="position:absolute;top:-4px;right:-4px;width:14px;height:14px;background:#c05050;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;cursor:pointer;">×</div>
+        </div>
+        <div style="width:52px;height:52px;background:#9fb89f;border-radius:4px;position:relative;">
+          <div style="position:absolute;top:-4px;right:-4px;width:14px;height:14px;background:#c05050;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;cursor:pointer;">×</div>
+        </div>
+        <div style="width:52px;height:52px;background:#b8a0d4;border-radius:4px;border:2px dashed #c8b8e8;display:flex;align-items:center;justify-content:center;color:#9b7bb8;font-size:16px;cursor:pointer;">+</div>
+      </div>
+      <div style="margin-top:8px;font-size:8px;color:#aaa;">Drag to reorder · Click × to remove · Alt text prompted on upload</div>
+    </div>
+
+    <!-- Branding / Theme toggle -->
+    <div style="background:#fff;border-radius:8px;border:1px solid #e0d8f0;padding:14px;">
+      <div style="font-size:10px;color:#9b7bb8;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">Branding & Theme</div>
+      <div style="display:flex;gap:10px;margin-bottom:12px;">
+        <div style="flex:1;border:2px solid #2d1b4e;border-radius:6px;padding:10px;cursor:pointer;background:#f5f0fa;">
+          <div style="display:flex;gap:4px;margin-bottom:5px;">
+            <div style="width:12px;height:12px;border-radius:50%;background:#2d1b4e;"></div>
+            <div style="width:12px;height:12px;border-radius:50%;background:#d4a853;"></div>
+            <div style="width:12px;height:12px;border-radius:50%;background:#f5ede0;"></div>
+          </div>
+          <div style="font-size:9px;color:#2d1b4e;font-weight:bold;">✓ Warm Artisan</div>
+          <div style="font-size:8px;color:#888;">Active theme</div>
+        </div>
+        <div style="flex:1;border:1px solid #e0d8f0;border-radius:6px;padding:10px;cursor:pointer;">
+          <div style="display:flex;gap:4px;margin-bottom:5px;">
+            <div style="width:12px;height:12px;border-radius:50%;background:#f0e8f5;border:1px solid #ddd;"></div>
+            <div style="width:12px;height:12px;border-radius:50%;background:#9b7bb8;"></div>
+            <div style="width:12px;height:12px;border-radius:50%;background:#9fb89f;"></div>
+          </div>
+          <div style="font-size:9px;color:#555;">Soft Botanical</div>
+          <div style="font-size:8px;color:#aaa;">Click to activate</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div style="width:36px;height:36px;background:#f0e8f5;border-radius:4px;border:1px dashed #c8b8e8;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer;">Logo</div>
+        <div style="font-size:8px;color:#888;">Upload logo · PNG or SVG · Appears in nav + footer</div>
+      </div>
+    </div>
+
+  </div>
+</div>

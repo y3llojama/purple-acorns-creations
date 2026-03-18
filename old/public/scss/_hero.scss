@@ -1,0 +1,42 @@
+.hero {
+  position: relative;
+  background: url('../images/hero.jpg') center/cover no-repeat;
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  text-align: center;
+}
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,.2), rgba(0,0,0,.6));
+}
+.hero-content {
+  position: relative;
+  max-width: 720px;
+}
+.hero h1 {
+  font-family: $font-heading;
+  font-size: 3rem;
+  margin-bottom: .5rem;
+}
+.hero p {
+  font-size: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+.btn-primary {
+  background: $clr-primary;
+  color: #fff;
+  padding: .75rem 1.5rem;
+  border-radius: $radius;
+  text-decoration: none;
+  font-weight: 600;
+  transition: $transition;
+}
+.btn-primary:hover {
+  background: $clr-accent;
+  color: $clr-primary;
+}

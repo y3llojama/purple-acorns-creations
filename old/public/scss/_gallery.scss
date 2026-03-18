@@ -1,0 +1,18 @@
+.gallery {
+  background: $clr-bg;
+}
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+}
+.gallery-item img {
+  width: 100%;
+  height: auto;
+  border-radius: $radius;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .1);
+  transition: transform .3s ease;
+}
+.gallery-item img:hover {
+  transform: scale(1.05);
+}
