@@ -10,7 +10,7 @@ export default function Header({ logoUrl }: Props) {
         <Link href="/" aria-label="Purple Acorns Creations — home">
           {logoUrl
             ? <Image src={logoUrl} alt="Purple Acorns Creations" height={48} width={160} style={{ objectFit: 'contain' }} />
-            : <span style={{ fontFamily: 'var(--font-display)', fontSize: '22px', fontWeight: 500, color: 'var(--color-primary)' }}>Purple Acorns Creations</span>
+            : <span style={{ fontFamily: 'var(--font-display)', fontSize: '26px', fontWeight: 600, letterSpacing: '0.01em', color: 'var(--color-primary)' }}>Purple Acorns Creations</span>
           }
         </Link>
         <ul style={{ listStyle: 'none', display: 'flex', gap: '32px', alignItems: 'center' }}>
