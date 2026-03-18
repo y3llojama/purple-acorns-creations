@@ -5,7 +5,7 @@ export async function requireAdminSession(): Promise<
   { user: { email: string }; error: null } |
   { user: null; error: NextResponse }
 > {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   // getUser() performs server-side JWT verification — never use getSession() for auth
   const { data: { user }, error } = await supabase.auth.getUser()
 
