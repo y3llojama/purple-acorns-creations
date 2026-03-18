@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import ImageUploader from './ImageUploader'
+import SiteMap from './SiteMap'
 import type { Settings } from '@/lib/supabase/types'
 
 interface Props { settings: Settings }
@@ -90,6 +91,11 @@ export default function BrandingEditor({ settings }: Props) {
       {/* Logo */}
       <section style={{ marginBottom: '40px' }}>
         <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Logo</h2>
+        <SiteMap
+          highlight="header"
+          label="Site Header"
+          description="Your logo appears in the top-left corner of every page."
+        />
         {settings.logo_url && (
           <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginBottom: '12px' }}>Current logo set. Upload a new one to replace it.</p>
         )}
@@ -99,6 +105,11 @@ export default function BrandingEditor({ settings }: Props) {
       {/* Announcement banner */}
       <section>
         <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Announcement Banner</h2>
+        <SiteMap
+          highlight="announcement"
+          label="Announcement Bar"
+          description="Slim banner displayed above the header on every page."
+        />
         <form onSubmit={saveAnnouncement}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '16px', cursor: 'pointer' }}>
             <input
