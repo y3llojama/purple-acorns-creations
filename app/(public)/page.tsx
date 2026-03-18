@@ -14,10 +14,10 @@ export default async function HomePage() {
   const supabase = createServiceRoleClient()
   const today = new Date().toISOString().split('T')[0]
 
-  const [content, settings, products, gallery, eventResult] = await Promise.all([
+  const [content, settings, featured, gallery, eventResult] = await Promise.all([
     getAllContent(),
     getSettings(),
-    supabase.from('featured_products').select('*').eq('is_active', true).order('sort_order').then(r => r.data ?? []),
+    supabase.from('gallery').select('*').eq('is_featured', true).order('sort_order').then(r => r.data ?? []),
     supabase.from('gallery').select('*').order('sort_order').limit(8).then(r => r.data ?? []),
     supabase.from('events').select('*').gte('date', today).order('date').limit(1).single(),
   ])
@@ -35,7 +35,7 @@ export default async function HomePage() {
         heroImageUrl={settings.hero_image_url}
       />
       <StoryTeaser teaser={sanitizeText(content.story_teaser ?? '')} />
-      <FeaturedPieces products={products} />
+      <FeaturedPieces items={featured} watermark={settings.gallery_watermark} />
       <GalleryStrip items={gallery} watermark={settings.gallery_watermark} />
       <NextEvent event={eventResult.data ?? null} />
       <InstagramFeed widgetId={settings.behold_widget_id} handle={settings.social_instagram} />

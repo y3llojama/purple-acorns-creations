@@ -31,10 +31,18 @@ export async function PATCH(request: Request) {
   if (error) return error
   const body = await request.json().catch(() => ({} as Record<string, unknown>))
   if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 })
-  const alt_text = sanitizeText(clampLength(String(body.alt_text ?? ''), 500))
-  if (!alt_text) return NextResponse.json({ error: 'Description required for accessibility' }, { status: 400 })
+  const update: Record<string, string | boolean> = {}
+  if (body.alt_text !== undefined) {
+    const alt_text = sanitizeText(clampLength(String(body.alt_text), 500))
+    if (!alt_text) return NextResponse.json({ error: 'Description required for accessibility' }, { status: 400 })
+    update.alt_text = alt_text
+  }
+  if (body.is_featured !== undefined) {
+    update.is_featured = Boolean(body.is_featured)
+  }
+  if (Object.keys(update).length === 0) return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
   const supabase = createServiceRoleClient()
-  const { data, error: dbError } = await supabase.from('gallery').update({ alt_text }).eq('id', String(body.id)).select().single()
+  const { data, error: dbError } = await supabase.from('gallery').update(update).eq('id', String(body.id)).select().single()
   if (dbError) return NextResponse.json({ error: 'Failed to update gallery item' }, { status: 500 })
   return NextResponse.json(data)
 }

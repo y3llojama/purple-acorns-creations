@@ -67,11 +67,11 @@ export default function GalleryManager({ initialItems, watermark }: Props) {
     setDeleteId(null)
   }
 
-  async function handleDescriptionSave(id: string, newAltText: string) {
+  async function handlePatch(id: string, fields: Record<string, unknown>) {
     const res = await fetch('/api/admin/gallery', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, alt_text: newAltText }),
+      body: JSON.stringify({ id, ...fields }),
     })
     if (res.ok) {
       const updated = await res.json()
@@ -138,8 +138,17 @@ export default function GalleryManager({ initialItems, watermark }: Props) {
               <EditableDescription
                 id={item.id}
                 value={item.alt_text}
-                onSave={handleDescriptionSave}
+                onSave={(id, v) => handlePatch(id, { alt_text: v })}
               />
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', marginBottom: '8px', minHeight: '48px' }}>
+                <input
+                  type="checkbox"
+                  checked={item.is_featured}
+                  onChange={() => handlePatch(item.id, { is_featured: !item.is_featured })}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                />
+                Featured Piece
+              </label>
               <button
                 onClick={() => setDeleteId(item.id)}
                 aria-label={`Delete ${item.alt_text}`}
