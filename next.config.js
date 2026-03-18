@@ -2,6 +2,7 @@
 const nextConfig = {
   async headers() {
     return [
+      // Security headers for all routes
       {
         source: '/(.*)',
         headers: [
@@ -22,6 +23,18 @@ const nextConfig = {
             ].join('; '),
           },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+        ],
+      },
+      // CORS: restrict API routes to same-origin requests only
+      {
+        source: '/api/(.*)',
+        headers: [
+          // No wildcard — only same-origin callers allowed
+          { key: 'Access-Control-Allow-Origin', value: process.env.NEXT_PUBLIC_APP_URL || 'same-origin' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, DELETE, OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+          { key: 'Access-Control-Allow-Credentials', value: 'true' },
+          { key: 'Vary', value: 'Origin' },
         ],
       },
     ]
