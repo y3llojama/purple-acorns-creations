@@ -13,6 +13,11 @@ export interface Settings {
   custom_accent: string | null
   hero_image_url: string | null
   gallery_watermark: string | null
+  follow_along_mode: 'gallery' | 'widget' | null
+  smtp_host: string | null
+  smtp_port: number | null
+  smtp_user: string | null
+  smtp_pass: string | null
   updated_at: string
 }
 
@@ -22,12 +27,23 @@ export interface Event {
 }
 
 export interface GalleryItem {
-  id: string; url: string; alt_text: string; category: Category | null; sort_order: number; is_featured: boolean; created_at: string
+  id: string; url: string; alt_text: string; category: Category | null; sort_order: number; is_featured: boolean; square_url: string | null; created_at: string
 }
 
-export interface FeaturedProduct {
-  id: string; name: string; price: number; description: string | null
-  image_url: string; square_url: string | null; sort_order: number; is_active: boolean
+export interface FollowAlongPhoto {
+  id: string
+  storage_path: string
+  display_order: number
+  created_at: string
 }
 
 export interface ContentRow { key: string; value: string; updated_at: string }
+
+export interface Message {
+  id: string; name: string; email: string; message: string
+  is_read: boolean; created_at: string
+}
+
+export interface MessageReply {
+  id: string; message_id: string; body: string; created_at: string
+}

@@ -62,6 +62,10 @@ export async function POST(request: Request) {
     update.social_facebook = val ? (isValidHttpsUrl(val) ? val : null) : null
   }
   if (body.behold_widget_id !== undefined) update.behold_widget_id = sanitizeText(String(body.behold_widget_id ?? '')).slice(0, 100) || null
+  if (body.follow_along_mode !== undefined) {
+    const mode = String(body.follow_along_mode)
+    update.follow_along_mode = ['gallery', 'widget'].includes(mode) ? mode : 'widget'
+  }
   if (body.gallery_watermark !== undefined) update.gallery_watermark = sanitizeText(String(body.gallery_watermark ?? '')).slice(0, 100) || null
   if (body.mailchimp_api_key !== undefined) update.mailchimp_api_key = sanitizeText(String(body.mailchimp_api_key ?? '')) || null
   if (body.mailchimp_audience_id !== undefined) update.mailchimp_audience_id = sanitizeText(String(body.mailchimp_audience_id ?? '')) || null

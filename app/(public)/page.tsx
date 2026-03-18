@@ -14,12 +14,13 @@ export default async function HomePage() {
   const supabase = createServiceRoleClient()
   const today = new Date().toISOString().split('T')[0]
 
-  const [content, settings, featured, gallery, eventResult] = await Promise.all([
+  const [content, settings, featured, gallery, eventResult, followAlongResult] = await Promise.all([
     getAllContent(),
     getSettings(),
     supabase.from('gallery').select('*').eq('is_featured', true).order('sort_order').then(r => r.data ?? []),
     supabase.from('gallery').select('*').eq('is_featured', false).order('sort_order').limit(8).then(r => r.data ?? []),
     supabase.from('events').select('*').gte('date', today).order('date').limit(1).single(),
+    supabase.from('follow_along_photos').select('*').order('display_order').then(r => r.data ?? []),
   ])
 
   if (eventResult.error && eventResult.error.code !== 'PGRST116') {
@@ -38,7 +39,7 @@ export default async function HomePage() {
       <FeaturedPieces items={featured} watermark={settings.gallery_watermark} />
       <GalleryStrip items={gallery} watermark={settings.gallery_watermark} />
       <NextEvent event={eventResult.data ?? null} />
-      <InstagramFeed widgetId={settings.behold_widget_id} handle={settings.social_instagram} />
+      <InstagramFeed widgetId={settings.behold_widget_id} handle={settings.social_instagram} followAlongMode={settings.follow_along_mode} followAlongPhotos={followAlongResult} />
       <NewsletterSignup />
     </>
   )
