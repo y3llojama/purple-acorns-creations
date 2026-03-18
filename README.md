@@ -6,6 +6,7 @@ Website for Purple Acorns Creations — a handmade jewellery and crochet shop. B
 
 ## Table of Contents
 
+- [Pre-Launch Checklist](#pre-launch-checklist)
 - [Stack](#stack)
 - [Project Structure](#project-structure)
 - [Prerequisites](#prerequisites)
@@ -19,6 +20,102 @@ Website for Purple Acorns Creations — a handmade jewellery and crochet shop. B
 - [Deployment](#deployment)
 - [Theming](#theming)
 - [Security](#security)
+
+---
+
+## Pre-Launch Checklist
+
+Everything the code cannot do for you. Complete these in order before going live.
+
+### 1. Google Cloud Console — Create OAuth credentials
+
+> Needed for admin login via Google.
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com) → APIs & Services → Credentials
+2. Create OAuth 2.0 Client ID (Web application)
+3. Add authorized JavaScript origins:
+   - `http://localhost:3000`
+   - `https://your-project.vercel.app`
+4. Add authorized redirect URIs:
+   - `https://jfovputrcntthmesmjmh.supabase.co/auth/v1/callback`
+   - `https://your-project.vercel.app/api/auth/callback`
+5. Save — note the **Client ID** and **Client Secret**
+
+---
+
+### 2. Supabase Dashboard — Configure auth
+
+> One-time setup at [supabase.com/dashboard](https://supabase.com/dashboard) → project `jfovputrcntthmesmjmh`.
+
+- **Authentication → Providers → Google**
+  - Toggle Google on
+  - Paste Client ID and Client Secret from step 1
+  - Save
+
+- **Authentication → Users → Invite user**
+  - Invite your admin Gmail address (the one you'll sign in with)
+
+- **Authentication → Settings**
+  - Turn off **Allow new users to sign up**
+
+- **Project Settings → API**
+  - Copy **anon public** key → needed for `.env.local`
+  - Copy **service_role** key → needed for `.env.local`
+
+---
+
+### 3. Fill in `.env.local`
+
+```bash
+# Already set:
+NEXT_PUBLIC_SUPABASE_URL=https://jfovputrcntthmesmjmh.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_Dj3phbLfgTnbBsDKINg5Xw_q2FPSrsl
+
+# Still needed:
+SUPABASE_SERVICE_ROLE_KEY=<service_role key from Supabase dashboard>
+ADMIN_EMAILS=<your admin Gmail address>
+DATABASE_URL=postgresql://postgres:<db-password>@db.jfovputrcntthmesmjmh.supabase.co:5432/postgres
+```
+
+---
+
+### 4. Run the database schema
+
+> Only needed if you're using the existing Supabase project (not Terraform).
+
+```bash
+psql "postgresql://postgres:<db-password>@db.jfovputrcntthmesmjmh.supabase.co:5432/postgres" \
+  -f supabase/migrations/001_initial_schema.sql
+```
+
+Get the DB password from Supabase dashboard → Project Settings → Database → Database password.
+
+---
+
+### 5. Verify locally
+
+```bash
+./scripts/setup.sh   # install deps (skip if already done)
+./scripts/dev.sh     # start dev server
+./scripts/check-auth.sh  # smoke test admin auth flow
+```
+
+---
+
+### 6. Deploy to Vercel
+
+1. Push repo to GitHub
+2. Connect repo at [vercel.com/new](https://vercel.com/new)
+3. Add all `.env.local` values as environment variables in Vercel → Project → Settings → Environment Variables
+4. Set `NEXT_PUBLIC_APP_URL` to your Vercel domain (e.g. `https://purple-acorns.vercel.app`)
+5. Add the Vercel domain to Google Cloud Console authorized origins and redirect URIs (step 1)
+6. Trigger a deploy — push to `main` or click "Redeploy"
+
+---
+
+### 7. (Optional) Terraform — for full IaC / recreate from scratch
+
+Only needed if you want to be able to `terraform destroy` + `terraform apply` to recreate the entire Supabase project from scratch. See [Supabase Infrastructure (Terraform)](#supabase-infrastructure-terraform).
 
 ---
 
