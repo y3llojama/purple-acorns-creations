@@ -29,6 +29,9 @@ const nextConfig = {
     ]
   },
   images: {
+    localPatterns: [
+      { pathname: '/api/gallery/image', search: '?url=*' },
+    ],
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },
       { protocol: 'https', hostname: 'live.staticflickr.com' },
