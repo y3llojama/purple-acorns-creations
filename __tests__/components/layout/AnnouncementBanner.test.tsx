@@ -2,13 +2,15 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import AnnouncementBanner from '@/components/layout/AnnouncementBanner'
 
 describe('AnnouncementBanner', () => {
+  beforeEach(() => sessionStorage.clear())
+
   it('renders announcement text', () => {
     render(<AnnouncementBanner text="Come find us at the fair!" linkUrl={null} linkLabel={null} />)
     expect(screen.getByText('Come find us at the fair!')).toBeInTheDocument()
   })
   it('has correct ARIA role', () => {
     render(<AnnouncementBanner text="Hello" linkUrl={null} linkLabel={null} />)
-    expect(screen.getByRole('banner')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /announcement/i })).toBeInTheDocument()
   })
   it('dismisses when button clicked', () => {
     render(<AnnouncementBanner text="Hello" linkUrl={null} linkLabel={null} />)
@@ -23,5 +25,11 @@ describe('AnnouncementBanner', () => {
   it('does not render link for non-https URL', () => {
     render(<AnnouncementBanner text="Event" linkUrl="javascript:alert(1)" linkLabel="Click" />)
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+  it('is hidden when previously dismissed in session', () => {
+    sessionStorage.setItem('announcement-dismissed', '1')
+    render(<AnnouncementBanner text="Hello" linkUrl={null} linkLabel={null} />)
+    expect(screen.queryByText('Hello')).not.toBeInTheDocument()
+    sessionStorage.removeItem('announcement-dismissed')
   })
 })

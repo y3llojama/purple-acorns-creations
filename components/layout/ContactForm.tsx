@@ -16,9 +16,18 @@ export default function ContactForm() {
       email: (form.elements.namedItem('email') as HTMLInputElement).value.trim(),
       message: (form.elements.namedItem('message') as HTMLTextAreaElement).value.trim(),
     }
-    const res = await fetch('/api/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
-    if (res.ok) { setStatus('success'); form.reset() }
-    else { const d = await res.json(); setError(d.error ?? 'Something went wrong.'); setStatus('error') }
+    try {
+      const res = await fetch('/api/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+      if (res.ok) { setStatus('success'); form.reset() }
+      else {
+        const d = await res.json().catch(() => ({}))
+        setError((d as { error?: string }).error ?? 'Something went wrong.')
+        setStatus('error')
+      }
+    } catch {
+      setError('Unable to send message. Please check your connection and try again.')
+      setStatus('error')
+    }
   }
 
   if (status === 'success') {
@@ -28,15 +37,15 @@ export default function ContactForm() {
   return (
     <form onSubmit={handleSubmit} noValidate>
       <div style={{ marginBottom: '16px' }}>
-        <label htmlFor="contact-name" style={{ display: 'block', marginBottom: '4px', color: 'rgba(255,255,255,0.8)', fontSize: '16px' }}>Name *</label>
+        <label htmlFor="contact-name" style={{ display: 'block', marginBottom: '4px', color: 'rgba(255,255,255,0.8)', fontSize: '18px' }}>Name *</label>
         <input id="contact-name" name="name" required maxLength={100} style={{ width: '100%', padding: '10px', fontSize: '18px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.1)', color: '#fff' }} />
       </div>
       <div style={{ marginBottom: '16px' }}>
-        <label htmlFor="contact-email" style={{ display: 'block', marginBottom: '4px', color: 'rgba(255,255,255,0.8)', fontSize: '16px' }}>Email *</label>
+        <label htmlFor="contact-email" style={{ display: 'block', marginBottom: '4px', color: 'rgba(255,255,255,0.8)', fontSize: '18px' }}>Email *</label>
         <input id="contact-email" name="email" type="email" required maxLength={254} style={{ width: '100%', padding: '10px', fontSize: '18px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.1)', color: '#fff' }} />
       </div>
       <div style={{ marginBottom: '16px' }}>
-        <label htmlFor="contact-message" style={{ display: 'block', marginBottom: '4px', color: 'rgba(255,255,255,0.8)', fontSize: '16px' }}>Message *</label>
+        <label htmlFor="contact-message" style={{ display: 'block', marginBottom: '4px', color: 'rgba(255,255,255,0.8)', fontSize: '18px' }}>Message *</label>
         <textarea id="contact-message" name="message" required maxLength={2000} rows={4} style={{ width: '100%', padding: '10px', fontSize: '18px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.1)', color: '#fff', resize: 'vertical' }} />
       </div>
       {error && <p role="alert" aria-live="polite" style={{ color: '#ffb3b3', marginBottom: '12px', fontSize: '16px' }}>{error}</p>}

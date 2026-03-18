@@ -5,7 +5,9 @@ import { isValidHttpsUrl } from '@/lib/validate'
 interface Props { text: string; linkUrl: string | null; linkLabel: string | null }
 
 export default function AnnouncementBanner({ text, linkUrl, linkLabel }: Props) {
-  const [visible, setVisible] = useState(true)
+  const [visible, setVisible] = useState(() => {
+    try { return !sessionStorage.getItem('announcement-dismissed') } catch { return true }
+  })
 
   function dismiss() {
     try { sessionStorage.setItem('announcement-dismissed', '1') } catch {}
@@ -17,7 +19,7 @@ export default function AnnouncementBanner({ text, linkUrl, linkLabel }: Props) 
   const safeLink = linkUrl && isValidHttpsUrl(linkUrl) ? linkUrl : null
 
   return (
-    <div role="banner" aria-label="Announcement" style={{ background: 'var(--color-primary)', color: 'var(--color-accent)', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', fontSize: '16px', position: 'relative' }}>
+    <div role="region" aria-label="Announcement" style={{ background: 'var(--color-primary)', color: 'var(--color-accent)', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', fontSize: '16px', position: 'relative' }}>
       <span>{text}</span>
       {safeLink && (
         <a href={safeLink} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)', textDecoration: 'underline' }}>
