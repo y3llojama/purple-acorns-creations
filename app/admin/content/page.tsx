@@ -1,4 +1,4 @@
-import { getAllContent } from '@/lib/content'
+import { getAllContent, type ContentFormat } from '@/lib/content'
 import ContentEditor from '@/components/admin/ContentEditor'
 import SiteMap from '@/components/admin/SiteMap'
 
@@ -14,16 +14,24 @@ const STORY_TEASER_FIELDS = [
 ] as const
 
 const FULL_STORY_FIELDS = [
-  { key: 'story_full', label: 'Full Story (HTML)', rows: 12 },
+  { key: 'story_full', label: 'Full Story', rows: 12 },
 ] as const
 
 const LEGAL_FIELDS = [
-  { key: 'privacy_policy',   label: 'Privacy Policy (HTML)',   rows: 20 },
-  { key: 'terms_of_service', label: 'Terms of Service (HTML)', rows: 20 },
+  { key: 'privacy_policy',   label: 'Privacy Policy',   rows: 20 },
+  { key: 'terms_of_service', label: 'Terms of Service', rows: 20 },
 ] as const
+
+const HTML_KEYS = ['story_full', 'privacy_policy', 'terms_of_service'] as const
 
 export default async function ContentAdminPage() {
   const content = await getAllContent()
+
+  function formatFor(key: string): ContentFormat {
+    const v = content[`${key}__format`]
+    return v === 'markdown' ? 'markdown' : 'html'
+  }
+
   return (
     <div>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', color: 'var(--color-primary)', marginBottom: '32px' }}>Content</h1>
@@ -40,11 +48,19 @@ export default async function ContentAdminPage() {
 
       <SiteMap highlight="our-story" label="Our Story Page" description="The full story shown on the /our-story page, not the homepage." />
       {FULL_STORY_FIELDS.map(({ key, label, rows }) => (
-        <ContentEditor key={key} contentKey={key} label={label} initialValue={content[key] ?? ''} rows={rows} />
+        <ContentEditor
+          key={key} contentKey={key} label={label}
+          initialValue={content[key] ?? ''} rows={rows}
+          supportsMarkdown initialFormat={formatFor(key)}
+        />
       ))}
 
       {LEGAL_FIELDS.map(({ key, label, rows }) => (
-        <ContentEditor key={key} contentKey={key} label={label} initialValue={content[key] ?? ''} rows={rows} />
+        <ContentEditor
+          key={key} contentKey={key} label={label}
+          initialValue={content[key] ?? ''} rows={rows}
+          supportsMarkdown initialFormat={formatFor(key)}
+        />
       ))}
     </div>
   )

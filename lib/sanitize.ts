@@ -1,4 +1,5 @@
 import sanitizeHtml from 'sanitize-html'
+import { marked } from 'marked'
 
 const CONTENT_OPTIONS: sanitizeHtml.IOptions = {
   allowedTags: ['h1', 'h2', 'h3', 'h4', 'p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'a', 'blockquote', 'hr'],
@@ -31,4 +32,10 @@ export function sanitizeContent(html: string): string {
 
 export function sanitizeText(input: string): string {
   return sanitizeHtml(input, TEXT_OPTIONS).trim()
+}
+
+/** Convert markdown to sanitized HTML, safe for dangerouslySetInnerHTML. */
+export async function markdownToHtml(md: string): Promise<string> {
+  const raw = await Promise.resolve(marked(md, { gfm: true, breaks: true }))
+  return sanitizeHtml(raw, CONTENT_OPTIONS)
 }

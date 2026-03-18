@@ -16,8 +16,7 @@ export async function POST(request: Request) {
   const supabase = createServiceRoleClient()
   const { error: dbError } = await supabase
     .from('content')
-    .update({ value, updated_at: new Date().toISOString() })
-    .eq('key', key)
+    .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
 
   if (dbError) return NextResponse.json({ error: 'Failed to update content' }, { status: 500 })
   return NextResponse.json({ success: true })
