@@ -58,6 +58,8 @@ export default function BrandingEditor({ settings }: Props) {
   const [businessNameSaved, setBusinessNameSaved]         = useState(false)
   const [businessNameError, setBusinessNameError]         = useState<string | null>(null)
 
+  const [logoPreview, setLogoPreview] = useState(settings.logo_url ?? null)
+
   const [announcementEnabled, setAnnouncementEnabled]     = useState(settings.announcement_enabled)
   const [announcementText, setAnnouncementText]           = useState(settings.announcement_text ?? '')
   const [announcementLinkUrl, setAnnouncementLinkUrl]     = useState(settings.announcement_link_url ?? '')
@@ -174,7 +176,8 @@ export default function BrandingEditor({ settings }: Props) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ logo_url: url }),
     })
-    if (!res.ok) console.error('[BrandingEditor] Failed to save logo URL')
+    if (res.ok) { setLogoPreview(url); router.refresh() }
+    else console.error('[BrandingEditor] Failed to save logo URL')
   }
 
   async function handleHeroUpload(url: string, _altText: string) {
@@ -183,7 +186,8 @@ export default function BrandingEditor({ settings }: Props) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ hero_image_url: url }),
     })
-    if (!res.ok) console.error('[BrandingEditor] Failed to save hero image URL')
+    if (res.ok) router.refresh()
+    else console.error('[BrandingEditor] Failed to save hero image URL')
   }
 
   return (
@@ -322,8 +326,11 @@ export default function BrandingEditor({ settings }: Props) {
       <section style={{ marginBottom: '40px' }}>
         <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Logo</h2>
         <SiteMap highlight="header" label="Site Header" description="Your logo appears in the top-left corner of every page." />
-        {settings.logo_url && (
-          <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginBottom: '12px' }}>Current logo set. Upload a new one to replace it.</p>
+        {logoPreview && (
+          <div style={{ marginBottom: '12px' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={logoPreview} alt="Current logo" style={{ maxHeight: '64px', maxWidth: '240px', objectFit: 'contain', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '8px', background: '#fff' }} />
+          </div>
         )}
         <ImageUploader bucket="branding" onUpload={handleLogoUpload} label="Upload Logo" />
       </section>
