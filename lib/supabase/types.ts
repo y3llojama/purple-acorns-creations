@@ -12,6 +12,7 @@ export interface Settings {
   custom_primary: string | null
   custom_accent: string | null
   hero_image_url: string | null
+  gallery_watermark: string | null
   updated_at: string
 }
 
@@ -21,8 +22,7 @@ export interface Event {
 }
 
 export interface GalleryItem {
-  id: string; url: string; alt_text: string; category: Category | null; sort_order: number
-  watermark_text: string | null; created_at: string
+  id: string; url: string; alt_text: string; category: Category | null; sort_order: number; created_at: string
 }
 
 export interface FeaturedProduct {

@@ -1,1 +1,1 @@
-alter table gallery add column watermark_text text;
+alter table settings add column gallery_watermark text;

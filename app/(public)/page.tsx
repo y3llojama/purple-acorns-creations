@@ -36,7 +36,7 @@ export default async function HomePage() {
       />
       <StoryTeaser teaser={sanitizeText(content.story_teaser ?? '')} />
       <FeaturedPieces products={products} />
-      <GalleryStrip items={gallery} />
+      <GalleryStrip items={gallery} watermark={settings.gallery_watermark} />
       <NextEvent event={eventResult.data ?? null} />
       <InstagramFeed widgetId={settings.behold_widget_id} handle={settings.social_instagram} />
       <NewsletterSignup />

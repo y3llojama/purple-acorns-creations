@@ -12,7 +12,7 @@ const DEFAULT_SETTINGS: Settings = {
   announcement_link_url: null, announcement_link_label: null,
   social_instagram: 'purpleacornz', social_facebook: null, social_tiktok: null,
   social_pinterest: null, social_x: null, behold_widget_id: null,
-  custom_primary: null, custom_accent: null, hero_image_url: null,
+  custom_primary: null, custom_accent: null, hero_image_url: null, gallery_watermark: null,
   updated_at: '',
 }
 
