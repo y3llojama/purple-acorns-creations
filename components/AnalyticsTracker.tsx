@@ -9,7 +9,7 @@ function getSessionId(): string {
   const KEY = 'pac_sid'
   let sid = sessionStorage.getItem(KEY)
   if (!sid) {
-    sid = crypto.randomUUID()
+    sid = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)
     sessionStorage.setItem(KEY, sid)
   }
   return sid
