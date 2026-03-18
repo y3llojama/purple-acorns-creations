@@ -3,6 +3,7 @@ import type { Settings, Theme } from '@/lib/supabase/types'
 
 const DEFAULT_THEME: Theme = 'warm-artisan'
 
+
 const DEFAULT_SETTINGS: Settings = {
   id: '', theme: DEFAULT_THEME, logo_url: null, square_store_url: null,
   contact_email: null, mailchimp_api_key: null, mailchimp_audience_id: null,
@@ -10,6 +11,7 @@ const DEFAULT_SETTINGS: Settings = {
   announcement_link_url: null, announcement_link_label: null,
   social_instagram: 'purpleacornz', social_facebook: null, social_tiktok: null,
   social_pinterest: null, social_x: null, behold_widget_id: null,
+  custom_primary: null, custom_accent: null, hero_image_url: null,
   updated_at: '',
 }
 
@@ -23,7 +25,3 @@ export async function getSettings(): Promise<Settings> {
   return data as Settings
 }
 
-export async function getTheme(): Promise<Theme> {
-  const settings = await getSettings()
-  return settings.theme ?? DEFAULT_THEME
-}

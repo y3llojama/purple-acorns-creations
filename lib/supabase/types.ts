@@ -1,4 +1,4 @@
-export type Theme = 'warm-artisan' | 'soft-botanical'
+export type Theme = 'warm-artisan' | 'soft-botanical' | 'custom'
 export type Category = 'rings' | 'necklaces' | 'earrings' | 'bracelets' | 'crochet' | 'other'
 export type AiProvider = 'claude' | 'openai' | 'groq'
 
@@ -9,6 +9,9 @@ export interface Settings {
   announcement_link_url: string | null; announcement_link_label: string | null
   social_instagram: string | null; social_facebook: string | null; social_tiktok: string | null
   social_pinterest: string | null; social_x: string | null; behold_widget_id: string | null
+  custom_primary: string | null
+  custom_accent: string | null
+  hero_image_url: string | null
   updated_at: string
 }
 
