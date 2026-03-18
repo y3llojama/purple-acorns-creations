@@ -1,0 +1,141 @@
+'use client'
+import { useState } from 'react'
+import ConfirmDialog from './ConfirmDialog'
+import type { Event } from '@/lib/supabase/types'
+import { isValidHttpsUrl } from '@/lib/validate'
+
+interface Props { initialEvents: Event[] }
+
+const emptyForm = { name: '', date: '', time: '', location: '', description: '', link_url: '', link_label: '' }
+
+export default function EventsManager({ initialEvents }: Props) {
+  const [events, setEvents] = useState<Event[]>(initialEvents)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState(emptyForm)
+  const [status, setStatus] = useState<'idle' | 'saving' | 'error'>('idle')
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+
+  function field(k: keyof typeof emptyForm) {
+    return { value: form[k], onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm(f => ({ ...f, [k]: e.target.value })) }
+  }
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault()
+    setStatus('saving')
+    const link_url = form.link_url && isValidHttpsUrl(form.link_url) ? form.link_url : undefined
+    try {
+      const res = await fetch('/api/admin/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, link_url }),
+      })
+      if (!res.ok) { setStatus('error'); return }
+      const newEvent = await res.json()
+      setEvents(ev => [...ev, newEvent])
+      setForm(emptyForm)
+      setShowForm(false)
+      setStatus('idle')
+    } catch { setStatus('error') }
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      const res = await fetch('/api/admin/events', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+      if (!res.ok) { setDeleteId(null); return }
+      setEvents(ev => ev.filter(e => e.id !== id))
+    } catch { /* Network error — keep item in list */ }
+    setDeleteId(null)
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', color: 'var(--color-primary)' }}>Events</h1>
+        <button onClick={() => setShowForm(s => !s)} style={{ background: 'var(--color-primary)', color: 'var(--color-accent)', padding: '12px 20px', fontSize: '16px', border: 'none', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}>
+          + Add New Event
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleAdd} style={{ background: 'var(--color-surface)', padding: '24px', borderRadius: '8px', marginBottom: '24px', border: '1px solid var(--color-border)' }}>
+          <h2 style={{ fontSize: '18px', marginBottom: '16px' }}>New Event</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div>
+              <label htmlFor="event-name" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Event Name *</label>
+              <input id="event-name" required {...field('name')} style={{ width: '100%', padding: '8px', fontSize: '16px', borderRadius: '4px', border: '1px solid var(--color-border)' }} />
+            </div>
+            <div>
+              <label htmlFor="event-date" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Date *</label>
+              <input id="event-date" type="date" required {...field('date')} style={{ width: '100%', padding: '8px', fontSize: '16px', borderRadius: '4px', border: '1px solid var(--color-border)' }} />
+            </div>
+            <div>
+              <label htmlFor="event-time" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Time</label>
+              <input id="event-time" {...field('time')} style={{ width: '100%', padding: '8px', fontSize: '16px', borderRadius: '4px', border: '1px solid var(--color-border)' }} />
+            </div>
+            <div>
+              <label htmlFor="event-location" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Location *</label>
+              <input id="event-location" required {...field('location')} style={{ width: '100%', padding: '8px', fontSize: '16px', borderRadius: '4px', border: '1px solid var(--color-border)' }} />
+            </div>
+          </div>
+          <div style={{ marginTop: '16px' }}>
+            <label htmlFor="event-desc" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Description</label>
+            <textarea id="event-desc" rows={3} {...field('description')} style={{ width: '100%', padding: '8px', fontSize: '16px', borderRadius: '4px', border: '1px solid var(--color-border)' }} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
+            <div>
+              <label htmlFor="event-link" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Link URL (https://...)</label>
+              <input id="event-link" {...field('link_url')} placeholder="https://..." style={{ width: '100%', padding: '8px', fontSize: '16px', borderRadius: '4px', border: '1px solid var(--color-border)' }} />
+            </div>
+            <div>
+              <label htmlFor="event-linklabel" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Link Label</label>
+              <input id="event-linklabel" {...field('link_label')} placeholder="Learn more" style={{ width: '100%', padding: '8px', fontSize: '16px', borderRadius: '4px', border: '1px solid var(--color-border)' }} />
+            </div>
+          </div>
+          {status === 'error' && <p role="alert" style={{ color: '#c05050', marginTop: '8px' }}>Error saving event. Please try again.</p>}
+          <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+            <button type="submit" disabled={status === 'saving'} style={{ background: 'var(--color-primary)', color: 'var(--color-accent)', padding: '12px 24px', fontSize: '16px', border: 'none', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}>
+              {status === 'saving' ? 'Saving…' : 'Save Event'}
+            </button>
+            <button type="button" onClick={() => setShowForm(false)} style={{ background: 'transparent', color: 'var(--color-primary)', padding: '12px 24px', fontSize: '16px', border: '2px solid var(--color-primary)', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      {events.length === 0 && !showForm && (
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '18px' }}>No upcoming events. Click &quot;+ Add New Event&quot; to add one.</p>
+      )}
+
+      <ul style={{ listStyle: 'none', padding: 0 }}>
+        {events.map(ev => (
+          <li key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'var(--color-surface)', borderRadius: '8px', border: '1px solid var(--color-border)', marginBottom: '12px' }}>
+            <div>
+              <div style={{ fontWeight: '600', fontSize: '18px', color: 'var(--color-primary)' }}>{ev.name}</div>
+              <div style={{ color: 'var(--color-text-muted)', fontSize: '14px' }}>
+                {new Date(ev.date + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                {ev.time ? ` · ${ev.time}` : ''}
+                {' · '}{ev.location}
+              </div>
+            </div>
+            <button
+              onClick={() => setDeleteId(ev.id)}
+              aria-label={`Delete event ${ev.name}`}
+              style={{ background: 'none', border: '1px solid #c05050', color: '#c05050', padding: '8px 16px', fontSize: '14px', borderRadius: '4px', cursor: 'pointer', minHeight: '44px' }}
+            >
+              Delete
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      {deleteId && (
+        <ConfirmDialog
+          message="Delete this event? This cannot be undone."
+          onConfirm={() => handleDelete(deleteId)}
+          onCancel={() => setDeleteId(null)}
+        />
+      )}
+    </div>
+  )
+}
