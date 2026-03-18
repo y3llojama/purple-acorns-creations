@@ -1,4 +1,6 @@
 export function isValidEmail(email: string): boolean {
+  // Reject HTML special characters that could indicate injection attempts
+  if (/[<>"']/.test(email)) return false
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
