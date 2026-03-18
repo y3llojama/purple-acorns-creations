@@ -32,6 +32,7 @@ export async function DELETE(request: Request) {
   const body = await request.json().catch(() => ({} as Record<string, unknown>))
   if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 })
   const supabase = createServiceRoleClient()
-  await supabase.from('gallery').delete().eq('id', String(body.id))
+  const { error: dbError } = await supabase.from('gallery').delete().eq('id', String(body.id))
+  if (dbError) return NextResponse.json({ error: 'Failed to delete gallery item' }, { status: 500 })
   return NextResponse.json({ success: true })
 }

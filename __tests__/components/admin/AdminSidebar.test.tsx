@@ -10,6 +10,10 @@ describe('AdminSidebar', () => {
     expect(screen.getByText(/Content/)).toBeInTheDocument()
     expect(screen.getByText(/Events/)).toBeInTheDocument()
     expect(screen.getByText(/Gallery/)).toBeInTheDocument()
+    expect(screen.getByText(/Branding/)).toBeInTheDocument()
+    expect(screen.getByText(/Integrations/)).toBeInTheDocument()
+    expect(screen.getByText(/Newsletter/)).toBeInTheDocument()
+    expect(screen.getByText(/Reports/)).toBeInTheDocument()
   })
   it('marks current page with aria-current="page"', () => {
     render(<AdminSidebar />)

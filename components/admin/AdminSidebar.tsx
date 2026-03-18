@@ -66,7 +66,7 @@ export default function AdminSidebar() {
         </Link>
         <button
           onClick={signOut}
-          style={{ background: 'none', border: '1px solid rgba(255,255,255,0.3)', color: 'rgba(255,255,255,0.7)', padding: '8px 12px', fontSize: '14px', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', minHeight: '36px' }}
+          style={{ background: 'none', border: '1px solid rgba(255,255,255,0.3)', color: 'rgba(255,255,255,0.7)', padding: '8px 12px', fontSize: '14px', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', minHeight: '48px' }}
         >
           Sign Out
         </button>
