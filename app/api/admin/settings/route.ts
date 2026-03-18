@@ -1,0 +1,57 @@
+import { NextResponse } from 'next/server'
+import { createServiceRoleClient } from '@/lib/supabase/server'
+import { requireAdminSession } from '@/lib/auth'
+import { isValidHttpsUrl, isValidEmail } from '@/lib/validate'
+import { sanitizeText } from '@/lib/sanitize'
+
+const ALLOWED_THEMES = ['warm-artisan', 'soft-botanical'] as const
+type Theme = typeof ALLOWED_THEMES[number]
+
+export async function POST(request: Request) {
+  const { error } = await requireAdminSession()
+  if (error) return error
+  const body = await request.json().catch(() => ({} as Record<string, unknown>))
+  const update: Record<string, string | boolean | null> = {}
+
+  if (body.theme !== undefined) {
+    if (!ALLOWED_THEMES.includes(String(body.theme) as Theme)) return NextResponse.json({ error: 'Invalid theme' }, { status: 400 })
+    update.theme = String(body.theme)
+  }
+  // URL fields — only store validated https URLs
+  for (const field of ['logo_url', 'square_store_url', 'announcement_link_url'] as const) {
+    if (body[field] !== undefined) {
+      const val = String(body[field] ?? '')
+      update[field] = val ? (isValidHttpsUrl(val) ? val : null) : null
+    }
+  }
+  if (body.contact_email !== undefined) {
+    const email = String(body.contact_email ?? '')
+    update.contact_email = isValidEmail(email) ? email : null
+  }
+  if (body.announcement_enabled !== undefined) update.announcement_enabled = Boolean(body.announcement_enabled)
+  if (body.announcement_text !== undefined) update.announcement_text = sanitizeText(String(body.announcement_text ?? '')).slice(0, 300) || null
+  if (body.announcement_link_label !== undefined) update.announcement_link_label = sanitizeText(String(body.announcement_link_label ?? '')).slice(0, 100) || null
+  // Social handles (stored as handle only — not full URL)
+  for (const field of ['social_instagram', 'social_tiktok', 'social_pinterest', 'social_x'] as const) {
+    if (body[field] !== undefined) update[field] = sanitizeText(String(body[field] ?? '')).slice(0, 100) || null
+  }
+  // social_facebook stored as full https URL
+  if (body.social_facebook !== undefined) {
+    const val = String(body.social_facebook ?? '')
+    update.social_facebook = val ? (isValidHttpsUrl(val) ? val : null) : null
+  }
+  if (body.behold_widget_id !== undefined) update.behold_widget_id = sanitizeText(String(body.behold_widget_id ?? '')).slice(0, 100) || null
+  if (body.mailchimp_api_key !== undefined) update.mailchimp_api_key = sanitizeText(String(body.mailchimp_api_key ?? '')) || null
+  if (body.mailchimp_audience_id !== undefined) update.mailchimp_audience_id = sanitizeText(String(body.mailchimp_audience_id ?? '')) || null
+  if (body.ai_provider !== undefined) {
+    const val = String(body.ai_provider ?? '')
+    update.ai_provider = ['claude', 'openai', 'groq'].includes(val) ? val : null
+  }
+
+  update.updated_at = new Date().toISOString()
+  const supabase = createServiceRoleClient()
+  // settings has exactly one row — no WHERE clause needed
+  const { error: dbError } = await supabase.from('settings').update(update)
+  if (dbError) return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 })
+  return NextResponse.json({ success: true })
+}
