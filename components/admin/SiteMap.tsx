@@ -83,6 +83,7 @@ export default function SiteMap({ highlight, label, description }: SiteMapProps)
           display: 'flex',
           flexDirection: 'column',
           background: '#fafafa',
+          overflow: 'hidden',
         }}
       >
         {zones.map(({ zone, flex, hint }) => {
@@ -94,7 +95,7 @@ export default function SiteMap({ highlight, label, description }: SiteMapProps)
               style={{
                 flex: `0 0 ${flex}%`,
                 position: 'relative',
-                overflow: 'visible',
+                overflow: 'hidden',
                 background: isHighlighted
                   ? 'color-mix(in srgb, var(--color-primary) 12%, transparent)'
                   : '#f0f0f0',
@@ -110,17 +111,14 @@ export default function SiteMap({ highlight, label, description }: SiteMapProps)
                 <div
                   aria-hidden="true"
                   style={{
-                    position: 'absolute',
-                    top: '-10px',
-                    left: '4px',
                     background: 'var(--color-primary)',
                     color: '#fff',
-                    fontSize: '11px',
+                    fontSize: '10px',
                     fontFamily: 'sans-serif',
                     padding: '2px 6px',
                     borderRadius: '4px',
                     whiteSpace: 'nowrap',
-                    zIndex: 1,
+                    margin: '0 4px',
                   }}
                 >
                   {label}
