@@ -5,6 +5,7 @@ const TILES = [
   { href: '/admin/gallery', label: 'Upload Photo', description: 'Add photos to your gallery' },
   { href: '/admin/content', label: 'Edit Content', description: 'Update homepage and story text' },
   { href: '/admin/branding', label: 'Manage Branding', description: 'Theme, logo, and announcement banner' },
+  { href: '/admin/analytics', label: 'View Analytics', description: 'Page views, visitors, traffic sources' },
 ]
 
 export const metadata = { title: 'Admin Dashboard' }

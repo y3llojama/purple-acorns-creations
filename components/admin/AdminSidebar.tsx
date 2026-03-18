@@ -9,9 +9,11 @@ const NAV_ITEMS = [
   { href: '/admin/content', label: 'Content' },
   { href: '/admin/events', label: 'Events' },
   { href: '/admin/gallery', label: 'Gallery' },
+  { href: '/admin/messages', label: 'Messages' },
   { href: '/admin/branding', label: 'Branding' },
   { href: '/admin/integrations', label: 'Integrations' },
   { href: '/admin/newsletter', label: 'Newsletter' },
+  { href: '/admin/analytics', label: 'Analytics' },
   { href: '/admin/reports', label: 'Reports' },
 ]
 

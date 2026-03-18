@@ -3,6 +3,7 @@ import { sanitizeText } from '@/lib/sanitize'
 import AnnouncementBanner from '@/components/layout/AnnouncementBanner'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
+import AnalyticsTracker from '@/components/AnalyticsTracker'
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const settings = await getSettings()
@@ -20,6 +21,7 @@ export default async function PublicLayout({ children }: { children: React.React
       <Header logoUrl={settings.logo_url ?? null} />
       <main id="main-content">{children}</main>
       <Footer settings={settings} />
+      <AnalyticsTracker />
     </>
   )
 }
