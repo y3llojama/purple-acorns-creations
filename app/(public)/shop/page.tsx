@@ -13,7 +13,7 @@ export default async function ShopPage() {
       {storeUrl && isValidHttpsUrl(storeUrl) ? (
         <iframe
           src={storeUrl}
-          title="Purple Acorns Creations Store"
+          title={`${settings.business_name} Store`}
           style={{ width: '100%', minHeight: '800px', border: 'none' }}
           loading="lazy"
           sandbox="allow-scripts allow-forms allow-same-origin allow-popups"

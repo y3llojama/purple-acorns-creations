@@ -10,18 +10,18 @@ const NAV_LINKS = [
   { href: '/contact', label: 'Contact' },
 ]
 
-interface Props { logoUrl: string | null }
+interface Props { logoUrl: string | null; businessName: string }
 
-export default function Header({ logoUrl }: Props) {
+export default function Header({ logoUrl, businessName }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
     <header style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', position: 'sticky', top: 0, zIndex: 100 }}>
       <nav aria-label="Main navigation" style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '72px' }}>
-        <Link href="/" aria-label="Purple Acorns Creations — home">
+        <Link href="/" aria-label={`${businessName} — home`}>
           {logoUrl
-            ? <Image src={logoUrl} alt="Purple Acorns Creations" height={48} width={160} style={{ objectFit: 'contain' }} />
-            : <span style={{ fontFamily: 'var(--font-display)', fontSize: '26px', fontWeight: 600, letterSpacing: '0.01em', color: 'var(--color-primary)' }}>Purple Acorns Creations</span>
+            ? <Image src={logoUrl} alt={businessName} height={48} width={160} style={{ objectFit: 'contain' }} />
+            : <span style={{ fontFamily: 'var(--font-display)', fontSize: '26px', fontWeight: 600, letterSpacing: '0.01em', color: 'var(--color-primary)' }}>{businessName}</span>
           }
         </Link>
 

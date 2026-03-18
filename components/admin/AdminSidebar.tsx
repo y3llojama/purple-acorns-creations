@@ -22,7 +22,9 @@ const NAV_ITEMS = [
   { href: '/admin/reports', label: 'Reports', Icon: ClipboardList },
 ]
 
-export default function AdminSidebar() {
+interface Props { businessName: string }
+
+export default function AdminSidebar({ businessName }: Props) {
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
@@ -55,7 +57,7 @@ export default function AdminSidebar() {
       <div style={{ padding: collapsed ? '20px 0' : '0 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', minHeight: '72px' }}>
         {!collapsed && (
           <span style={{ fontFamily: 'var(--font-display)', fontSize: '18px', color: 'var(--color-accent)', whiteSpace: 'nowrap' }}>
-            Purple Acorns Admin
+            {businessName} Admin
           </span>
         )}
         <button

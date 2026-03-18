@@ -10,5 +10,5 @@ export default async function GalleryAdminPage() {
     supabase.from('gallery').select('*').order('sort_order'),
     getSettings(),
   ])
-  return <GalleryManager initialItems={data ?? []} watermark={settings.gallery_watermark} />
+  return <GalleryManager initialItems={data ?? []} watermark={settings.gallery_watermark} businessName={settings.business_name} />
 }

@@ -24,7 +24,7 @@ async function getSmtpSettings() {
   const supabase = createServiceRoleClient()
   const { data } = await supabase
     .from('settings')
-    .select('contact_email, smtp_host, smtp_port, smtp_user, smtp_pass')
+    .select('contact_email, smtp_host, smtp_port, smtp_user, smtp_pass, business_name')
     .single()
   return data
 }
@@ -89,15 +89,18 @@ export async function sendContactNotification(name: string, email: string, messa
 }
 
 export async function sendReply(to: string, toName: string, body: string) {
+  const settings = await getSmtpSettings()
+  const businessName = settings?.business_name ?? 'Purple Acorns Creations'
   const safeName = escapeHtml(stripControlChars(toName))
   const safeBody = escapeHtml(body)
+  const safeBusinessName = escapeHtml(businessName)
 
   return sendEmail({
     to,
-    subject: `Reply from Purple Acorns Creations`,
-    text: `Hi ${stripControlChars(toName)},\n\n${body}\n\n— Purple Acorns Creations`,
+    subject: `Reply from ${businessName}`,
+    text: `Hi ${stripControlChars(toName)},\n\n${body}\n\n— ${businessName}`,
     html: `<p>Hi ${safeName},</p>
 <p>${safeBody.replace(/\n/g, '<br />')}</p>
-<p>— Purple Acorns Creations</p>`,
+<p>— ${safeBusinessName}</p>`,
   })
 }

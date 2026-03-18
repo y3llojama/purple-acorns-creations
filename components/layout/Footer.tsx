@@ -36,7 +36,7 @@ export default function Footer({ settings }: Props) {
           })}
         </div>
         <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.5)' }}>
-          © {year} Purple Acorns Creations ·{' '}
+          © {year} {settings.business_name} ·{' '}
           <Link href="/privacy" style={{ color: 'rgba(255,255,255,0.5)' }}>Privacy Policy</Link> ·{' '}
           <Link href="/terms" style={{ color: 'rgba(255,255,255,0.5)' }}>Terms of Service</Link>
         </p>

@@ -18,7 +18,7 @@ export default async function PublicLayout({ children }: { children: React.React
           linkLabel={settings.announcement_link_label ?? null}
         />
       )}
-      <Header logoUrl={settings.logo_url ?? null} />
+      <Header logoUrl={settings.logo_url ?? null} businessName={settings.business_name} />
       <main id="main-content">{children}</main>
       <Footer settings={settings} />
       <AnalyticsTracker />

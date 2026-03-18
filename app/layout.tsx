@@ -6,16 +6,20 @@ import { deriveCustomThemeVars } from '@/lib/color'
 import type { ThemeVars } from '@/lib/color'
 import './globals.css'
 
-export const metadata: Metadata = {
-  title: {
-    default: 'Purple Acorns Creations',
-    template: '%s — Purple Acorns Creations',
-  },
-  description: 'Handcrafted jewelry by a mother-daughter duo in Brooklyn, NY. Crochet jewelry, sterling silver, brass, and artisan pieces made with love.',
-  openGraph: {
-    siteName: 'Purple Acorns Creations',
-    images: ['/og-image.jpg'],
-  },
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSettings()
+  const name = settings.business_name
+  return {
+    title: {
+      default: name,
+      template: `%s — ${name}`,
+    },
+    description: 'Handcrafted jewelry by a mother-daughter duo in Brooklyn, NY. Crochet jewelry, sterling silver, brass, and artisan pieces made with love.',
+    openGraph: {
+      siteName: name,
+      images: ['/og-image.jpg'],
+    },
+  }
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

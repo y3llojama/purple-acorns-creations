@@ -53,9 +53,9 @@ function EditableField({ id, value, onSave, label, placeholder, rows = 2, maxLen
   )
 }
 
-interface Props { initialItems: GalleryItem[]; watermark: string | null }
+interface Props { initialItems: GalleryItem[]; watermark: string | null; businessName: string }
 
-export default function GalleryManager({ initialItems, watermark }: Props) {
+export default function GalleryManager({ initialItems, watermark, businessName }: Props) {
   const [items, setItems] = useState<GalleryItem[]>(initialItems)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [replacingId, setReplacingId] = useState<string | null>(null)
@@ -184,7 +184,7 @@ export default function GalleryManager({ initialItems, watermark }: Props) {
             type="text"
             value={watermarkText}
             onChange={e => { setWatermarkText(e.target.value); setWatermarkSaved(false) }}
-            placeholder="e.g. Purple Acorns Creations"
+            placeholder={`e.g. ${businessName}`}
             maxLength={100}
             style={{ flex: 1, minWidth: '200px', padding: '10px 12px', fontSize: '16px', borderRadius: '4px', border: '1px solid var(--color-border)', minHeight: '48px' }}
           />
