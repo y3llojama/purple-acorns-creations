@@ -35,7 +35,10 @@ export async function middleware(request: NextRequest) {
   const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim())
   if (!adminEmails.includes(user.email ?? '')) {
     await supabase.auth.signOut()
-    return NextResponse.redirect(new URL('/admin/login?error=unauthorized', request.url))
+    // Copy session-clearing cookies from response (written by signOut) to redirect
+    const redirectResponse = NextResponse.redirect(new URL('/admin/login?error=unauthorized', request.url))
+    response.cookies.getAll().forEach(c => redirectResponse.cookies.set(c))
+    return redirectResponse
   }
 
   return response

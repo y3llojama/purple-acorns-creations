@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
-import { getTheme, getSettings } from '@/lib/theme'
+import { getSettings } from '@/lib/theme'
 import { sanitizeText } from '@/lib/sanitize'
 import './globals.css'
 
@@ -18,7 +18,8 @@ export const metadata: Metadata = {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [theme, settings] = await Promise.all([getTheme(), getSettings()])
+  const settings = await getSettings()
+  const theme = settings.theme ?? 'warm-artisan'
 
   // Sanitize announcement text before rendering (defense-in-depth)
   const announcementText = settings.announcement_text

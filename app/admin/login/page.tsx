@@ -30,7 +30,7 @@ export default function AdminLoginPage() {
           Sign in to manage your site
         </p>
         {error && errorMessages[error] && (
-          <p role="alert" style={{ color: '#c05050', marginBottom: '24px', fontSize: '16px', padding: '12px', background: '#fff0f0', borderRadius: '4px' }}>
+          <p role="alert" style={{ color: '#c05050', marginBottom: '24px', fontSize: '18px', padding: '12px', background: '#fff0f0', borderRadius: '4px' }}>
             {errorMessages[error]}
           </p>
         )}
