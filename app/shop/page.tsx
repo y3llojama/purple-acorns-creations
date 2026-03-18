@@ -16,6 +16,7 @@ export default async function ShopPage() {
           title="Purple Acorns Creations Store"
           style={{ width: '100%', minHeight: '800px', border: 'none' }}
           loading="lazy"
+          sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
         />
       ) : (
         <p style={{ textAlign: 'center', fontSize: '20px', color: 'var(--color-text-muted)' }}>

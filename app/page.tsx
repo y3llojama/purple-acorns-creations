@@ -1,6 +1,7 @@
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getAllContent } from '@/lib/content'
 import { getSettings } from '@/lib/theme'
+import { sanitizeText } from '@/lib/sanitize'
 import HeroSection from '@/components/home/HeroSection'
 import StoryTeaser from '@/components/home/StoryTeaser'
 import FeaturedPieces from '@/components/home/FeaturedPieces'
@@ -21,10 +22,15 @@ export default async function HomePage() {
     supabase.from('events').select('*').gte('date', today).order('date').limit(1).single(),
   ])
 
+  if (eventResult.error && eventResult.error.code !== 'PGRST116') {
+    // PGRST116 = no rows found (expected when no upcoming events)
+    console.error('[HomePage] events query error:', eventResult.error.message)
+  }
+
   return (
     <>
-      <HeroSection tagline={content.hero_tagline ?? ''} subtext={content.hero_subtext ?? ''} />
-      <StoryTeaser teaser={content.story_teaser ?? ''} />
+      <HeroSection tagline={sanitizeText(content.hero_tagline ?? '')} subtext={sanitizeText(content.hero_subtext ?? '')} />
+      <StoryTeaser teaser={sanitizeText(content.story_teaser ?? '')} />
       <FeaturedPieces products={products} />
       <GalleryStrip items={gallery} />
       <NextEvent event={eventResult.data ?? null} />

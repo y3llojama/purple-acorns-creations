@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import type { GalleryItem } from '@/lib/supabase/types'
+import { isValidHttpsUrl } from '@/lib/validate'
 
 interface Props { items: GalleryItem[] }
 
@@ -18,7 +19,7 @@ export default function GalleryStrip({ items }: Props) {
           msOverflowStyle: 'none',
         }}
       >
-        {items.map((item) => (
+        {items.filter(item => isValidHttpsUrl(item.url)).map((item) => (
           <div
             key={item.id}
             style={{ position: 'relative', width: '280px', height: '280px', flexShrink: 0, borderRadius: '8px', overflow: 'hidden' }}

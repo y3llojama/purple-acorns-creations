@@ -27,8 +27,7 @@ export async function POST(request: Request) {
   const { data: settings } = await supabase.from('settings').select('contact_email').single()
 
   if (!settings?.contact_email) {
-    // Silently succeed if no contact email configured (don't expose config state)
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ error: 'Contact form not yet configured. Please email us directly.' }, { status: 503 })
   }
 
   // In production: integrate with Resend/Postmark/etc. for actual email delivery
