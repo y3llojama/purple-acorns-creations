@@ -102,19 +102,21 @@ export default function BrandingEditor({ settings }: Props) {
   }
 
   async function handleLogoUpload(url: string, _altText: string) {
-    await fetch('/api/admin/settings', {
+    const res = await fetch('/api/admin/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ logo_url: url }),
     })
+    if (!res.ok) console.error('[BrandingEditor] Failed to save logo URL')
   }
 
   async function handleHeroUpload(url: string, _altText: string) {
-    await fetch('/api/admin/settings', {
+    const res = await fetch('/api/admin/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ hero_image_url: url }),
     })
+    if (!res.ok) console.error('[BrandingEditor] Failed to save hero image URL')
   }
 
   return (
@@ -142,7 +144,7 @@ export default function BrandingEditor({ settings }: Props) {
                 aria-pressed={isActive}
                 style={{
                   background: 'none', border: 'none', padding: 0,
-                  cursor: 'pointer', textAlign: 'center',
+                  cursor: 'pointer', textAlign: 'center', minHeight: '48px',
                 }}
               >
                 <div style={{
@@ -173,7 +175,6 @@ export default function BrandingEditor({ settings }: Props) {
                 type="color"
                 value={pickerPrimary}
                 onChange={e => handlePickerChange(e.target.value, pickerAccent)}
-                aria-label="Primary color"
                 style={{ width: '44px', height: '44px', border: '2px solid var(--color-border)', borderRadius: '6px', cursor: 'pointer', padding: '2px' }}
               />
             </div>
@@ -184,7 +185,6 @@ export default function BrandingEditor({ settings }: Props) {
                 type="color"
                 value={pickerAccent}
                 onChange={e => handlePickerChange(pickerPrimary, e.target.value)}
-                aria-label="Accent color"
                 style={{ width: '44px', height: '44px', border: '2px solid var(--color-border)', borderRadius: '6px', cursor: 'pointer', padding: '2px' }}
               />
             </div>
