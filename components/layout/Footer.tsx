@@ -21,9 +21,12 @@ export default function Footer({ settings }: Props) {
     <footer id="contact" style={{ background: 'var(--color-primary)', color: 'var(--color-bg)', padding: '48px 24px' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px' }}>
         <div>
-          <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-accent)', marginBottom: '24px', fontSize: '28px' }}>
-            Get in Touch
+          <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-accent)', marginBottom: '8px', fontSize: '28px' }}>
+            Say Hello
           </h2>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '16px', marginBottom: '24px', lineHeight: 1.6 }}>
+            Questions, custom orders, or just want to chat — we&apos;d love to hear from you.
+          </p>
           <ContactForm />
         </div>
         <div>

@@ -30,32 +30,49 @@ export default function ContactForm() {
     }
   }
 
+  const fieldStyle: React.CSSProperties = {
+    width: '100%', padding: '12px 14px', fontSize: '16px', borderRadius: '6px',
+    border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.08)',
+    color: '#fff', outline: 'none', boxSizing: 'border-box',
+  }
+  const labelStyle: React.CSSProperties = {
+    display: 'block', marginBottom: '6px', color: 'rgba(255,255,255,0.75)', fontSize: '14px', fontWeight: '500', letterSpacing: '0.03em',
+  }
+
   if (status === 'success') {
-    return <p role="status" aria-live="polite" style={{ color: 'var(--color-accent)', fontSize: '18px' }}>Thank you! We&apos;ll be in touch soon.</p>
+    return (
+      <div role="status" aria-live="polite" style={{ padding: '24px 0' }}>
+        <p style={{ color: 'var(--color-accent)', fontSize: '20px', marginBottom: '8px', fontFamily: 'var(--font-display)' }}>Message sent!</p>
+        <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: '16px' }}>Thank you for reaching out. We&apos;ll get back to you soon.</p>
+      </div>
+    )
   }
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <div style={{ marginBottom: '16px' }}>
-        <label htmlFor="contact-name" style={{ display: 'block', marginBottom: '4px', color: 'rgba(255,255,255,0.8)', fontSize: '18px' }}>Name *</label>
-        <input id="contact-name" name="name" required maxLength={100} style={{ width: '100%', padding: '10px', fontSize: '18px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.1)', color: '#fff' }} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+        <div>
+          <label htmlFor="contact-name" style={labelStyle}>Name</label>
+          <input id="contact-name" name="name" required maxLength={100} placeholder="Your name" style={fieldStyle} />
+        </div>
+        <div>
+          <label htmlFor="contact-email" style={labelStyle}>Email</label>
+          <input id="contact-email" name="email" type="email" required maxLength={254} placeholder="you@example.com" style={fieldStyle} />
+        </div>
       </div>
-      <div style={{ marginBottom: '16px' }}>
-        <label htmlFor="contact-email" style={{ display: 'block', marginBottom: '4px', color: 'rgba(255,255,255,0.8)', fontSize: '18px' }}>Email *</label>
-        <input id="contact-email" name="email" type="email" required maxLength={254} style={{ width: '100%', padding: '10px', fontSize: '18px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.1)', color: '#fff' }} />
+      <div style={{ marginBottom: '20px' }}>
+        <label htmlFor="contact-message" style={labelStyle}>Message</label>
+        <textarea id="contact-message" name="message" required maxLength={2000} rows={4} placeholder="Tell us what's on your mind…" style={{ ...fieldStyle, resize: 'vertical', fontFamily: 'inherit' }} />
       </div>
-      <div style={{ marginBottom: '16px' }}>
-        <label htmlFor="contact-message" style={{ display: 'block', marginBottom: '4px', color: 'rgba(255,255,255,0.8)', fontSize: '18px' }}>Message *</label>
-        <textarea id="contact-message" name="message" required maxLength={2000} rows={4} style={{ width: '100%', padding: '10px', fontSize: '18px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.1)', color: '#fff', resize: 'vertical' }} />
+      {error && <p role="alert" aria-live="polite" style={{ color: '#ffb3b3', marginBottom: '16px', fontSize: '15px' }}>{error}</p>}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+        <button type="submit" disabled={status === 'loading'} style={{ background: 'var(--color-accent)', color: 'var(--color-primary)', padding: '12px 32px', fontSize: '16px', border: 'none', borderRadius: '6px', cursor: 'pointer', minHeight: '48px', fontWeight: '600', letterSpacing: '0.02em' }}>
+          {status === 'loading' ? 'Sending…' : 'Send Message'}
+        </button>
+        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px', margin: 0 }}>
+          <Link href="/privacy" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'underline' }}>Privacy Policy</Link>
+        </p>
       </div>
-      {error && <p role="alert" aria-live="polite" style={{ color: '#ffb3b3', marginBottom: '12px', fontSize: '16px' }}>{error}</p>}
-      <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', marginBottom: '12px' }}>
-        By submitting this form you agree to our{' '}
-        <Link href="/privacy" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'underline' }}>Privacy Policy</Link>.
-      </p>
-      <button type="submit" disabled={status === 'loading'} style={{ background: 'var(--color-accent)', color: 'var(--color-primary)', padding: '12px 28px', fontSize: '18px', border: 'none', borderRadius: '4px', cursor: 'pointer', minHeight: '48px', fontWeight: '600' }}>
-        {status === 'loading' ? 'Sending…' : 'Send Message'}
-      </button>
     </form>
   )
 }
