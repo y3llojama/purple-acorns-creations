@@ -19,14 +19,14 @@ export default function AnnouncementBanner({ text, linkUrl, linkLabel }: Props) 
   const safeLink = linkUrl && isValidHttpsUrl(linkUrl) ? linkUrl : null
 
   return (
-    <div role="region" aria-label="Announcement" style={{ background: 'var(--color-primary)', color: 'var(--color-accent)', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', fontSize: '16px', position: 'relative' }}>
+    <div role="region" aria-label="Announcement" style={{ background: 'var(--color-announce-bg, var(--color-primary))', color: 'var(--color-announce-text, #ffffff)', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', fontSize: '16px', position: 'relative' }}>
       <span>{text}</span>
       {safeLink && (
-        <a href={safeLink} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)', textDecoration: 'underline' }}>
+        <a href={safeLink} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-announce-text, #ffffff)', textDecoration: 'underline' }}>
           {linkLabel ?? 'Learn more'}
         </a>
       )}
-      <button onClick={dismiss} aria-label="Dismiss announcement" style={{ position: 'absolute', right: '16px', background: 'none', border: 'none', color: 'var(--color-accent)', fontSize: '20px', cursor: 'pointer', padding: '8px', minWidth: '48px', minHeight: '48px' }}>
+      <button onClick={dismiss} aria-label="Dismiss announcement" style={{ position: 'absolute', right: '16px', background: 'none', border: 'none', color: 'var(--color-announce-text, #ffffff)', fontSize: '20px', cursor: 'pointer', padding: '8px', minWidth: '48px', minHeight: '48px' }}>
         ×
       </button>
     </div>
