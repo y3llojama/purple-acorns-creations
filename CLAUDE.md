@@ -57,6 +57,7 @@
 - `'use client'` components must be in separate files — cannot `export const metadata` from a client component
 - Derive data from a single Supabase query in layouts — no double queries
 - `middleware.ts` runs in Edge Runtime — copy Set-Cookie headers from `signOut()` to redirect response manually
+- Public pages live in `app/(public)/` route group — Header/Footer/AnnouncementBanner render only there, admin routes are outside it
 
 ## Theming
 
@@ -75,6 +76,7 @@
 - Jest config: `moduleNameMapper` for `@/` paths, `setupFiles` for env vars (not `setupFilesAfterFramework`)
 - Inject test env vars via `setupFiles: ['jest.setup.env.js']` — `testEnvironmentOptions.env` is ignored by jsdom
 - `ADMIN_EMAILS` must be set in test env for middleware tests to pass
+- `testPathIgnorePatterns` must include `'<rootDir>/.worktrees/'` — worktrees have their own node_modules, causing duplicate React hook errors if discovered
 
 ## Known Gotchas
 
