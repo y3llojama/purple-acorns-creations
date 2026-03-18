@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { isValidHttpsUrl } from '@/lib/validate'
 import { getSettings } from '@/lib/theme'
+import { interpolate, buildVars } from '@/lib/variables'
 
 export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get('url')
@@ -13,6 +14,8 @@ export async function GET(request: NextRequest) {
 
   const settings = await getSettings()
   const watermark = settings.gallery_watermark
+    ? interpolate(settings.gallery_watermark, buildVars(settings.business_name))
+    : null
 
   // Fetch the original image
   const imageRes = await fetch(url)

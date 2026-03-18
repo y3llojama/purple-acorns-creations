@@ -80,6 +80,9 @@ export default function EventsManager({ initialEvents }: Props) {
           <div style={{ marginTop: '16px' }}>
             <label htmlFor="event-desc" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Description</label>
             <textarea id="event-desc" rows={3} {...field('description')} style={{ width: '100%', padding: '8px', fontSize: '16px', borderRadius: '4px', border: '1px solid var(--color-border)' }} />
+            <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+              Variables: <code>{'${BUSINESS_NAME}'}</code> · <code>{'${CONTACT_FORM}'}</code>
+            </p>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
             <div>

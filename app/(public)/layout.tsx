@@ -19,7 +19,7 @@ export default async function PublicLayout({ children }: { children: React.React
         <AnnouncementBanner
           text={announcementText}
           linkUrl={settings.announcement_link_url ?? null}
-          linkLabel={settings.announcement_link_label ?? null}
+          linkLabel={settings.announcement_link_label ? sanitizeText(interpolate(settings.announcement_link_label, vars)) : null}
         />
       )}
       <Header logoUrl={settings.logo_url ?? null} businessName={settings.business_name} />

@@ -30,6 +30,12 @@ export default async function HomePage() {
   }
 
   const vars = buildVars(settings.business_name)
+  const event = eventResult.data ? {
+    ...eventResult.data,
+    name: interpolate(eventResult.data.name, vars),
+    description: eventResult.data.description ? interpolate(eventResult.data.description, vars) : eventResult.data.description,
+    link_label: eventResult.data.link_label ? interpolate(eventResult.data.link_label, vars) : eventResult.data.link_label,
+  } : null
 
   return (
     <>
@@ -41,7 +47,7 @@ export default async function HomePage() {
       <StoryTeaser teaser={sanitizeText(interpolate(content.story_teaser ?? '', vars))} />
       <FeaturedPieces items={featured} watermark={settings.gallery_watermark} />
       <GalleryStrip items={gallery} watermark={settings.gallery_watermark} />
-      <NextEvent event={eventResult.data ?? null} />
+      <NextEvent event={event} />
       <InstagramFeed widgetId={settings.behold_widget_id} handle={settings.social_instagram} followAlongMode={settings.follow_along_mode} followAlongPhotos={followAlongResult} />
       <NewsletterSignup />
     </>

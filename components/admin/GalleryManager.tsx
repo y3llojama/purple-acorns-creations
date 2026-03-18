@@ -178,6 +178,7 @@ export default function GalleryManager({ initialItems, watermark, businessName }
         <h2 style={{ fontSize: '18px', marginBottom: '8px' }}>Watermark</h2>
         <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginBottom: '12px' }}>
           Optional text overlaid on all gallery images. Leave blank for no watermark.
+          Variables: <code>{'${BUSINESS_NAME}'}</code> · <code>{'${CONTACT_FORM}'}</code>
         </p>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           <input
