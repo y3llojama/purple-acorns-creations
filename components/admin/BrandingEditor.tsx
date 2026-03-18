@@ -195,6 +195,7 @@ export default function BrandingEditor({ settings }: Props) {
         <h2 style={{ fontSize: '20px', marginBottom: '6px' }}>Business Name</h2>
         <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
           Displayed in the site header, footer, emails, and page titles.
+          Use <code>{'${BUSINESS_NAME}'}</code> in announcement text, content fields, and email replies to insert this value automatically.
         </p>
         <form onSubmit={saveBusinessName} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: '240px' }}>
