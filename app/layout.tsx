@@ -37,6 +37,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     themeAttr = 'warm-artisan'
   }
 
+  // Modern template overrides DB theme
+  if (process.env.NEXT_PUBLIC_LAYOUT_MODE === 'modern') {
+    themeAttr = 'modern'
+    inlineVars = undefined
+  }
+
   return (
     <html lang="en" data-theme={themeAttr} style={inlineVars as React.CSSProperties}>
       <body>

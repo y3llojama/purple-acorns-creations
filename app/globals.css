@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@300;400;500;600&family=Jost:wght@300;400;500;600;700&display=swap');
 
 /* Warm Artisan theme — deep plum, antique gold, cream */
 [data-theme="warm-artisan"] {
@@ -24,6 +24,23 @@
   --color-text-muted: #6b7b6b;
   --color-border: #e0d4ec;
   --color-focus: #9b7bb8;
+}
+
+/* Modern theme — deep navy, warm gold, purple announcement */
+[data-theme="modern"] {
+  --color-bg: #f9f7f4;
+  --color-surface: #ffffff;
+  --color-primary: #1b1a40;
+  --color-accent: #b1a15f;
+  --color-secondary: #957ab2;
+  --color-text: #1b1a40;
+  --color-text-muted: #888888;
+  --color-border: #e6e6e6;
+  --color-focus: #b1a15f;
+  --color-announce-bg: #957ab2;
+  --color-announce-text: #ffffff;
+  --font-display: 'Jost', 'DM Sans', sans-serif;
+  --font-body: 'Jost', 'DM Sans', sans-serif;
 }
 
 :root {
