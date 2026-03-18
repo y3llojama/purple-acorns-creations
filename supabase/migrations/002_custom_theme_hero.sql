@@ -5,6 +5,6 @@ alter table settings
 
 -- Expand theme constraint to include 'custom'
 alter table settings
-  drop constraint settings_theme_check,
+  drop constraint if exists settings_theme_check,
   add constraint settings_theme_check
     check (theme in ('warm-artisan', 'soft-botanical', 'custom'));
