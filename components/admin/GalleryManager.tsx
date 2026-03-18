@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import ImageUploader from './ImageUploader'
 import ConfirmDialog from './ConfirmDialog'
+import SiteMap from './SiteMap'
 import type { GalleryItem } from '@/lib/supabase/types'
 
 interface Props { initialItems: GalleryItem[] }
@@ -40,6 +41,8 @@ export default function GalleryManager({ initialItems }: Props) {
   return (
     <div>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', color: 'var(--color-primary)', marginBottom: '24px' }}>Gallery</h1>
+
+      <SiteMap highlight="gallery" label="Gallery Strip" description="Horizontal scrolling photo strip in the middle of the homepage." />
 
       <div style={{ background: 'var(--color-surface)', padding: '24px', borderRadius: '8px', border: '1px solid var(--color-border)', marginBottom: '32px' }}>
         <h2 style={{ fontSize: '18px', marginBottom: '16px' }}>Add Photo</h2>
