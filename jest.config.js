@@ -10,4 +10,6 @@ module.exports = createJestConfig({
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
+  // Exclude git worktrees — they have their own node_modules which causes duplicate React
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/.worktrees/'],
 })
