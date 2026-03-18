@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -25,10 +25,13 @@ const NAV_ITEMS = [
 export default function AdminSidebar() {
   const pathname = usePathname()
   const router = useRouter()
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return localStorage.getItem('admin-sidebar-collapsed') === 'true'
-  })
+  const [collapsed, setCollapsed] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    if (localStorage.getItem('admin-sidebar-collapsed') === 'true') setCollapsed(true)
+  }, [])
 
   function toggleCollapsed() {
     const next = !collapsed
@@ -46,7 +49,7 @@ export default function AdminSidebar() {
 
   return (
     <aside
-      style={{ width, minHeight: '100vh', background: 'var(--color-primary)', color: 'var(--color-accent)', display: 'flex', flexDirection: 'column', flexShrink: 0, transition: 'width 0.2s ease', overflow: 'hidden', position: 'relative' }}
+      style={{ width, minHeight: '100vh', background: 'var(--color-primary)', color: 'var(--color-accent)', display: 'flex', flexDirection: 'column', flexShrink: 0, transition: mounted ? 'width 0.2s ease' : 'none', overflow: 'hidden', position: 'relative' }}
     >
       {/* Header */}
       <div style={{ padding: collapsed ? '20px 0' : '0 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', minHeight: '72px' }}>
