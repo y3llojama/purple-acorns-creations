@@ -79,6 +79,35 @@ export default function GalleryManager({ initialItems, watermark }: Props) {
     }
   }
 
+  async function handleMove(index: number, direction: -1 | 1) {
+    const target = index + direction
+    if (target < 0 || target >= items.length) return
+    const a = items[index]
+    const b = items[target]
+    // Swap sort_order values
+    const aOrder = a.sort_order
+    const bOrder = b.sort_order
+    // Optimistic UI update
+    const newItems = [...items]
+    newItems[index] = { ...b, sort_order: aOrder }
+    newItems[target] = { ...a, sort_order: bOrder }
+    newItems.sort((x, y) => x.sort_order - y.sort_order)
+    setItems(newItems)
+    // Persist both
+    await Promise.all([
+      fetch('/api/admin/gallery', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: a.id, sort_order: bOrder }),
+      }),
+      fetch('/api/admin/gallery', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: b.id, sort_order: aOrder }),
+      }),
+    ])
+  }
+
   async function saveWatermark() {
     setWatermarkError(null)
     const res = await fetch('/api/admin/settings', {
@@ -131,10 +160,28 @@ export default function GalleryManager({ initialItems, watermark }: Props) {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
-        {items.map(item => (
-          <div key={item.id} style={{ position: 'relative', background: 'var(--color-surface)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+        {items.map((item, idx) => (
+          <div key={item.id} style={{ position: 'relative', background: 'var(--color-surface)', borderRadius: '8px', overflow: 'hidden', border: item.is_featured ? '2px solid var(--color-primary)' : '1px solid var(--color-border)' }}>
             <Image src={item.url} alt={item.alt_text} width={200} height={200} style={{ width: '100%', height: '200px', objectFit: 'cover' }} />
             <div style={{ padding: '8px' }}>
+              <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+                <button
+                  onClick={() => handleMove(idx, -1)}
+                  disabled={idx === 0}
+                  aria-label="Move left"
+                  style={{ flex: 1, minHeight: '48px', fontSize: '18px', cursor: idx === 0 ? 'default' : 'pointer', background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', opacity: idx === 0 ? 0.3 : 1 }}
+                >
+                  ←
+                </button>
+                <button
+                  onClick={() => handleMove(idx, 1)}
+                  disabled={idx === items.length - 1}
+                  aria-label="Move right"
+                  style={{ flex: 1, minHeight: '48px', fontSize: '18px', cursor: idx === items.length - 1 ? 'default' : 'pointer', background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', opacity: idx === items.length - 1 ? 0.3 : 1 }}
+                >
+                  →
+                </button>
+              </div>
               <EditableDescription
                 id={item.id}
                 value={item.alt_text}

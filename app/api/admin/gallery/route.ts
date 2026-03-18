@@ -31,7 +31,7 @@ export async function PATCH(request: Request) {
   if (error) return error
   const body = await request.json().catch(() => ({} as Record<string, unknown>))
   if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 })
-  const update: Record<string, string | boolean> = {}
+  const update: Record<string, string | boolean | number> = {}
   if (body.alt_text !== undefined) {
     const alt_text = sanitizeText(clampLength(String(body.alt_text), 500))
     if (!alt_text) return NextResponse.json({ error: 'Description required for accessibility' }, { status: 400 })
@@ -39,6 +39,9 @@ export async function PATCH(request: Request) {
   }
   if (body.is_featured !== undefined) {
     update.is_featured = Boolean(body.is_featured)
+  }
+  if (body.sort_order !== undefined) {
+    update.sort_order = Number(body.sort_order) || 0
   }
   if (Object.keys(update).length === 0) return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
   const supabase = createServiceRoleClient()
