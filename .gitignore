@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -44,6 +44,12 @@ next-env.d.ts
 # Worktrees
 .worktrees/
 worktrees/
+
+# Old prototype
+old/
+
+# Superpowers brainstorm artifacts
+.superpowers/
 
 # Terraform
 infra/.terraform/
