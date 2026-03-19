@@ -346,6 +346,7 @@ export default function ModernFAB() {
           border-radius: 4px; padding: 6px 12px;
           font-size: 13px; cursor: pointer;
           color: #444; font-family: 'Jost', sans-serif;
+          min-height: 48px;
         }
       `}</style>
 
@@ -441,6 +442,7 @@ export default function ModernFAB() {
             role="dialog"
             aria-label="Accessibility options"
             aria-modal="true"
+            {...(!a11yOpen ? { inert: '' } : {})}
           >
             <label className="mfab-a11y-row">
               <span>Larger text</span>
