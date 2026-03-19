@@ -166,7 +166,7 @@ export default function ModernFAB() {
   function toggleLargeText() {
     const next = !largeText
     setLargeText(next)
-    document.documentElement.style.fontSize = next ? '120%' : ''
+    document.body.style.zoom = next ? '1.2' : ''
   }
 
   function toggleHighContrast() {
@@ -353,7 +353,7 @@ export default function ModernFAB() {
       {/* ── Left: Chat FAB / Close on contact page ── */}
       <div ref={wrapperRef} className="mfab-wrap-left">
         {!isContactPage && (
-          <div ref={chatPanelRef} id="mfab-chat-dialog" className={`mfab-chat-panel${chatOpen ? ' open' : ''}`} role="dialog" aria-label="Chat with us" aria-modal="true" {...(!chatOpen ? { inert: '' } : {})}>
+          <div ref={chatPanelRef} id="mfab-chat-dialog" className={`mfab-chat-panel${chatOpen ? ' open' : ''}`} role="dialog" aria-label="Chat with us" aria-modal="true" inert={!chatOpen || undefined}>
             <div className="mfab-chat-header">
               <h2><span aria-hidden="true">👋</span> Chat with us</h2>
               <p>Hi! Send us a message and we&apos;ll get back to you soon.</p>
@@ -442,7 +442,7 @@ export default function ModernFAB() {
             role="dialog"
             aria-label="Accessibility options"
             aria-modal="true"
-            {...(!a11yOpen ? { inert: '' } : {})}
+            inert={!a11yOpen || undefined}
           >
             <label className="mfab-a11y-row">
               <span>Larger text</span>
