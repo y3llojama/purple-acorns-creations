@@ -1,22 +1,22 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 
 // ── Nav data ─────────────────────────────────────────────────────────────────
 
 interface NavLink { label: string; href: string }
 interface NavColumn { heading: string; links: NavLink[] }
+interface NavPanel { headline: string; sub: string; href: string; cta: string; bg: string }
 interface NavItem {
   label: string
   href: string
-  /** Desktop: categorised mega-menu columns */
   columns?: NavColumn[]
-  /** Mobile: flat link list */
+  panel?: NavPanel
   mobile?: NavLink[]
 }
 
-const NAV_ITEMS: NavItem[] = [
+function buildNavItems(businessName: string): NavItem[] { return [
   {
     label: 'Shop',
     href: '/shop',
@@ -47,6 +47,13 @@ const NAV_ITEMS: NavItem[] = [
         ],
       },
     ],
+    panel: {
+      headline: 'Made by hand,\nworn with joy.',
+      sub: 'Crochet jewelry, ceramics & textiles — each piece one of a kind.',
+      href: '/shop',
+      cta: 'Shop All',
+      bg: 'linear-gradient(135deg, #4a2d6b 0%, #7b5ea7 60%, #a590c8 100%)',
+    },
     mobile: [
       { label: 'New Arrivals', href: '/shop' },
       { label: 'Ceramics', href: '/shop' },
@@ -56,7 +63,7 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    label: 'World of Purple Acorns',
+    label: `World of ${businessName}`,
     href: '/our-story',
     columns: [
       {
@@ -76,6 +83,13 @@ const NAV_ITEMS: NavItem[] = [
         ],
       },
     ],
+    panel: {
+      headline: 'A mother &\ndaughter duo.',
+      sub: 'A mother and daughter sharing a passion for making things by hand.',
+      href: '/our-story',
+      cta: 'Read Our Story',
+      bg: 'linear-gradient(135deg, #3a2255 0%, #6b4c9a 55%, #9b7bb8 100%)',
+    },
     mobile: [
       { label: 'Our Story', href: '/our-story' },
       { label: 'Behind the Craft', href: '/our-story' },
@@ -83,25 +97,32 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    label: 'Visit Us',
+    label: 'Contact',
     href: '/contact',
     columns: [
       {
-        heading: 'Find Us',
+        heading: 'Get in Touch',
         links: [
-          { label: 'Studio & Gallery', href: '/contact' },
-          { label: 'Hours', href: '/contact' },
-          { label: 'Contact Us', href: '/contact' },
+          { label: 'Send a Message', href: '/contact' },
+          { label: 'Custom Orders', href: '/contact' },
+          { label: 'Wholesale Enquiries', href: '/contact' },
         ],
       },
     ],
+    panel: {
+      headline: 'We\'d love to\nhear from you.',
+      sub: 'Questions, custom orders, or just a hello — reach out any time.',
+      href: '/contact',
+      cta: 'Contact Us',
+      bg: 'linear-gradient(135deg, #2a1845 0%, #5c3d8a 55%, #8b6ab0 100%)',
+    },
     mobile: [
-      { label: 'Studio', href: '/contact' },
-      { label: 'Hours', href: '/contact' },
-      { label: 'Contact', href: '/contact' },
+      { label: 'Send a Message', href: '/contact' },
+      { label: 'Custom Orders', href: '/contact' },
+      { label: 'Wholesale', href: '/contact' },
     ],
   },
-]
+]}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -112,41 +133,31 @@ interface Props {
 }
 
 export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: Props) {
+  const NAV_ITEMS = buildNavItems(businessName)
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [mobileOpen, setMobileOpen] = useState(false)
   const [mobileOpenItem, setMobileOpenItem] = useState<string | null>(null)
-  const headerRef = useRef<HTMLElement>(null)
 
   const cartHref = squareStoreUrl ?? '/shop'
   const cartIsExternal = !!squareStoreUrl
 
-  // Close mega menu when clicking outside the entire header
-  useEffect(() => {
-    if (!hoveredItem) return
-    function onPointer(e: MouseEvent) {
-      if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
-        setHoveredItem(null)
-      }
-    }
-    document.addEventListener('mousedown', onPointer)
-    return () => document.removeEventListener('mousedown', onPointer)
-  }, [hoveredItem])
 
   return (
     <header
-      ref={headerRef}
-      style={{ position: 'sticky', top: 0, zIndex: 200, background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', width: '100%' }}
+      style={{ position: 'sticky', top: 0, zIndex: 200, background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', width: '100%', overflow: 'visible' }}
+      onMouseLeave={() => setHoveredItem(null)}
     >
       <style>{`
         /* ── Bar layout ── */
         .mh-bar {
           display: grid;
-          grid-template-columns: 1fr auto 1fr;
+          grid-template-columns: 1fr 200px 1fr;
           align-items: center;
-          height: 70px;
+          height: 100px;
           padding: 0 clamp(16px, 4vw, 48px);
+          position: relative;
         }
 
         /* ── Desktop nav ── */
@@ -157,7 +168,7 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
         .mh-nav-link {
           display: flex;
           align-items: center;
-          height: 70px;
+          height: 100px;
           padding: 0 18px;
           font-family: 'Jost', sans-serif;
           font-size: 11px;
@@ -198,26 +209,24 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
         }
 
         /* ── Mega menu ── */
+        /* Rendered as a direct child of the sticky <header>, so
+           position:absolute top:100% always sits right below the header bar
+           regardless of announcement banner height. */
         .mh-mega {
           position: absolute;
           top: 100%;
           left: 0;
-          /* stretch to full viewport width, anchored to left edge of header */
-          width: 100vw;
+          right: 0;
+          width: 100%;
           background: var(--color-surface);
           border-top: 2px solid var(--color-primary);
-          box-shadow: 0 12px 40px rgba(0,0,0,0.10);
+          box-shadow: 0 16px 48px rgba(0,0,0,0.12);
           opacity: 0;
           pointer-events: none;
-          transform: translateY(-6px);
-          transition: opacity 0.22s ease, transform 0.22s ease;
+          transform: translateY(-10px);
+          transition: opacity 0.3s cubic-bezier(0.46, 0.01, 0.32, 1),
+                      transform 0.35s cubic-bezier(0.46, 0.01, 0.32, 1);
           z-index: 300;
-        }
-
-        /* Offset so the mega menu left edge aligns with the viewport, not the nav item */
-        .mh-mega-offset {
-          /* will be set inline per item via JS — fallback 0 */
-          left: 0;
         }
 
         .mh-mega.visible {
@@ -226,14 +235,25 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
           transform: translateY(0);
         }
 
-        .mh-mega-inner {
-          display: flex;
-          gap: 48px;
-          padding: 32px clamp(24px, 6vw, 64px) 36px;
-          max-width: 900px;
+        @media (max-width: 900px) {
+          .mh-mega { display: none; }
         }
 
-        .mh-mega-col { min-width: 140px; }
+        /* Two-column layout: links left, hero panel right */
+        .mh-mega-inner {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          min-height: 280px;
+        }
+
+        .mh-mega-links {
+          display: flex;
+          gap: 48px;
+          padding: 36px clamp(24px, 6vw, 64px) 40px;
+          align-items: flex-start;
+        }
+
+        .mh-mega-col { min-width: 130px; }
 
         .mh-mega-heading {
           font-family: 'Jost', sans-serif;
@@ -242,13 +262,13 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
           letter-spacing: 0.18em;
           text-transform: uppercase;
           color: var(--color-primary);
-          margin-bottom: 14px;
-          opacity: 0.7;
+          margin-bottom: 16px;
+          opacity: 0.65;
         }
 
         .mh-mega-link {
           display: block;
-          padding: 6px 0;
+          padding: 5px 0;
           font-family: 'Jost', sans-serif;
           font-size: 13px;
           font-weight: 400;
@@ -264,18 +284,78 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
           padding-left: 6px;
         }
 
-        /* ── Logo ── */
-        .mh-logo {
+        /* Right hero panel */
+        .mh-mega-panel {
+          width: clamp(260px, 30vw, 400px);
           display: flex;
-          justify-content: center;
-          align-items: center;
+          flex-direction: column;
+          justify-content: flex-end;
+          padding: 36px 40px;
+          position: relative;
+          overflow: hidden;
           text-decoration: none;
+        }
+
+        .mh-mega-panel-headline {
+          font-family: 'Jost', sans-serif;
+          font-size: clamp(20px, 2.2vw, 28px);
+          font-weight: 700;
+          letter-spacing: 0.02em;
+          color: #ffffff;
+          margin-bottom: 10px;
+          line-height: 1.2;
+          white-space: pre-line;
+        }
+
+        .mh-mega-panel-sub {
+          font-family: 'Jost', sans-serif;
+          font-size: 13px;
+          font-weight: 400;
+          color: rgba(255,255,255,0.82);
+          margin-bottom: 20px;
+          line-height: 1.5;
+        }
+
+        .mh-mega-panel-cta {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-family: 'Jost', sans-serif;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: #ffffff;
+          border: 1px solid rgba(255,255,255,0.55);
+          padding: 9px 18px;
+          border-radius: 2px;
+          transition: background 0.2s ease, border-color 0.2s ease;
+          width: fit-content;
+        }
+
+        .mh-mega-panel:hover .mh-mega-panel-cta {
+          background: rgba(255,255,255,0.15);
+          border-color: #ffffff;
+        }
+
+        /* ── Logo — floats on its own layer, anchored to bar bottom ── */
+        .mh-logo {
+          position: absolute;
+          left: 50%;
+          bottom: 0;
+          transform: translate(-50%, 50%);
+          z-index: 10;
+          text-decoration: none;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          pointer-events: auto;
         }
 
         .mh-logo-text {
           font-family: 'Jost', sans-serif;
           font-weight: 700;
-          font-size: clamp(13px, 2vw, 19px);
+          font-size: clamp(16px, 2.4vw, 24px);
           letter-spacing: 0.2em;
           text-transform: uppercase;
           color: var(--color-text);
@@ -283,10 +363,12 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
         }
 
         .mh-logo img {
-          height: clamp(40px, 6vw, 60px);
-          max-width: clamp(100px, 18vw, 220px);
+          height: clamp(120px, 13vw, 180px);
+          width: auto;
           object-fit: contain;
           display: block;
+          /* soft drop shadow so it reads on any background */
+          filter: drop-shadow(0 2px 8px rgba(0,0,0,0.12));
         }
 
         /* ── Right icons ── */
@@ -295,6 +377,8 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
           align-items: center;
           justify-content: flex-end;
           gap: 4px;
+          position: relative;
+          z-index: 20;
         }
 
         .mh-icon-btn {
@@ -420,7 +504,7 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
 
         /* ── Mobile overrides ── */
         @media (max-width: 900px) {
-          .mh-bar { height: 56px; }
+          .mh-bar { height: 64px; }
           .mh-desktop-nav { display: none; }
           .mh-hamburger { display: flex; }
         }
@@ -445,14 +529,6 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
                 >
                   {item.label}
                 </Link>
-
-                {/* Mega menu — full-width panel */}
-                {item.columns && (
-                  <MegaMenu
-                    columns={item.columns}
-                    visible={hoveredItem === item.label}
-                  />
-                )}
               </div>
             ))}
           </nav>
@@ -561,41 +637,66 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
           </div>
         ))}
       </nav>
+
+      {/* ── Mega menu panels — direct children of sticky header so
+           position:absolute top:100% lands right below the bar ── */}
+      {NAV_ITEMS.map(item => item.columns ? (
+        <MegaMenu
+          key={item.label}
+          columns={item.columns}
+          panel={item.panel}
+          visible={hoveredItem === item.label}
+          onMouseEnter={() => setHoveredItem(item.label)}
+          onMouseLeave={() => setHoveredItem(null)}
+        />
+      ) : null)}
     </header>
   )
 }
 
 // ── Mega menu panel ───────────────────────────────────────────────────────────
 
-function MegaMenu({ columns, visible }: { columns: NavColumn[]; visible: boolean }) {
-  const navItemRef = useRef<HTMLDivElement>(null)
-  const [offsetLeft, setOffsetLeft] = useState(0)
-
-  // Calculate how far left we need to shift to align with the viewport left edge
-  useEffect(() => {
-    if (!visible || !navItemRef.current) return
-    const rect = navItemRef.current.getBoundingClientRect()
-    setOffsetLeft(-rect.left)
-  }, [visible])
-
+function MegaMenu({ columns, panel, visible, onMouseEnter, onMouseLeave }: {
+  columns: NavColumn[]
+  panel?: NavPanel
+  visible: boolean
+  onMouseEnter: () => void
+  onMouseLeave: () => void
+}) {
   return (
     <div
-      ref={navItemRef}
       className={`mh-mega${visible ? ' visible' : ''}`}
-      style={{ left: `${offsetLeft}px` }}
       role="region"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       <div className="mh-mega-inner">
-        {columns.map(col => (
-          <div key={col.heading} className="mh-mega-col">
-            <div className="mh-mega-heading">{col.heading}</div>
-            {col.links.map(link => (
-              <Link key={link.label} href={link.href} className="mh-mega-link">
-                {link.label}
-              </Link>
-            ))}
-          </div>
-        ))}
+        {/* Left: link columns */}
+        <div className="mh-mega-links">
+          {columns.map(col => (
+            <div key={col.heading} className="mh-mega-col">
+              <div className="mh-mega-heading">{col.heading}</div>
+              {col.links.map(link => (
+                <Link key={link.label} href={link.href} className="mh-mega-link">
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* Right: hero panel */}
+        {panel && (
+          <Link
+            href={panel.href}
+            className="mh-mega-panel"
+            style={{ background: panel.bg }}
+          >
+            <p className="mh-mega-panel-headline">{panel.headline}</p>
+            <p className="mh-mega-panel-sub">{panel.sub}</p>
+            <span className="mh-mega-panel-cta">{panel.cta} →</span>
+          </Link>
+        )}
       </div>
     </div>
   )

@@ -212,20 +212,18 @@ export default function ModernFooter({ settings }: Props) {
           >
             Get in Touch
           </div>
-          {settings.contact_email && (
-            <a
-              href={`mailto:${settings.contact_email}`}
-              style={{
-                color: 'rgba(255,255,255,0.85)',
-                textDecoration: 'none',
-                fontSize: '15px',
-                display: 'block',
-                padding: '3px 0',
-              }}
-            >
-              {settings.contact_email}
-            </a>
-          )}
+          <a
+            href="/contact"
+            style={{
+              color: 'rgba(255,255,255,0.85)',
+              textDecoration: 'none',
+              fontSize: '15px',
+              display: 'block',
+              padding: '3px 0',
+            }}
+          >
+            Send us a message →
+          </a>
           {settings.square_store_url && isValidHttpsUrl(settings.square_store_url) && (
             <a
               href={settings.square_store_url}
