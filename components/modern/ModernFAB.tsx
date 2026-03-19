@@ -353,7 +353,7 @@ export default function ModernFAB() {
       {/* ── Left: Chat FAB / Close on contact page ── */}
       <div ref={wrapperRef} className="mfab-wrap-left">
         {!isContactPage && (
-          <div ref={chatPanelRef} id="mfab-chat-dialog" className={`mfab-chat-panel${chatOpen ? ' open' : ''}`} role="dialog" aria-label="Chat with us" aria-modal="true">
+          <div ref={chatPanelRef} id="mfab-chat-dialog" className={`mfab-chat-panel${chatOpen ? ' open' : ''}`} role="dialog" aria-label="Chat with us" aria-modal="true" {...(!chatOpen ? { inert: '' } : {})}>
             <div className="mfab-chat-header">
               <h2><span aria-hidden="true">👋</span> Chat with us</h2>
               <p>Hi! Send us a message and we&apos;ll get back to you soon.</p>
