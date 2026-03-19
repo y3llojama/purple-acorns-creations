@@ -166,7 +166,7 @@ export default function ModernFAB() {
   function toggleLargeText() {
     const next = !largeText
     setLargeText(next)
-    document.body.style.fontSize = next ? '120%' : ''
+    document.documentElement.style.fontSize = next ? '120%' : ''
   }
 
   function toggleHighContrast() {

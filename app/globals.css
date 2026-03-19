@@ -56,7 +56,7 @@
 
 body {
   font-family: var(--font-body);
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1.6;
   color: var(--color-text);
   background: var(--color-bg);
@@ -68,11 +68,11 @@ h1, h2, h3, h4, h5, h6 {
   line-height: 1.2;
 }
 
-h1 { font-size: 64px; }
-h2 { font-size: 48px; }
-h3 { font-size: 36px; }
-h4 { font-size: 28px; }
-h5 { font-size: 22px; }
+h1 { font-size: 4rem; }
+h2 { font-size: 3rem; }
+h3 { font-size: 2.25rem; }
+h4 { font-size: 1.75rem; }
+h5 { font-size: 1.375rem; }
 
 /* Accessible focus rings — visible on all interactive elements */
 :focus-visible {
@@ -119,9 +119,21 @@ h5 { font-size: 22px; }
 
 /* Mobile typography scaling */
 @media (max-width: 768px) {
-  h1 { font-size: 40px; }
-  h2 { font-size: 32px; }
-  h3 { font-size: 26px; }
+  h1 { font-size: 2.5rem; }
+  h2 { font-size: 2rem; }
+  h3 { font-size: 1.625rem; }
+}
+
+/* High contrast mode */
+[data-contrast="high"] {
+  --color-text: #000000;
+  --color-text-muted: #000000;
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-primary: #000000;
+  --color-accent: #0000cc;
+  --color-secondary: #0000cc;
+  --color-border: #000000;
 }
 
 /* Header responsive */
