@@ -43,8 +43,17 @@ async function seed() {
   if (delErr) { console.error('delete error:', delErr.message); process.exit(1) }
   console.log('Removed old Flickr featured rows.')
 
-  // Insert local images
-  const { error: insErr } = await supabase.from('gallery').insert(featured)
+  // Insert local images (skip any URL already in the table)
+  const { data: existing } = await supabase.from('gallery').select('url')
+  const existingUrls = new Set((existing ?? []).map(r => r.url))
+  const toInsert = featured.filter(r => !existingUrls.has(r.url))
+
+  if (toInsert.length === 0) {
+    console.log('All featured rows already exist — nothing to insert.')
+    return
+  }
+
+  const { error: insErr } = await supabase.from('gallery').insert(toInsert)
   if (insErr) { console.error('insert error:', insErr.message); process.exit(1) }
 
   console.log(`Done! Inserted ${featured.length} featured images.`)
