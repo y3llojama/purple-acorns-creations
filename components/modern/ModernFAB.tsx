@@ -151,10 +151,10 @@ export default function ModernFAB() {
         }
         .mfab-chat-close {
           position: absolute;
-          top: 10px; right: 10px;
+          top: 4px; right: 4px;
           background: rgba(255,255,255,0.2);
           border: none; color: #fff;
-          width: 28px; height: 28px;
+          width: 48px; height: 48px;
           border-radius: 50%; cursor: pointer;
           display: flex; align-items: center; justify-content: center;
           font-size: 14px; line-height: 1;
@@ -266,9 +266,9 @@ export default function ModernFAB() {
       {/* ── Left: Chat FAB / Close on contact page ── */}
       <div ref={wrapperRef} className="mfab-wrap-left">
         {!isContactPage && (
-          <div className={`mfab-chat-panel${chatOpen ? ' open' : ''}`} role="dialog" aria-label="Chat with us" aria-modal="true">
+          <div id="mfab-chat-dialog" className={`mfab-chat-panel${chatOpen ? ' open' : ''}`} role="dialog" aria-label="Chat with us" aria-modal="true">
             <div className="mfab-chat-header">
-              <h2>👋 Chat with us</h2>
+              <h2><span aria-hidden="true">👋</span> Chat with us</h2>
               <p>Hi! Send us a message and we&apos;ll get back to you soon.</p>
               <button className="mfab-chat-close" onClick={closeChat} aria-label="Close chat">✕</button>
             </div>
@@ -276,27 +276,30 @@ export default function ModernFAB() {
               {chatStep === 'quick' && (
                 <>
                   <div className="mfab-quick-label">Quick links</div>
-                  <a href="/contact" className="mfab-quick-btn">✉️ Send us a message</a>
-                  <a href="/our-story" className="mfab-quick-btn">✨ Our story</a>
-                  <a href="/shop" className="mfab-quick-btn">🛍 Browse the shop</a>
+                  <a href="/contact" className="mfab-quick-btn"><span aria-hidden="true">✉️</span> Send us a message</a>
+                  <a href="/our-story" className="mfab-quick-btn"><span aria-hidden="true">✨</span> Our story</a>
+                  <a href="/shop" className="mfab-quick-btn"><span aria-hidden="true">🛍</span> Browse the shop</a>
                   <button className="mfab-quick-btn" onClick={() => setChatStep('compose')} style={{ fontWeight: 600, borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}>
-                    💬 Write us a message
+                    <span aria-hidden="true">💬</span> Write us a message
                   </button>
                 </>
               )}
               {chatStep === 'compose' && (
                 <form onSubmit={handleSend} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <input ref={firstInputRef} className="mfab-input" type="text" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} required maxLength={100} />
-                  <input className="mfab-input" type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} required />
-                  <textarea className="mfab-input mfab-textarea" placeholder="Write your message…" value={message} onChange={e => setMessage(e.target.value)} required maxLength={2000} />
-                  {error && <p className="mfab-error">{error}</p>}
+                  <label htmlFor="mfab-name" className="sr-only">Your name</label>
+                  <input ref={firstInputRef} id="mfab-name" className="mfab-input" type="text" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} required maxLength={100} />
+                  <label htmlFor="mfab-email" className="sr-only">Email address</label>
+                  <input id="mfab-email" className="mfab-input" type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} required />
+                  <label htmlFor="mfab-message" className="sr-only">Message</label>
+                  <textarea id="mfab-message" className="mfab-input mfab-textarea" placeholder="Write your message…" value={message} onChange={e => setMessage(e.target.value)} required maxLength={2000} />
+                  {error && <p className="mfab-error" role="alert">{error}</p>}
                   <button className="mfab-send-btn" type="submit" disabled={sending}>{sending ? 'Sending…' : 'Send message'}</button>
                   <button type="button" className="mfab-back-btn" onClick={() => { setChatStep('quick'); setError('') }}>← Back</button>
                 </form>
               )}
               {chatStep === 'sent' && (
                 <div style={{ textAlign: 'center', padding: '8px 0 4px', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '36px' }}>🎉</span>
+                  <span style={{ fontSize: '36px' }} aria-hidden="true">🎉</span>
                   <p style={{ fontFamily: "'Jost', sans-serif", fontSize: '14px', color: 'var(--color-text)', margin: 0, lineHeight: 1.5 }}>
                     Message received! We&apos;ll be in touch soon.
                   </p>
@@ -317,6 +320,7 @@ export default function ModernFAB() {
           <button
             aria-label={chatOpen ? 'Close chat' : 'Chat with us'}
             aria-expanded={chatOpen}
+            aria-controls="mfab-chat-dialog"
             onClick={chatOpen ? closeChat : openChat}
             style={fabStyle}
           >
@@ -336,7 +340,7 @@ export default function ModernFAB() {
       {/* ── Right: Scroll-to-top (above) + Accessibility FAB (bottom) ── */}
       <div className="mfab-wrap-right">
         <div className={`mfab-scroll-top${scrollVisible ? ' visible' : ''}`}>
-          <button aria-label="Back to top" onClick={scrollToTop} style={fabStyle}>
+          <button aria-label="Back to top" onClick={scrollToTop} tabIndex={scrollVisible ? 0 : -1} style={fabStyle}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <polyline points="18 15 12 9 6 15" />
             </svg>
@@ -344,7 +348,13 @@ export default function ModernFAB() {
         </div>
         <div style={{ position: 'relative' }}>
           {a11yOpen && (
-            <div className="mfab-a11y-panel" role="dialog" aria-label="Accessibility options">
+            <div
+              className="mfab-a11y-panel"
+              id="mfab-a11y-dialog"
+              role="dialog"
+              aria-label="Accessibility options"
+              aria-modal="true"
+            >
               <label className="mfab-a11y-row">
                 <span>Larger text</span>
                 <input type="checkbox" checked={largeText} onChange={toggleLargeText} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
@@ -359,6 +369,7 @@ export default function ModernFAB() {
           <button
             aria-label="Accessibility options"
             aria-expanded={a11yOpen}
+            aria-controls="mfab-a11y-dialog"
             onClick={() => setA11yOpen(o => !o)}
             style={{ ...fabStyle, fontFamily: 'Georgia, serif', fontWeight: 700, fontSize: '15px', letterSpacing: '-0.5px' }}
           >
