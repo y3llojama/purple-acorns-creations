@@ -1,18 +1,26 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 
 export default function ModernFAB() {
+  const pathname = usePathname()
+  const router = useRouter()
+  const isContactPage = pathname === '/contact'
+
   // ── Scroll-to-top ────────────────────────────────────────────────────
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
+    if (isContactPage) { setVisible(true); return }
     function onScroll() { setVisible(window.scrollY > 400) }
+    setVisible(window.scrollY > 400)
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
-  }, [])
+  }, [isContactPage])
 
   function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }) }
+  function handleClose() { router.back() }
 
   // ── Accessibility panel ──────────────────────────────────────────────
   const [a11yOpen, setA11yOpen] = useState(false)
@@ -110,17 +118,21 @@ export default function ModernFAB() {
         }
       `}</style>
 
-      {/* ── Left: Scroll-to-top FAB ── */}
+      {/* ── Left: Scroll-to-top / Close FAB ── */}
       <div className={`mfab-wrap-left${visible ? ' visible' : ''}`}>
-        <button
-          aria-label="Back to top"
-          onClick={scrollToTop}
-          style={fabStyle}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <polyline points="18 15 12 9 6 15" />
-          </svg>
-        </button>
+        {isContactPage ? (
+          <button aria-label="Go back" onClick={handleClose} style={fabStyle}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        ) : (
+          <button aria-label="Back to top" onClick={scrollToTop} style={fabStyle}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="18 15 12 9 6 15" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* ── Right: Accessibility FAB ── */}
