@@ -9,13 +9,14 @@ import type { Settings } from '@/lib/supabase/types'
 
 interface Props { settings: Settings }
 
-type NamedTheme = 'warm-artisan' | 'soft-botanical'
+type NamedTheme = 'warm-artisan' | 'soft-botanical' | 'modern'
 type Preset =
   | { name: string; theme: NamedTheme; primary: string; accent: string }
   | { name: string; theme: 'custom'; primary: string; accent: string }
 
 const PRESETS: Preset[] = [
-  { name: 'Warm Artisan',   theme: 'warm-artisan',   primary: '#2d1b4e', accent: '#d4a853' },
+  { name: 'Modern Purple',  theme: 'modern',          primary: '#7b5ea7', accent: '#a590c8' },
+  { name: 'Warm Artisan',   theme: 'warm-artisan',    primary: '#2d1b4e', accent: '#d4a853' },
   { name: 'Soft Botanical', theme: 'soft-botanical',  primary: '#3d2b4e', accent: '#9b7bb8' },
   { name: 'Forest Dusk',    theme: 'custom',          primary: '#1a3d2b', accent: '#c8a86b' },
   { name: 'Rose & Rust',    theme: 'custom',          primary: '#6b1a2e', accent: '#d4916b' },
@@ -30,7 +31,7 @@ const PREVIEW_STRIP_VARS: Array<keyof ThemeVars> = [
 ]
 
 function initPreset(settings: Settings): Preset {
-  if (settings.theme === 'warm-artisan' || settings.theme === 'soft-botanical') {
+  if (settings.theme === 'warm-artisan' || settings.theme === 'soft-botanical' || settings.theme === 'modern') {
     return PRESETS.find(p => p.theme === settings.theme) ?? PRESETS[0]
   }
   if (settings.theme === 'custom' && settings.custom_primary && settings.custom_accent) {
@@ -74,7 +75,7 @@ export default function BrandingEditor({ settings }: Props) {
       '--color-primary', '--color-accent', '--color-bg', '--color-surface',
       '--color-text', '--color-text-muted', '--color-border', '--color-secondary', '--color-focus',
     ]
-    if (preset.theme === 'warm-artisan' || preset.theme === 'soft-botanical') {
+    if (preset.theme === 'warm-artisan' || preset.theme === 'soft-botanical' || preset.theme === 'modern') {
       html.setAttribute('data-theme', preset.theme)
       for (const key of allVarKeys) html.style.removeProperty(key)
     } else {
@@ -95,7 +96,7 @@ export default function BrandingEditor({ settings }: Props) {
     setThemeError(null)
     applyThemePreview(preset)
     // Auto-save preset selection
-    const body = preset.theme === 'warm-artisan' || preset.theme === 'soft-botanical'
+    const body = preset.theme === 'warm-artisan' || preset.theme === 'soft-botanical' || preset.theme === 'modern'
       ? { theme: preset.theme, custom_primary: null, custom_accent: null }
       : { theme: 'custom', custom_primary: preset.primary, custom_accent: preset.accent }
     fetch('/api/admin/settings', {
@@ -121,7 +122,7 @@ export default function BrandingEditor({ settings }: Props) {
 
   async function saveTheme() {
     setThemeError(null)
-    const body = selectedPreset.theme === 'warm-artisan' || selectedPreset.theme === 'soft-botanical'
+    const body = selectedPreset.theme === 'warm-artisan' || selectedPreset.theme === 'soft-botanical' || selectedPreset.theme === 'modern'
       ? { theme: selectedPreset.theme, custom_primary: null, custom_accent: null }
       : { theme: 'custom', custom_primary: pickerPrimary, custom_accent: pickerAccent }
     const res = await fetch('/api/admin/settings', {
