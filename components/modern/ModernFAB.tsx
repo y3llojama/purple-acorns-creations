@@ -37,17 +37,20 @@ export default function ModernFAB() {
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
-  const firstInputRef = useRef<HTMLInputElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const chatTriggerRef = useRef<HTMLButtonElement>(null)
   const chatPanelRef = useRef<HTMLDivElement>(null)
+  const hasOpenedChatRef = useRef(false)
 
   // Focus management: move focus in on open, restore on close
   useEffect(() => {
     if (chatOpen) {
-      const focusable = getFocusable(chatPanelRef.current)
-      focusable[0]?.focus()
-    } else {
+      hasOpenedChatRef.current = true
+      requestAnimationFrame(() => {
+        const focusable = getFocusable(chatPanelRef.current)
+        focusable[0]?.focus()
+      })
+    } else if (hasOpenedChatRef.current) {
       chatTriggerRef.current?.focus()
     }
   }, [chatOpen])
@@ -63,6 +66,8 @@ export default function ModernFAB() {
       if (e.key === 'Tab') {
         const focusable = getFocusable(chatPanelRef.current)
         if (focusable.length === 0) return
+        // Only trap if focus is currently inside the panel
+        if (!chatPanelRef.current?.contains(document.activeElement)) return
         const first = focusable[0]
         const last = focusable[focusable.length - 1]
         if (e.shiftKey) {
@@ -320,7 +325,7 @@ export default function ModernFAB() {
               {chatStep === 'compose' && (
                 <form onSubmit={handleSend} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <label htmlFor="mfab-name" className="sr-only">Your name</label>
-                  <input ref={firstInputRef} id="mfab-name" className="mfab-input" type="text" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} required maxLength={100} />
+                  <input id="mfab-name" className="mfab-input" type="text" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} required maxLength={100} />
                   <label htmlFor="mfab-email" className="sr-only">Email address</label>
                   <input id="mfab-email" className="mfab-input" type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} required />
                   <label htmlFor="mfab-message" className="sr-only">Message</label>
