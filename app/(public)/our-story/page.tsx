@@ -146,7 +146,7 @@ export default async function OurStoryPage() {
         .os-split-content p { margin: 0 0 16px; }
         .os-split-content p:last-child { margin-bottom: 0; }
 
-        @media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: reduce) {
           .os-hero-img { animation: none; }
           .os-split-img-wrap:hover .os-split-img { transform: none; }
         }
@@ -177,6 +177,7 @@ export default async function OurStoryPage() {
           <div className="os-split-content" dangerouslySetInnerHTML={{ __html: html }} />
         </div>
       </div>
+
     </>
   )
 }
