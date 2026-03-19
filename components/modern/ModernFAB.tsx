@@ -5,6 +5,13 @@ import { usePathname, useRouter } from 'next/navigation'
 
 type ChatStep = 'quick' | 'compose' | 'sent'
 
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+function getFocusable(container: HTMLElement | null): HTMLElement[] {
+  if (!container) return []
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE))
+}
+
 export default function ModernFAB() {
   const pathname = usePathname()
   const router = useRouter()
@@ -32,17 +39,43 @@ export default function ModernFAB() {
   const [error, setError] = useState('')
   const firstInputRef = useRef<HTMLInputElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const chatTriggerRef = useRef<HTMLButtonElement>(null)
+  const chatPanelRef = useRef<HTMLDivElement>(null)
 
+  // Focus management: move focus in on open, restore on close
   useEffect(() => {
-    if (chatOpen && chatStep === 'compose') firstInputRef.current?.focus()
-  }, [chatOpen, chatStep])
+    if (chatOpen) {
+      const focusable = getFocusable(chatPanelRef.current)
+      focusable[0]?.focus()
+    } else {
+      chatTriggerRef.current?.focus()
+    }
+  }, [chatOpen])
 
+  // Keyboard trap: Tab cycles within panel, Escape closes
   useEffect(() => {
     if (!chatOpen) return
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') closeChat() }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        closeChat()
+        return
+      }
+      if (e.key === 'Tab') {
+        const focusable = getFocusable(chatPanelRef.current)
+        if (focusable.length === 0) return
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (e.shiftKey) {
+          if (document.activeElement === first) { e.preventDefault(); last.focus() }
+        } else {
+          if (document.activeElement === last) { e.preventDefault(); first.focus() }
+        }
+      }
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [chatOpen])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatOpen]) // chatStep intentionally NOT here — getFocusable reads live DOM
 
   useEffect(() => {
     if (!chatOpen) return
@@ -266,7 +299,7 @@ export default function ModernFAB() {
       {/* ── Left: Chat FAB / Close on contact page ── */}
       <div ref={wrapperRef} className="mfab-wrap-left">
         {!isContactPage && (
-          <div id="mfab-chat-dialog" className={`mfab-chat-panel${chatOpen ? ' open' : ''}`} role="dialog" aria-label="Chat with us" aria-modal="true">
+          <div ref={chatPanelRef} id="mfab-chat-dialog" className={`mfab-chat-panel${chatOpen ? ' open' : ''}`} role="dialog" aria-label="Chat with us" aria-modal="true">
             <div className="mfab-chat-header">
               <h2><span aria-hidden="true">👋</span> Chat with us</h2>
               <p>Hi! Send us a message and we&apos;ll get back to you soon.</p>
@@ -318,6 +351,7 @@ export default function ModernFAB() {
           </button>
         ) : (
           <button
+            ref={chatTriggerRef}
             aria-label={chatOpen ? 'Close chat' : 'Chat with us'}
             aria-expanded={chatOpen}
             aria-controls="mfab-chat-dialog"
