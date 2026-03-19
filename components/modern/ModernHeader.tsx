@@ -1,7 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
+
+interface SearchItem {
+  id: string
+  url: string
+  alt_text: string
+  category: string | null
+  square_url: string | null
+}
 
 // ── Nav data ─────────────────────────────────────────────────────────────────
 
@@ -32,10 +40,10 @@ function buildNavItems(businessName: string): NavItem[] { return [
       {
         heading: 'By Craft',
         links: [
-          { label: 'Ceramics', href: '/shop' },
+          { label: 'Metals', href: '/shop' },
           { label: 'Textiles', href: '/shop' },
           { label: 'Mixed Media', href: '/shop' },
-          { label: 'Wall Art', href: '/shop' },
+          { label: 'Stone', href: '/shop' },
         ],
       },
       {
@@ -56,7 +64,7 @@ function buildNavItems(businessName: string): NavItem[] { return [
     },
     mobile: [
       { label: 'New Arrivals', href: '/shop' },
-      { label: 'Ceramics', href: '/shop' },
+      { label: 'Metals', href: '/shop' },
       { label: 'Textiles', href: '/shop' },
       { label: 'Gift Sets', href: '/shop' },
       { label: 'All Products', href: '/shop' },
@@ -103,9 +111,9 @@ function buildNavItems(businessName: string): NavItem[] { return [
       {
         heading: 'Get in Touch',
         links: [
-          { label: 'Send a Message', href: '/contact' },
           { label: 'Custom Orders', href: '/contact' },
           { label: 'Wholesale Enquiries', href: '/contact' },
+          { label: 'General Enquiries', href: '/contact' },
         ],
       },
     ],
@@ -117,9 +125,9 @@ function buildNavItems(businessName: string): NavItem[] { return [
       bg: 'linear-gradient(135deg, #2a1845 0%, #5c3d8a 55%, #8b6ab0 100%)',
     },
     mobile: [
-      { label: 'Send a Message', href: '/contact' },
       { label: 'Custom Orders', href: '/contact' },
       { label: 'Wholesale', href: '/contact' },
+      { label: 'General Enquiries', href: '/contact' },
     ],
   },
 ]}
@@ -137,11 +145,52 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchLoaded, setSearchLoaded] = useState(false)
+  const searchCache = useRef<SearchItem[]>([])
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Fetch catalog once on first search open
+  useEffect(() => {
+    if (!searchOpen || searchLoaded) return
+    fetch('/api/search')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.items) {
+          searchCache.current = data.items
+          setSearchLoaded(true)
+        }
+      })
+      .catch(() => {}) // silent fail — search just returns nothing
+  }, [searchOpen, searchLoaded])
+
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus()
+  }, [searchOpen])
+
+  const q = searchQuery.trim().toLowerCase()
+  const searchResults: SearchItem[] = q.length < 2 ? [] : searchCache.current.filter(item =>
+    item.alt_text.toLowerCase().includes(q) ||
+    (item.category ?? '').toLowerCase().includes(q)
+  ).slice(0, 8)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [mobileOpenItem, setMobileOpenItem] = useState<string | null>(null)
 
   const cartHref = squareStoreUrl ?? '/shop'
   const cartIsExternal = !!squareStoreUrl
+
+  // Close search results on click outside
+  const searchWrapRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!searchOpen) return
+    function onPointer(e: MouseEvent) {
+      if (searchWrapRef.current && !searchWrapRef.current.contains(e.target as Node)) {
+        setSearchOpen(false)
+        setSearchQuery('')
+      }
+    }
+    const t = setTimeout(() => document.addEventListener('mousedown', onPointer), 100)
+    return () => { clearTimeout(t); document.removeEventListener('mousedown', onPointer) }
+  }, [searchOpen])
 
 
   return (
@@ -422,6 +471,77 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
         }
         .mh-search-input:focus { border-color: var(--color-primary); }
 
+        /* ── Search results dropdown ── */
+        .mh-search-results {
+          position: absolute;
+          top: calc(100% + 4px);
+          right: 0;
+          width: 320px;
+          background: var(--color-surface);
+          border: 1px solid var(--color-border);
+          border-radius: 8px;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+          overflow: hidden;
+          z-index: 600;
+        }
+
+        .mh-search-result-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 10px 14px;
+          text-decoration: none;
+          color: var(--color-text);
+          border-bottom: 1px solid var(--color-border);
+          transition: background 0.15s ease;
+        }
+        .mh-search-result-item:last-child { border-bottom: none; }
+        a.mh-search-result-item:hover { background: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface) 94%); }
+        .mh-search-result-item.no-link { cursor: default; opacity: 0.7; }
+
+        .mh-search-result-thumb {
+          width: 44px;
+          height: 44px;
+          border-radius: 4px;
+          object-fit: cover;
+          flex-shrink: 0;
+          background: var(--color-border);
+        }
+
+        .mh-search-result-name {
+          font-family: 'Jost', sans-serif;
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--color-text);
+          line-height: 1.3;
+        }
+
+        .mh-search-result-cat {
+          font-family: 'Jost', sans-serif;
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          color: var(--color-text-muted);
+          margin-top: 2px;
+        }
+
+        .mh-search-result-soon {
+          font-family: 'Jost', sans-serif;
+          font-size: 10px;
+          letter-spacing: 0.08em;
+          color: var(--color-text-muted);
+          margin-top: 3px;
+          font-style: italic;
+        }
+
+        .mh-search-empty {
+          padding: 16px 14px;
+          font-family: 'Jost', sans-serif;
+          font-size: 13px;
+          color: var(--color-text-muted);
+          text-align: center;
+        }
+
         /* ── Hamburger ── */
         .mh-hamburger {
           display: none;
@@ -450,14 +570,61 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
         .mh-hamburger.open .mh-hamburger-line:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
 
         /* ── Mobile drawer ── */
+        /* ── Mobile drawer — slides in from the left ── */
+        .mh-mobile-overlay {
+          display: none;
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.35);
+          z-index: 498;
+          opacity: 0;
+          transition: opacity 0.35s ease;
+        }
+        .mh-mobile-overlay.open {
+          display: block;
+          opacity: 1;
+        }
+
         .mh-mobile-drawer {
-          overflow: hidden;
-          max-height: 0;
-          transition: max-height 0.4s cubic-bezier(0.46, 0.01, 0.32, 1);
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: min(80vw, 340px);
+          height: 100dvh;
           background: var(--color-surface);
+          z-index: 499;
+          overflow-y: auto;
+          transform: translateX(-100%);
+          transition: transform 0.4s cubic-bezier(0.46, 0.01, 0.32, 1);
+          border-right: 1px solid var(--color-border);
+          display: flex;
+          flex-direction: column;
+        }
+        .mh-mobile-drawer.open {
+          transform: translateX(0);
+        }
+
+        .mh-mobile-drawer-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 20px 24px 16px;
           border-bottom: 1px solid var(--color-border);
         }
-        .mh-mobile-drawer.open { max-height: 600px; }
+
+        .mh-mobile-close-btn {
+          background: none;
+          border: none;
+          cursor: pointer;
+          font-size: 22px;
+          color: var(--color-text);
+          min-width: 44px;
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0;
+        }
 
         .mh-mobile-item-btn {
           width: 100%;
@@ -468,39 +635,63 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 16px clamp(16px, 4vw, 48px);
+          padding: 20px 28px;
           font-family: 'Jost', sans-serif;
-          font-size: 11px;
-          font-weight: 600;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
+          font-size: clamp(22px, 6vw, 30px);
+          font-weight: 300;
+          letter-spacing: 0.01em;
           color: var(--color-text);
+          text-align: left;
+        }
+
+        .mh-mobile-item-toggle {
+          font-size: 22px;
+          font-weight: 200;
+          line-height: 1;
+          color: var(--color-text-muted);
+          flex-shrink: 0;
+          margin-left: 12px;
         }
 
         .mh-mobile-children {
           overflow: hidden;
           max-height: 0;
           transition: max-height 0.4s cubic-bezier(0.46, 0.01, 0.32, 1);
-          background: color-mix(in srgb, var(--color-surface) 95%, var(--color-border) 5%);
         }
-        .mh-mobile-children.open { max-height: 280px; }
+        .mh-mobile-children.open { max-height: 320px; }
 
         .mh-mobile-child-link {
-          display: flex;
-          align-items: center;
-          min-height: 44px;
-          padding: 10px clamp(28px, 6vw, 64px);
+          display: block;
+          padding: 12px 28px 12px 40px;
           font-family: 'Jost', sans-serif;
-          font-size: 11px;
+          font-size: 15px;
           font-weight: 400;
-          letter-spacing: 0.08em;
-          color: var(--color-text);
+          letter-spacing: 0.02em;
+          color: var(--color-text-muted);
           text-decoration: none;
-          border-bottom: 1px solid var(--color-border);
           transition: color 0.15s ease;
+          border-bottom: 1px solid var(--color-border);
         }
         .mh-mobile-child-link:last-child { border-bottom: none; }
         .mh-mobile-child-link:hover { color: var(--color-primary); }
+
+        .mh-mobile-cta {
+          display: block;
+          width: 100%;
+          background: var(--color-primary);
+          color: #fff;
+          border: none;
+          padding: 18px 28px;
+          font-family: 'Jost', sans-serif;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          text-align: center;
+          text-decoration: none;
+          cursor: pointer;
+          margin-top: auto;
+        }
 
         /* ── Mobile overrides ── */
         @media (max-width: 900px) {
@@ -546,28 +737,62 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
           </button>
         </div>
 
-        {/* Center: logo */}
-        <Link href="/" className="mh-logo" aria-label={`${businessName} — home`}>
-          {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt={businessName} />
-          ) : (
-            <span className="mh-logo-text">{businessName}</span>
-          )}
-        </Link>
+        {/* Center: spacer — logo is rendered outside the grid below */}
+        <div aria-hidden="true" />
 
         {/* Right: search + cart */}
-        <div className="mh-right">
+        <div className="mh-right" ref={searchWrapRef}>
           <div className={`mh-search-wrap${searchOpen ? ' open' : ''}`}>
             <input
+              ref={searchInputRef}
               className="mh-search-input"
               type="search"
               placeholder="Search…"
               value={searchQuery}
               aria-label="Search"
               onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Escape') { setSearchOpen(false); setSearchQuery('') } }}
             />
           </div>
+
+          {/* Results dropdown */}
+          {searchOpen && q.length >= 2 && (
+            <div className="mh-search-results" role="listbox" aria-label="Search results">
+              {searchResults.length > 0 ? searchResults.map(item => {
+                const thumb = (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img className="mh-search-result-thumb" src={item.url} alt="" />
+                    <div>
+                      <div className="mh-search-result-name">{item.alt_text}</div>
+                      {item.category && <div className="mh-search-result-cat">{item.category}</div>}
+                      {!item.square_url && <div className="mh-search-result-soon">Available in shop soon</div>}
+                    </div>
+                  </>
+                )
+                return item.square_url ? (
+                  <a
+                    key={item.id}
+                    href={item.square_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mh-search-result-item"
+                    onClick={() => { setSearchOpen(false); setSearchQuery('') }}
+                  >
+                    {thumb}
+                  </a>
+                ) : (
+                  <div key={item.id} className="mh-search-result-item no-link">
+                    {thumb}
+                  </div>
+                )
+              }) : (
+                <div className="mh-search-empty">
+                  {searchLoaded ? `No results for "${searchQuery}"` : 'Loading…'}
+                </div>
+              )}
+            </div>
+          )}
 
           {searchOpen && (
             <button
@@ -603,13 +828,44 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
         </div>
       </div>
 
-      {/* ── Mobile slide-down drawer ── */}
+      {/* ── Logo — direct child of <header> so left:50% = full header width ── */}
+      <Link href="/" className="mh-logo" aria-label={`${businessName} — home`}>
+        {logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logoUrl} alt={businessName} />
+        ) : (
+          <span className="mh-logo-text">{businessName}</span>
+        )}
+      </Link>
+
+      {/* ── Mobile overlay backdrop ── */}
+      <div
+        className={`mh-mobile-overlay${mobileOpen ? ' open' : ''}`}
+        aria-hidden="true"
+        onClick={() => { setMobileOpen(false); setMobileOpenItem(null) }}
+      />
+
+      {/* ── Mobile side drawer (slides in from left) ── */}
       <nav
         id="mh-mobile-drawer"
         className={`mh-mobile-drawer${mobileOpen ? ' open' : ''}`}
         aria-label="Mobile navigation"
         aria-hidden={!mobileOpen}
       >
+        {/* Drawer header */}
+        <div className="mh-mobile-drawer-header">
+          <span style={{ fontFamily: "'Jost', sans-serif", fontSize: '11px', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--color-primary)' }}>
+            Menu
+          </span>
+          <button
+            className="mh-mobile-close-btn"
+            onClick={() => { setMobileOpen(false); setMobileOpenItem(null) }}
+            aria-label="Close menu"
+          >
+            ✕
+          </button>
+        </div>
+
         {NAV_ITEMS.map(item => (
           <div key={item.label}>
             <button
@@ -618,9 +874,11 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
               aria-expanded={mobileOpenItem === item.label}
             >
               {item.label}
-              <span aria-hidden="true" style={{ fontSize: '9px' }}>
-                {mobileOpenItem === item.label ? '▲' : '▼'}
-              </span>
+              {item.mobile || item.columns ? (
+                <span className="mh-mobile-item-toggle" aria-hidden="true">
+                  {mobileOpenItem === item.label ? '−' : '+'}
+                </span>
+              ) : null}
             </button>
             <div className={`mh-mobile-children${mobileOpenItem === item.label ? ' open' : ''}`}>
               {(item.mobile ?? item.columns?.flatMap(c => c.links) ?? []).map(link => (
@@ -636,6 +894,10 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
             </div>
           </div>
         ))}
+
+        <Link href="/shop" className="mh-mobile-cta" onClick={() => { setMobileOpen(false); setMobileOpenItem(null) }}>
+          Shop All
+        </Link>
       </nav>
 
       {/* ── Mega menu panels — direct children of sticky header so

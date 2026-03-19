@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react'
 
 /**
- * First-visit fade-out overlay — shows a brief white veil that dissolves away,
- * matching the Namai Studio page-load animation. Only runs once per session.
+ * First-visit fade-out overlay — shows a brief white veil that dissolves on entry.
+ * Only runs once per session (gated by sessionStorage).
  */
 export default function PageLoadOverlay() {
   const [visible, setVisible] = useState(false)

@@ -1,19 +1,16 @@
 import Link from 'next/link'
 
-// Placeholder hero image — CC licensed via Openverse/Flickr. Replace via admin once live.
-const HERO_PLACEHOLDER = 'https://live.staticflickr.com/3077/3247078310_cdf30325fd_b.jpg'
-
 interface Props { tagline: string; subtext: string; heroImageUrl?: string | null }
 
 export default function HeroSection({ tagline, subtext, heroImageUrl }: Props) {
-  const bgImage = heroImageUrl ?? HERO_PLACEHOLDER
   // Quote and escape the URL inside url() to prevent CSS injection via crafted hero URLs
-  const bgImageCss = `url("${bgImage.replace(/"/g, '%22')}")`
+  const bgImageCss = bgImage ? `url("${bgImage.replace(/"/g, '%22')}")` : undefined
   return (
     <section style={{
       minHeight: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', textAlign: 'center', padding: '80px 24px',
       backgroundImage: bgImageCss,
+      background: bgImageCss ? undefined : 'var(--color-primary)',
       backgroundSize: 'cover', backgroundPosition: 'center',
       position: 'relative',
     }}>

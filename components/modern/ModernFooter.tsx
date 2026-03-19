@@ -186,10 +186,10 @@ export default function ModernFooter({ settings }: Props) {
             <Link href="/shop" className="modern-footer-nav-link">
               Shop
             </Link>
-            <Link href="/story" className="modern-footer-nav-link">
+            <Link href="/our-story" className="modern-footer-nav-link">
               Our Story
             </Link>
-            <Link href="/events" className="modern-footer-nav-link">
+            <Link href="/#events" className="modern-footer-nav-link">
               Events
             </Link>
             <Link href="/contact" className="modern-footer-nav-link">
@@ -269,6 +269,10 @@ export default function ModernFooter({ settings }: Props) {
         <span aria-hidden="true">|</span>
         <Link href="/terms" className="modern-footer-bottom-link">
           Terms
+        </Link>
+        <span aria-hidden="true">|</span>
+        <Link href="/accessibility" className="modern-footer-bottom-link">
+          Accessibility
         </Link>
       </div>
     </footer>

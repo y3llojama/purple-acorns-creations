@@ -80,7 +80,7 @@ create table if not exists content (
 -- Seed default content keys
 insert into content (key, value) values
   ('hero_tagline', 'Handcrafted with intention, worn with joy.'),
-  ('hero_subtext', 'Crochet jewelry, sterling silver, and artisan pieces made with love by a mother-daughter duo in Brooklyn, NY.'),
+  ('hero_subtext', 'Crochet jewelry, sterling silver, and artisan pieces made with love by a mother-daughter duo.'),
   ('story_teaser', 'We are Purple Acorns Creations — a mother and daughter who share a passion for making things by hand.'),
   ('story_full', '<p>Our story begins at the kitchen table...</p><p>Add your full story here via the admin panel.</p>'),
   ('privacy_policy', '<h1>Privacy Policy</h1><p>Add your privacy policy here via the admin panel.</p>'),

@@ -1,15 +1,24 @@
 import Link from 'next/link'
+import ModernStoryMosaic from './ModernStoryMosaic'
+
+interface GalleryImage {
+  url: string
+  alt_text: string | null
+}
 
 interface Props {
   teaser: string
+  images?: GalleryImage[]
 }
 
-export default function ModernStorySection({ teaser }: Props) {
+export default function ModernStorySection({ teaser, images = [] }: Props) {
+  const photos = images
+
   return (
     <section>
       <style>{`
         .modern-story-section {
-          padding: clamp(64px, 8vw, 96px) clamp(16px, 6vw, 80px);
+          padding: clamp(40px, 5vw, 64px) clamp(16px, 6vw, 80px);
           background: var(--color-surface);
           display: grid;
           grid-template-columns: 40% 60%;
@@ -21,14 +30,20 @@ export default function ModernStorySection({ teaser }: Props) {
             grid-template-columns: 1fr;
           }
           .modern-story-right-panel {
-            display: none;
+            margin-top: 28px;
+            max-height: 220px;
           }
+        }
+
+        .modern-story-right-panel {
+          min-height: 280px;
+          max-height: clamp(320px, 42vw, 460px);
         }
       `}</style>
 
       <div className="modern-story-section">
         {/* Left: text */}
-        <div style={{ paddingRight: 'clamp(24px, 4vw, 64px)' }}>
+        <div style={{ paddingRight: 'clamp(0px, 4vw, 64px)' }}>
           <p
             style={{
               color: 'var(--color-secondary)',
@@ -68,15 +83,21 @@ export default function ModernStorySection({ teaser }: Props) {
           </Link>
         </div>
 
-        {/* Right: decorative panel */}
-        <div
-          className="modern-story-right-panel"
-          style={{
-            background: 'rgba(var(--color-primary-rgb, 0,0,0), 0.05)',
-            borderLeft: '4px solid var(--color-accent)',
-            minHeight: '280px',
-          }}
-        />
+        {/* Right: animated photo mosaic */}
+        <div className="modern-story-right-panel">
+          {photos.length > 0 ? (
+            <ModernStoryMosaic photos={photos} />
+          ) : (
+            <div
+              style={{
+                background: 'color-mix(in srgb, var(--color-primary) 8%, var(--color-surface) 92%)',
+                borderLeft: '4px solid var(--color-accent)',
+                minHeight: '280px',
+                height: '100%',
+              }}
+            />
+          )}
+        </div>
       </div>
     </section>
   )

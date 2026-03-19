@@ -146,22 +146,23 @@ export default function ModernFeaturedGrid({ items, watermark, squareStoreUrl }:
                         }}
                       />
                     )}
-                    {/* Watermark overlay */}
+                    {/* Watermark overlay — bottom-right, toggleable via gallery_watermark setting */}
                     {watermark && (
                       <span
                         aria-hidden="true"
                         style={{
                           position: 'absolute',
-                          inset: 0,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
+                          bottom: '8px',
+                          right: '10px',
                           color: '#fff',
-                          opacity: 0.35,
-                          fontSize: '11px',
-                          letterSpacing: '0.1em',
+                          fontSize: '10px',
+                          fontWeight: 500,
+                          letterSpacing: '0.08em',
+                          textShadow: '0 1px 3px rgba(0,0,0,0.6)',
+                          opacity: 0.75,
                           pointerEvents: 'none',
                           userSelect: 'none',
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         {watermark}

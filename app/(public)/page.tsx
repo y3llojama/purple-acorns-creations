@@ -15,6 +15,16 @@ import ModernFeaturedGrid from '@/components/modern/ModernFeaturedGrid'
 import ModernStorySection from '@/components/modern/ModernStorySection'
 import ModernEventSection from '@/components/modern/ModernEventSection'
 
+// Shown when no featured gallery items exist in the DB yet.
+// Disappears automatically once items are marked as featured in the admin panel.
+const FALLBACK_FEATURED = [
+  { id: 'local-1', image_url: '/gallery/featured-sunflower-earrings.jpg',   title: 'Sunflower Earrings',       description: null },
+  { id: 'local-2', image_url: '/gallery/featured-gold-flatlay.jpg',          title: 'Brass Collection',         description: null },
+  { id: 'local-3', image_url: '/gallery/featured-moonlit-lace-earrings.jpg', title: 'Moonlit Lace Earrings',    description: null },
+  { id: 'local-4', image_url: '/gallery/featured-rose-sword-earrings.jpg',   title: 'Roses & Swords Earrings',  description: null },
+  { id: 'local-5', image_url: '/gallery/featured-sunflower-card.jpg',        title: 'Sunflower Drop Earrings',  description: null },
+]
+
 export default async function HomePage() {
   const isModern = process.env.NEXT_PUBLIC_LAYOUT_MODE === 'modern'
   const supabase = createServiceRoleClient()
@@ -51,11 +61,21 @@ export default async function HomePage() {
           heroImageUrl={settings.hero_image_url}
         />
         <ModernFeaturedGrid
-          items={featured.map(item => ({ id: item.id, image_url: item.url, title: item.alt_text || null, description: null }))}
-          watermark={settings.gallery_watermark}
+          items={(() => {
+            const dbItems = featured
+              .filter(item => item.url?.startsWith('http') || item.url?.startsWith('/'))
+              .map(item => ({ id: item.id, image_url: item.url, title: item.alt_text || null, description: null }))
+            return dbItems.length > 0 ? dbItems : FALLBACK_FEATURED
+          })()}
+          watermark={settings.gallery_watermark ? interpolate(settings.gallery_watermark, vars) : null}
           squareStoreUrl={settings.square_store_url}
         />
-        <ModernStorySection teaser={sanitizeText(interpolate(content.story_teaser ?? '', vars))} />
+        <ModernStorySection
+          teaser={sanitizeText(interpolate(content.story_teaser ?? '', vars))}
+          images={gallery.length > 0
+            ? gallery.map(g => ({ url: g.url, alt_text: g.alt_text }))
+            : FALLBACK_FEATURED.map(f => ({ url: f.image_url, alt_text: f.title ?? '' }))}
+        />
         <ModernEventSection event={event} />
         <InstagramFeed
           widgetId={settings.behold_widget_id}
@@ -76,8 +96,8 @@ export default async function HomePage() {
         heroImageUrl={settings.hero_image_url}
       />
       <StoryTeaser teaser={sanitizeText(interpolate(content.story_teaser ?? '', vars))} />
-      <FeaturedPieces items={featured} watermark={settings.gallery_watermark} />
-      <GalleryStrip items={gallery} watermark={settings.gallery_watermark} />
+      <FeaturedPieces items={featured} watermark={settings.gallery_watermark ? interpolate(settings.gallery_watermark, vars) : null} />
+      <GalleryStrip items={gallery} watermark={settings.gallery_watermark ? interpolate(settings.gallery_watermark, vars) : null} />
       <NextEvent event={event} />
       <InstagramFeed widgetId={settings.behold_widget_id} handle={settings.social_instagram} followAlongMode={settings.follow_along_mode} followAlongPhotos={followAlongResult} />
       <NewsletterSignup />

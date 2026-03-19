@@ -37,7 +37,9 @@ export default function ModernLayout({
         businessName={settings.business_name}
         squareStoreUrl={settings.square_store_url}
       />
-      <main id="main-content" style={{ minHeight: '60vh' }}>
+      {/* padding-top offsets the floating logo that overflows below the header bar.
+          Pages that start with a full-bleed hero cancel this with margin-top: calc(-1 * var(--logo-overflow)) */}
+      <main id="main-content" style={{ minHeight: '60vh', paddingTop: 'var(--logo-overflow, clamp(60px, 7vw, 90px))' }}>
         {children}
       </main>
       <ModernFooter settings={settings} />

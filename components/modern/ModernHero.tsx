@@ -32,7 +32,7 @@ export default function ModernHero({ tagline, subtext, heroImageUrl }: Props) {
           opacity: 0.9;
         }
       `}</style>
-      <div className="modern-hero">
+      <div className="modern-hero" style={{ marginTop: 'calc(-1 * var(--logo-overflow, clamp(60px, 7vw, 90px)))' }}>
         {/* Left panel */}
         <div
           className="modern-hero-text-panel"
