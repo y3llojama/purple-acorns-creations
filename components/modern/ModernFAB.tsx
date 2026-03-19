@@ -41,6 +41,9 @@ export default function ModernFAB() {
   const chatTriggerRef = useRef<HTMLButtonElement>(null)
   const chatPanelRef = useRef<HTMLDivElement>(null)
   const hasOpenedChatRef = useRef(false)
+  const a11yTriggerRef = useRef<HTMLButtonElement>(null)
+  const a11yPanelRef = useRef<HTMLDivElement>(null)
+  const hasOpenedA11yRef = useRef(false)
 
   // Focus management: move focus in on open, restore on close
   useEffect(() => {
@@ -121,6 +124,44 @@ export default function ModernFAB() {
   const [a11yOpen, setA11yOpen] = useState(false)
   const [largeText, setLargeText] = useState(false)
   const [highContrast, setHighContrast] = useState(false)
+
+  // Focus management: move focus in on open, restore on close
+  useEffect(() => {
+    if (a11yOpen) {
+      hasOpenedA11yRef.current = true
+      requestAnimationFrame(() => {
+        const firstCheckbox = a11yPanelRef.current?.querySelector<HTMLElement>('input[type="checkbox"]')
+        firstCheckbox?.focus()
+      })
+    } else if (hasOpenedA11yRef.current) {
+      a11yTriggerRef.current?.focus()
+    }
+  }, [a11yOpen])
+
+  // Keyboard trap: Tab cycles within panel, Escape closes
+  useEffect(() => {
+    if (!a11yOpen) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setA11yOpen(false)
+        return
+      }
+      if (e.key === 'Tab') {
+        const focusable = getFocusable(a11yPanelRef.current)
+        if (focusable.length === 0) return
+        if (!a11yPanelRef.current?.contains(document.activeElement)) return
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (e.shiftKey) {
+          if (document.activeElement === first) { e.preventDefault(); last.focus() }
+        } else {
+          if (document.activeElement === last) { e.preventDefault(); first.focus() }
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [a11yOpen])
 
   function toggleLargeText() {
     const next = !largeText
@@ -285,6 +326,13 @@ export default function ModernFAB() {
           box-shadow: 0 4px 24px rgba(0,0,0,0.14);
           min-width: 180px; z-index: 500;
           display: flex; flex-direction: column; gap: 12px;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.2s ease;
+        }
+        .mfab-a11y-panel.open {
+          opacity: 1;
+          pointer-events: auto;
         }
         .mfab-a11y-row {
           display: flex; align-items: center;
@@ -379,33 +427,33 @@ export default function ModernFAB() {
       {/* ── Right: Scroll-to-top (above) + Accessibility FAB (bottom) ── */}
       <div className="mfab-wrap-right">
         <div className={`mfab-scroll-top${scrollVisible ? ' visible' : ''}`}>
-          <button aria-label="Back to top" onClick={scrollToTop} tabIndex={scrollVisible ? 0 : -1} style={fabStyle}>
+          <button aria-label="Back to top" onClick={scrollToTop} tabIndex={scrollVisible ? undefined : -1} style={fabStyle}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <polyline points="18 15 12 9 6 15" />
             </svg>
           </button>
         </div>
         <div style={{ position: 'relative' }}>
-          {a11yOpen && (
-            <div
-              className="mfab-a11y-panel"
-              id="mfab-a11y-dialog"
-              role="dialog"
-              aria-label="Accessibility options"
-              aria-modal="true"
-            >
-              <label className="mfab-a11y-row">
-                <span>Larger text</span>
-                <input type="checkbox" checked={largeText} onChange={toggleLargeText} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
-              </label>
-              <label className="mfab-a11y-row">
-                <span>High contrast</span>
-                <input type="checkbox" checked={highContrast} onChange={toggleHighContrast} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
-              </label>
-              <button className="mfab-a11y-close" onClick={() => setA11yOpen(false)} aria-label="Close accessibility panel">Close</button>
-            </div>
-          )}
+          <div
+            ref={a11yPanelRef}
+            className={`mfab-a11y-panel${a11yOpen ? ' open' : ''}`}
+            id="mfab-a11y-dialog"
+            role="dialog"
+            aria-label="Accessibility options"
+            aria-modal="true"
+          >
+            <label className="mfab-a11y-row">
+              <span>Larger text</span>
+              <input type="checkbox" checked={largeText} onChange={toggleLargeText} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
+            </label>
+            <label className="mfab-a11y-row">
+              <span>High contrast</span>
+              <input type="checkbox" checked={highContrast} onChange={toggleHighContrast} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
+            </label>
+            <button className="mfab-a11y-close" onClick={() => setA11yOpen(false)} aria-label="Close accessibility panel">Close</button>
+          </div>
           <button
+            ref={a11yTriggerRef}
             aria-label="Accessibility options"
             aria-expanded={a11yOpen}
             aria-controls="mfab-a11y-dialog"
