@@ -1,4 +1,6 @@
+'use client'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { Settings } from '@/lib/supabase/types'
 import { isValidHttpsUrl } from '@/lib/validate'
 
@@ -7,6 +9,8 @@ interface Props {
 }
 
 export default function ModernFooter({ settings }: Props) {
+  const pathname = usePathname()
+  const isContactPage = pathname === '/contact'
   const year = new Date().getFullYear()
   const businessName = settings.business_name || 'Purple Acorns Creations'
 
@@ -202,6 +206,7 @@ export default function ModernFooter({ settings }: Props) {
         </div>
 
         {/* Contact column */}
+        {!isContactPage && (
         <div>
           <div
             style={{
@@ -215,6 +220,18 @@ export default function ModernFooter({ settings }: Props) {
           >
             Get in Touch
           </div>
+          <Link
+            href="/contact"
+            style={{
+              color: 'rgba(255,255,255,0.85)',
+              textDecoration: 'none',
+              fontSize: '15px',
+              display: 'block',
+              padding: '3px 0',
+            }}
+          >
+            Send us a message →
+          </Link>
           {settings.square_store_url && isValidHttpsUrl(settings.square_store_url) && (
             <a
               href={settings.square_store_url}
@@ -233,6 +250,7 @@ export default function ModernFooter({ settings }: Props) {
             </a>
           )}
         </div>
+        )}
       </div>
 
       {/* Bottom row */}
