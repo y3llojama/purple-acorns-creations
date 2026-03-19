@@ -27,7 +27,7 @@ export default function ModernEventSection({ event }: Props) {
   const hasExternalLink = event.link_url && isValidHttpsUrl(event.link_url)
 
   return (
-    <section>
+    <section id="events">
       <style>{`
         .modern-event-banner {
           padding: clamp(32px, 4vw, 48px) clamp(16px, 4vw, 48px);
