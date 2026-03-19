@@ -4,7 +4,7 @@ interface Props { tagline: string; subtext: string; heroImageUrl?: string | null
 
 export default function HeroSection({ tagline, subtext, heroImageUrl }: Props) {
   // Quote and escape the URL inside url() to prevent CSS injection via crafted hero URLs
-  const bgImageCss = bgImage ? `url("${bgImage.replace(/"/g, '%22')}")` : undefined
+  const bgImageCss = heroImageUrl ? `url("${heroImageUrl.replace(/"/g, '%22')}")` : undefined
   return (
     <section style={{
       minHeight: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center',
