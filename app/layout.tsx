@@ -24,17 +24,17 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const settings = await getSettings()
-  let themeAttr: string = settings.theme ?? 'warm-artisan'
+  let themeAttr: string = settings.theme ?? 'modern'
   let inlineVars: ThemeVars | undefined
 
   if (settings.theme === 'custom' && settings.custom_primary && settings.custom_accent) {
     try {
       inlineVars = deriveCustomThemeVars(settings.custom_primary, settings.custom_accent)
     } catch {
-      themeAttr = 'warm-artisan'
+      themeAttr = 'modern'
     }
   } else if (settings.theme === 'custom') {
-    themeAttr = 'warm-artisan'
+    themeAttr = 'modern'
   }
 
   // Modern template overrides DB theme
