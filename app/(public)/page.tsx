@@ -3,11 +3,6 @@ import { getAllContent } from '@/lib/content'
 import { getSettings } from '@/lib/theme'
 import { sanitizeText } from '@/lib/sanitize'
 import { interpolate, buildVars } from '@/lib/variables'
-import HeroSection from '@/components/home/HeroSection'
-import StoryTeaser from '@/components/home/StoryTeaser'
-import FeaturedPieces from '@/components/home/FeaturedPieces'
-import GalleryStrip from '@/components/home/GalleryStrip'
-import NextEvent from '@/components/home/NextEvent'
 import InstagramFeed from '@/components/home/InstagramFeed'
 import NewsletterSignup from '@/components/home/NewsletterSignup'
 import ModernHero from '@/components/modern/ModernHero'
@@ -26,7 +21,6 @@ const FALLBACK_FEATURED = [
 ]
 
 export default async function HomePage() {
-  const isModern = process.env.NEXT_PUBLIC_LAYOUT_MODE === 'modern'
   const supabase = createServiceRoleClient()
   const today = new Date().toISOString().split('T')[0]
 
@@ -52,54 +46,36 @@ export default async function HomePage() {
     link_label: eventResult.data.link_label ? interpolate(eventResult.data.link_label, vars) : eventResult.data.link_label,
   } : null
 
-  if (isModern) {
-    return (
-      <>
-        <ModernHero
-          tagline={sanitizeText(interpolate(content.hero_tagline ?? '', vars))}
-          subtext={sanitizeText(interpolate(content.hero_subtext ?? '', vars))}
-          heroImageUrl={settings.hero_image_url}
-        />
-        <ModernFeaturedGrid
-          items={(() => {
-            const dbItems = featured
-              .filter(item => item.url?.startsWith('http') || item.url?.startsWith('/'))
-              .map(item => ({ id: item.id, image_url: item.url, title: item.alt_text || null, description: null }))
-            return dbItems.length > 0 ? dbItems : FALLBACK_FEATURED
-          })()}
-          watermark={settings.gallery_watermark ? interpolate(settings.gallery_watermark, vars) : null}
-          squareStoreUrl={settings.square_store_url}
-        />
-        <ModernStorySection
-          teaser={sanitizeText(interpolate(content.story_teaser ?? '', vars))}
-          images={gallery.length > 0
-            ? gallery.map(g => ({ url: g.url, alt_text: g.alt_text }))
-            : FALLBACK_FEATURED.map(f => ({ url: f.image_url, alt_text: f.title ?? '' }))}
-        />
-        <ModernEventSection event={event} />
-        <InstagramFeed
-          widgetId={settings.behold_widget_id}
-          handle={settings.social_instagram}
-          followAlongMode={settings.follow_along_mode}
-          followAlongPhotos={followAlongResult}
-        />
-        <NewsletterSignup />
-      </>
-    )
-  }
-
   return (
     <>
-      <HeroSection
+      <ModernHero
         tagline={sanitizeText(interpolate(content.hero_tagline ?? '', vars))}
         subtext={sanitizeText(interpolate(content.hero_subtext ?? '', vars))}
         heroImageUrl={settings.hero_image_url}
       />
-      <StoryTeaser teaser={sanitizeText(interpolate(content.story_teaser ?? '', vars))} />
-      <FeaturedPieces items={featured} watermark={settings.gallery_watermark ? interpolate(settings.gallery_watermark, vars) : null} />
-      <GalleryStrip items={gallery} watermark={settings.gallery_watermark ? interpolate(settings.gallery_watermark, vars) : null} />
-      <NextEvent event={event} />
-      <InstagramFeed widgetId={settings.behold_widget_id} handle={settings.social_instagram} followAlongMode={settings.follow_along_mode} followAlongPhotos={followAlongResult} />
+      <ModernFeaturedGrid
+        items={(() => {
+          const dbItems = featured
+            .filter(item => item.url?.startsWith('http') || item.url?.startsWith('/'))
+            .map(item => ({ id: item.id, image_url: item.url, title: item.alt_text || null, description: null }))
+          return dbItems.length > 0 ? dbItems : FALLBACK_FEATURED
+        })()}
+        watermark={settings.gallery_watermark ? interpolate(settings.gallery_watermark, vars) : null}
+        squareStoreUrl={settings.square_store_url}
+      />
+      <ModernStorySection
+        teaser={sanitizeText(interpolate(content.story_teaser ?? '', vars))}
+        images={gallery.length > 0
+          ? gallery.map(g => ({ url: g.url, alt_text: g.alt_text }))
+          : FALLBACK_FEATURED.map(f => ({ url: f.image_url, alt_text: f.title ?? '' }))}
+      />
+      <ModernEventSection event={event} />
+      <InstagramFeed
+        widgetId={settings.behold_widget_id}
+        handle={settings.social_instagram}
+        followAlongMode={settings.follow_along_mode}
+        followAlongPhotos={followAlongResult}
+      />
       <NewsletterSignup />
     </>
   )
