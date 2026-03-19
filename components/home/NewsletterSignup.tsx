@@ -59,6 +59,8 @@ export default function NewsletterSignup() {
               placeholder="your@email.com"
               required
               maxLength={254}
+              aria-invalid={status === 'error' || undefined}
+              aria-describedby={status === 'error' ? 'newsletter-email-error' : undefined}
               style={{ padding: '12px 16px', fontSize: '18px', borderRadius: '4px', border: '1px solid var(--color-border)', flex: '1', minWidth: '200px' }}
             />
             <button type="submit" disabled={status === 'loading'} style={{ background: 'var(--color-primary)', color: 'var(--color-accent)', padding: '12px 24px', fontSize: '18px', border: 'none', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}>
@@ -67,7 +69,7 @@ export default function NewsletterSignup() {
           </form>
         )}
         {status === 'error' && message && (
-          <p role="alert" aria-live="polite" style={{ color: '#c05050', marginTop: '8px', fontSize: '16px' }}>{message}</p>
+          <p id="newsletter-email-error" role="alert" style={{ color: '#c05050', marginTop: '8px', fontSize: '16px' }}>{message}</p>
         )}
         <p style={{ color: 'var(--color-text-muted)', fontSize: '14px', marginTop: '12px' }}>
           By subscribing you agree to our{' '}

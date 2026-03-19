@@ -53,18 +53,25 @@ export default function ContactForm() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
         <div>
           <label htmlFor="contact-name" style={labelStyle}>Name</label>
-          <input id="contact-name" name="name" required maxLength={100} placeholder="Your name" style={fieldStyle} />
+          <input id="contact-name" name="name" required maxLength={100} placeholder="Your name" style={fieldStyle}
+            aria-invalid={!!error || undefined}
+            aria-describedby={error ? 'contact-form-error' : undefined} />
         </div>
         <div>
           <label htmlFor="contact-email" style={labelStyle}>Email</label>
-          <input id="contact-email" name="email" type="email" required maxLength={254} placeholder="you@example.com" style={fieldStyle} />
+          <input id="contact-email" name="email" type="email" required maxLength={254} placeholder="you@example.com" style={fieldStyle}
+            aria-invalid={!!error || undefined}
+            aria-describedby={error ? 'contact-form-error' : undefined} />
         </div>
       </div>
       <div style={{ marginBottom: '20px' }}>
         <label htmlFor="contact-message" style={labelStyle}>Message</label>
-        <textarea id="contact-message" name="message" required maxLength={2000} rows={4} placeholder="Tell us what's on your mind…" style={{ ...fieldStyle, resize: 'vertical', fontFamily: 'inherit' }} />
+        <textarea id="contact-message" name="message" required maxLength={2000} rows={4} placeholder="Tell us what's on your mind…"
+          style={{ ...fieldStyle, resize: 'vertical', fontFamily: 'inherit' }}
+          aria-invalid={!!error || undefined}
+          aria-describedby={error ? 'contact-form-error' : undefined} />
       </div>
-      {error && <p role="alert" aria-live="polite" style={{ color: '#ffb3b3', marginBottom: '16px', fontSize: '15px' }}>{error}</p>}
+      {error && <p id="contact-form-error" role="alert" style={{ color: '#ffb3b3', marginBottom: '16px', fontSize: '15px' }}>{error}</p>}
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
         <button type="submit" disabled={status === 'loading'} style={{ background: 'var(--color-accent)', color: 'var(--color-primary)', padding: '12px 32px', fontSize: '16px', border: 'none', borderRadius: '6px', cursor: 'pointer', minHeight: '48px', fontWeight: '600', letterSpacing: '0.02em' }}>
           {status === 'loading' ? 'Sending…' : 'Send Message'}

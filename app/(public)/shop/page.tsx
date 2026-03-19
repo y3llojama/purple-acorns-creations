@@ -8,7 +8,7 @@ export default async function ShopPage() {
   const storeUrl = settings.square_store_url
 
   return (
-    <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '60px 24px' }}>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '60px 24px' }}>
       <h1 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary)', marginBottom: '40px', textAlign: 'center' }}>Shop</h1>
       {storeUrl && isValidHttpsUrl(storeUrl) ? (
         <iframe
@@ -23,6 +23,6 @@ export default async function ShopPage() {
           Our shop is coming soon! Check back later.
         </p>
       )}
-    </main>
+    </div>
   )
 }

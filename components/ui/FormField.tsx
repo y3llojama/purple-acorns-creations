@@ -9,7 +9,7 @@ export default function FormField({ label, id, error, required, children }: Form
       </label>
       {children}
       {error && (
-        <p id={`${id}-error`} role="alert" aria-live="polite" style={{ color: '#c05050', marginTop: '4px', fontSize: '16px' }}>
+        <p id={`${id}-error`} role="alert" style={{ color: '#c05050', marginTop: '4px', fontSize: '16px' }}>
           {error}
         </p>
       )}
