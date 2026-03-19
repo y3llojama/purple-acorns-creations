@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
       default: name,
       template: `%s — ${name}`,
     },
-    description: 'Handcrafted jewelry by a mother-daughter duo in Brooklyn, NY. Crochet jewelry, sterling silver, brass, and artisan pieces made with love.',
+    description: 'Handcrafted jewelry by a mother-daughter duo. Crochet jewelry, sterling silver, brass, and artisan pieces made with love.',
     openGraph: {
       siteName: name,
       images: ['/og-image.jpg'],
