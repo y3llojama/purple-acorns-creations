@@ -2,7 +2,7 @@ import { unstable_noStore as noStore } from 'next/cache'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import type { Settings, Theme } from '@/lib/supabase/types'
 
-const DEFAULT_THEME: Theme = 'warm-artisan'
+const DEFAULT_THEME: Theme = 'modern'
 
 
 const DEFAULT_SETTINGS: Settings = {

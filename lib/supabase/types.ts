@@ -1,4 +1,4 @@
-export type Theme = 'warm-artisan' | 'soft-botanical' | 'custom'
+export type Theme = 'warm-artisan' | 'soft-botanical' | 'custom' | 'modern'
 export type Category = 'rings' | 'necklaces' | 'earrings' | 'bracelets' | 'crochet' | 'other'
 export type AiProvider = 'claude' | 'openai' | 'groq'
 
