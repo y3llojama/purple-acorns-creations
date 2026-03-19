@@ -57,7 +57,7 @@ function buildNavItems(businessName: string): NavItem[] { return [
     ],
     panel: {
       headline: 'Made by hand,\nworn with joy.',
-      sub: 'Crochet jewelry, ceramics & textiles — each piece one of a kind.',
+      sub: 'Crochet jewelry & textiles — each piece one of a kind.',
       href: '/shop',
       cta: 'Shop All',
       bg: 'linear-gradient(135deg, #4a2d6b 0%, #7b5ea7 60%, #a590c8 100%)',

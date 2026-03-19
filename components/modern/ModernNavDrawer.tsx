@@ -15,11 +15,15 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   {
+    label: 'Home',
+    href: '/',
+    children: [],
+  },
+  {
     label: 'Shop',
     href: '/shop',
     children: [
       { label: 'New Arrivals', href: '/shop' },
-      { label: 'Ceramics', href: '/shop' },
       { label: 'Textiles', href: '/shop' },
       { label: 'Gift Sets', href: '/shop' },
       { label: 'All Products', href: '/shop' },
@@ -295,6 +299,11 @@ export default function ModernNavDrawer() {
           {NAV_ITEMS.map(item => (
             <li key={item.label} className="mnd-item-wrap">
               {/* Desktop: hover to open flyout. Mobile: tap to expand inline. */}
+              {item.children.length === 0 ? (
+                <Link href={item.href} className="mnd-item-btn" onClick={toggleDrawer}>
+                  {item.label}
+                </Link>
+              ) : (
               <button
                 className="mnd-item-btn"
                 onMouseEnter={() => setHoveredItem(item.label)}
@@ -307,6 +316,7 @@ export default function ModernNavDrawer() {
                   {openItem === item.label ? '▲' : '▼'}
                 </span>
               </button>
+              )}
 
               {/* Desktop flyout submenu */}
               <div

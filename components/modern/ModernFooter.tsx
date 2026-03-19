@@ -183,6 +183,9 @@ export default function ModernFooter({ settings }: Props) {
             Explore
           </div>
           <nav aria-label="Footer navigation">
+            <Link href="/" className="modern-footer-nav-link">
+              Home
+            </Link>
             <Link href="/shop" className="modern-footer-nav-link">
               Shop
             </Link>
@@ -212,18 +215,6 @@ export default function ModernFooter({ settings }: Props) {
           >
             Get in Touch
           </div>
-          <a
-            href="/contact"
-            style={{
-              color: 'rgba(255,255,255,0.85)',
-              textDecoration: 'none',
-              fontSize: '15px',
-              display: 'block',
-              padding: '3px 0',
-            }}
-          >
-            Send us a message →
-          </a>
           {settings.square_store_url && isValidHttpsUrl(settings.square_store_url) && (
             <a
               href={settings.square_store_url}
