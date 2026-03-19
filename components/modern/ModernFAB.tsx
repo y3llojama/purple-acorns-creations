@@ -333,34 +333,36 @@ export default function ModernFAB() {
         )}
       </div>
 
-      {/* ── Right: Scroll-to-top + Accessibility FAB ── */}
+      {/* ── Right: Scroll-to-top (above) + Accessibility FAB (bottom) ── */}
       <div className="mfab-wrap-right">
-        {a11yOpen && (
-          <div className="mfab-a11y-panel" role="dialog" aria-label="Accessibility options">
-            <label className="mfab-a11y-row">
-              <span>Larger text</span>
-              <input type="checkbox" checked={largeText} onChange={toggleLargeText} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
-            </label>
-            <label className="mfab-a11y-row">
-              <span>High contrast</span>
-              <input type="checkbox" checked={highContrast} onChange={toggleHighContrast} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
-            </label>
-            <button className="mfab-a11y-close" onClick={() => setA11yOpen(false)} aria-label="Close accessibility panel">Close</button>
-          </div>
-        )}
-        <button
-          aria-label="Accessibility options"
-          aria-expanded={a11yOpen}
-          onClick={() => setA11yOpen(o => !o)}
-          style={{ ...fabStyle, fontFamily: 'Georgia, serif', fontWeight: 700, fontSize: '15px', letterSpacing: '-0.5px' }}
-        >
-          Aa
-        </button>
         <div className={`mfab-scroll-top${scrollVisible ? ' visible' : ''}`}>
           <button aria-label="Back to top" onClick={scrollToTop} style={fabStyle}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <polyline points="18 15 12 9 6 15" />
             </svg>
+          </button>
+        </div>
+        <div style={{ position: 'relative' }}>
+          {a11yOpen && (
+            <div className="mfab-a11y-panel" role="dialog" aria-label="Accessibility options">
+              <label className="mfab-a11y-row">
+                <span>Larger text</span>
+                <input type="checkbox" checked={largeText} onChange={toggleLargeText} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
+              </label>
+              <label className="mfab-a11y-row">
+                <span>High contrast</span>
+                <input type="checkbox" checked={highContrast} onChange={toggleHighContrast} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
+              </label>
+              <button className="mfab-a11y-close" onClick={() => setA11yOpen(false)} aria-label="Close accessibility panel">Close</button>
+            </div>
+          )}
+          <button
+            aria-label="Accessibility options"
+            aria-expanded={a11yOpen}
+            onClick={() => setA11yOpen(o => !o)}
+            style={{ ...fabStyle, fontFamily: 'Georgia, serif', fontWeight: 700, fontSize: '15px', letterSpacing: '-0.5px' }}
+          >
+            Aa
           </button>
         </div>
       </div>
