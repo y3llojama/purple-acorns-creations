@@ -166,7 +166,8 @@ export default function ModernFAB() {
   function toggleLargeText() {
     const next = !largeText
     setLargeText(next)
-    document.body.style.zoom = next ? '1.2' : ''
+    const main = document.getElementById('main-content')
+    if (main) main.style.zoom = next ? '1.2' : ''
   }
 
   function toggleHighContrast() {
