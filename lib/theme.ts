@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS: Settings = {
   smtp_host: 'smtp.gmail.com', smtp_port: 587, smtp_user: null, smtp_pass: null,
   business_name: 'Purple Acorns Creations',
   square_access_token: null, square_refresh_token: null, square_location_id: null,
+  square_application_id: null, square_application_secret: null, square_environment: 'sandbox',
   pinterest_access_token: null, pinterest_refresh_token: null, pinterest_catalog_id: null,
   gallery_max_items: 20, square_sync_enabled: false, pinterest_sync_enabled: false,
   updated_at: '',

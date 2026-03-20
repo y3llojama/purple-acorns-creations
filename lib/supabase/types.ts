@@ -23,6 +23,9 @@ export interface Settings {
   square_refresh_token: string | null
   square_location_id: string | null
   square_store_url: string | null
+  square_application_id: string | null
+  square_application_secret: string | null
+  square_environment: string | null
   pinterest_access_token: string | null
   pinterest_refresh_token: string | null
   pinterest_catalog_id: string | null

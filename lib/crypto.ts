@@ -14,6 +14,7 @@ export const SENSITIVE_SETTINGS_FIELDS = [
   'contact_email',
   'newsletter_from_email',
   'newsletter_admin_emails',
+  'square_application_secret',
 ] as const
 
 export type SensitiveField = typeof SENSITIVE_SETTINGS_FIELDS[number]
