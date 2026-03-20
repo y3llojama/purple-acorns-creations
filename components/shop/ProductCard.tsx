@@ -2,7 +2,10 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { Product } from '@/lib/supabase/types'
+
+const HeartButton = dynamic(() => import('./HeartButton'), { ssr: false })
 
 interface Props {
   product: Product
@@ -65,12 +68,7 @@ export default function ProductCard({ product, showPrice = true }: Props) {
             Save
           </a>
         )}
-        <button
-          aria-label={`Save ${product.name}`}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', minHeight: '48px', minWidth: '48px', color: 'var(--color-primary)', fontSize: '18px', marginLeft: 'auto' }}
-        >
-          ♡
-        </button>
+        <HeartButton productId={product.id} productName={product.name} />
       </div>
     </div>
   )

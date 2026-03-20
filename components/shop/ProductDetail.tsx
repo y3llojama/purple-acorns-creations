@@ -1,11 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import ImageCarousel from '@/components/shop/ImageCarousel'
 import ProductCard from '@/components/shop/ProductCard'
 import { sanitizeContent } from '@/lib/sanitize'
 import { useCart } from '@/components/shop/CartContext'
 import type { Product } from '@/lib/supabase/types'
+
+const HeartButton = dynamic(() => import('@/components/shop/HeartButton'), { ssr: false })
 
 interface Props {
   product: Product
@@ -150,20 +153,8 @@ export default function ProductDetail({ product }: Props) {
               {inStock ? 'Add to Cart' : 'Out of Stock'}
             </button>
 
-            {/* Heart / Save stub — replaced in Task 16 */}
-            <button
-              aria-label={"Save " + product.name}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '8px',
-                minHeight: '48px',
-                minWidth: '48px',
-              }}
-            >
-              ♡
-            </button>
+            {/* Heart / Save */}
+            <HeartButton productId={product.id} productName={product.name} />
 
             {/* Pinterest Save button */}
             {firstImage && (
