@@ -1,6 +1,8 @@
 import { Resend } from 'resend'
 import type { Newsletter, NewsletterSubscriber } from '@/lib/supabase/types'
 import { addUtmParams } from '@/lib/newsletter'
+import { isValidHttpsUrl } from '@/lib/validate'
+import { sanitizeText } from '@/lib/sanitize'
 
 export function getResendClient(apiKey: string) {
   return new Resend(apiKey)
@@ -14,7 +16,7 @@ export function buildNewsletterEmail(
   const newsletterUrl = addUtmParams(`${siteUrl}/newsletter/${newsletter.slug}`, newsletter.slug)
   const unsubscribeUrl = `${siteUrl}/newsletter/unsubscribe?token=${unsubscribeToken}`
 
-  const heroBlock = newsletter.hero_image_url
+  const heroBlock = newsletter.hero_image_url && isValidHttpsUrl(newsletter.hero_image_url)
     ? `<img src="${newsletter.hero_image_url}" alt="" style="width:100%;max-width:600px;height:auto;display:block;border-radius:4px;margin:0 auto 24px;" />`
     : ''
 
@@ -23,7 +25,7 @@ export function buildNewsletterEmail(
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>${newsletter.subject_line}</title>
+  <title>${sanitizeText(newsletter.subject_line)}</title>
 </head>
 <body style="margin:0;padding:0;background:#f5ede0;font-family:Georgia,serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5ede0;">
@@ -36,8 +38,8 @@ export function buildNewsletterEmail(
         <!-- Body -->
         <tr><td style="padding:32px;">
           ${heroBlock}
-          <h1 style="margin:0 0 12px;font-size:26px;color:#1a0f2e;font-family:Georgia,serif;line-height:1.3;">${newsletter.title}</h1>
-          <p style="margin:0 0 24px;font-size:16px;color:#6b5b7b;line-height:1.6;">${newsletter.teaser_text}</p>
+          <h1 style="margin:0 0 12px;font-size:26px;color:#1a0f2e;font-family:Georgia,serif;line-height:1.3;">${sanitizeText(newsletter.title)}</h1>
+          <p style="margin:0 0 24px;font-size:16px;color:#6b5b7b;line-height:1.6;">${sanitizeText(newsletter.teaser_text)}</p>
           <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
             <tr><td style="background:#d4a853;border-radius:4px;padding:14px 28px;text-align:center;">
               <a href="${newsletterUrl}" style="color:#1a0f2e;text-decoration:none;font-size:16px;font-family:Georgia,serif;">Read the full story →</a>
