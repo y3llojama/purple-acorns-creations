@@ -32,20 +32,20 @@ const btnStyle: React.CSSProperties = { background: 'var(--color-primary)', colo
 interface Props {
   initialMode: 'gallery' | 'widget'
   initialPhotos: FollowAlongPhoto[]
-  initialResendApiKey: string
+  hasResendApiKey: boolean
   initialNewsletterFromName: string
   initialNewsletterFromEmail: string
   initialNewsletterAdminEmails: string
   initialNewsletterSendTime: string
   initialAiProvider: string
-  initialAiApiKey: string
+  hasAiApiKey: boolean
 }
 
 export default function IntegrationsEditor({
   initialMode, initialPhotos,
-  initialResendApiKey, initialNewsletterFromName, initialNewsletterFromEmail,
+  hasResendApiKey, initialNewsletterFromName, initialNewsletterFromEmail,
   initialNewsletterAdminEmails, initialNewsletterSendTime,
-  initialAiProvider, initialAiApiKey,
+  initialAiProvider, hasAiApiKey,
 }: Props) {
   const [square, setSquare] = useState('')
   const [squareSaved, setSquareSaved] = useState(false)
@@ -59,7 +59,8 @@ export default function IntegrationsEditor({
   const [contactEmail, setContactEmail] = useState('')
   const [contactSaved, setContactSaved] = useState(false)
 
-  const [resendApiKey, setResendApiKey] = useState(initialResendApiKey)
+  // API key fields: start empty — submitting empty = keep existing key
+  const [resendApiKey, setResendApiKey] = useState('')
   const [newsletterFromName, setNewsletterFromName] = useState(initialNewsletterFromName)
   const [newsletterFromEmail, setNewsletterFromEmail] = useState(initialNewsletterFromEmail)
   const [newsletterAdminEmails, setNewsletterAdminEmails] = useState(initialNewsletterAdminEmails)
@@ -67,7 +68,7 @@ export default function IntegrationsEditor({
   const [resendSaved, setResendSaved] = useState(false)
 
   const [aiProvider, setAiProvider] = useState(initialAiProvider)
-  const [aiApiKey, setAiApiKey] = useState(initialAiApiKey)
+  const [aiApiKey, setAiApiKey] = useState('')
   const [aiSaved, setAiSaved] = useState(false)
 
   const [smtpHost, setSmtpHost] = useState('smtp.gmail.com')
@@ -160,8 +161,8 @@ export default function IntegrationsEditor({
           Used to send newsletters to subscribers. Get your API key at{' '}
           <a href="https://resend.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)' }}>resend.com</a>.
         </p>
-        <label htmlFor="resend-api-key" style={labelStyle}>Resend API Key</label>
-        <input id="resend-api-key" type="password" value={resendApiKey} onChange={e => { setResendApiKey(e.target.value); setResendSaved(false) }} placeholder="re_..." style={inputStyle} />
+        <label htmlFor="resend-api-key" style={labelStyle}>Resend API Key {hasResendApiKey && <span style={{ color: 'green', fontWeight: 400, fontSize: '13px' }}>✓ saved</span>}</label>
+        <input id="resend-api-key" type="password" value={resendApiKey} onChange={e => { setResendApiKey(e.target.value); setResendSaved(false) }} placeholder={hasResendApiKey ? '•••••••• (leave blank to keep current)' : 're_...'} style={inputStyle} />
         <label htmlFor="newsletter-from-name" style={{ ...labelStyle, marginTop: '12px' }}>From Name</label>
         <input id="newsletter-from-name" value={newsletterFromName} onChange={e => { setNewsletterFromName(e.target.value); setResendSaved(false) }} placeholder="Purple Acorns Creations" style={inputStyle} />
         <label htmlFor="newsletter-from-email" style={{ ...labelStyle, marginTop: '12px' }}>From Email</label>
@@ -191,8 +192,8 @@ export default function IntegrationsEditor({
           <option value="openai">OpenAI</option>
           <option value="groq">Groq</option>
         </select>
-        <label htmlFor="ai-api-key" style={{ ...labelStyle, marginTop: '12px' }}>API Key</label>
-        <input id="ai-api-key" type="password" value={aiApiKey} onChange={e => { setAiApiKey(e.target.value); setAiSaved(false) }} placeholder="sk-..." style={inputStyle} />
+        <label htmlFor="ai-api-key" style={{ ...labelStyle, marginTop: '12px' }}>API Key {hasAiApiKey && <span style={{ color: 'green', fontWeight: 400, fontSize: '13px' }}>✓ saved</span>}</label>
+        <input id="ai-api-key" type="password" value={aiApiKey} onChange={e => { setAiApiKey(e.target.value); setAiSaved(false) }} placeholder={hasAiApiKey ? '•••••••• (leave blank to keep current)' : 'sk-...'} style={inputStyle} />
         <button style={btnStyle} onClick={async () => {
           const r = await save({ ai_provider: aiProvider || null, ai_api_key: aiApiKey })
           if (r.ok) setAiSaved(true)

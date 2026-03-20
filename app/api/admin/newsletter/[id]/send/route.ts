@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getResendClient, buildNewsletterEmail, sendNewsletterBatch } from '@/lib/resend'
+import { decryptSettings } from '@/lib/crypto'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -45,7 +46,7 @@ export async function POST(request: Request, { params }: RouteContext) {
   if (nlStatus === 'sent') return NextResponse.json({ error: 'This newsletter has already been sent.' }, { status: 400 })
   if (nlStatus === 'cancelled') return NextResponse.json({ error: 'Cannot schedule a cancelled newsletter.' }, { status: 400 })
 
-  const settings = settingsResult.data
+  const settings = settingsResult.data ? decryptSettings(settingsResult.data) : null
   const resendApiKey = process.env.RESEND_API_KEY ?? settings?.resend_api_key
   const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? settings?.newsletter_from_email
   const fromName = process.env.NEWSLETTER_FROM_NAME ?? settings?.newsletter_from_name ?? 'Purple Acorns Creations'

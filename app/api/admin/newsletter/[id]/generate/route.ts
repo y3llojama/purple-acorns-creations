@@ -4,6 +4,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server'
 import { buildAiPrompt, isValidNewsletterSection } from '@/lib/newsletter'
 import { sanitizeContent } from '@/lib/sanitize'
 import type { NewsletterSection } from '@/lib/supabase/types'
+import { decryptSettings } from '@/lib/crypto'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -30,7 +31,7 @@ export async function POST(request: Request, { params }: RouteContext) {
       .limit(5),
   ])
 
-  const settings = settingsResult.data
+  const settings = settingsResult.data ? decryptSettings(settingsResult.data) : null
   // Env var always wins over DB setting
   const aiProvider = settings?.ai_provider
   const aiApiKey = process.env.AI_API_KEY ?? settings?.ai_api_key

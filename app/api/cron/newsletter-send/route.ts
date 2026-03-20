@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getResendClient, sendNewsletterBatch } from '@/lib/resend'
 import type { Newsletter, NewsletterSubscriber } from '@/lib/supabase/types'
+import { decryptSettings } from '@/lib/crypto'
 
 export async function GET(request: Request) {
   // Validate cron secret
@@ -31,7 +32,8 @@ export async function GET(request: Request) {
   }
 
   // Fetch settings once
-  const { data: settings } = await supabase.from('settings').select('resend_api_key, newsletter_from_name, newsletter_from_email').single()
+  const { data: rawSettings } = await supabase.from('settings').select('resend_api_key, newsletter_from_name, newsletter_from_email').single()
+  const settings = rawSettings ? decryptSettings(rawSettings) : null
   const resendApiKey = process.env.RESEND_API_KEY ?? settings?.resend_api_key
   const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? settings?.newsletter_from_email
   const fromName = process.env.NEWSLETTER_FROM_NAME ?? settings?.newsletter_from_name ?? 'Purple Acorns Creations'

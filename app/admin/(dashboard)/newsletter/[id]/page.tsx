@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import NewsletterComposer from '@/components/admin/newsletter/NewsletterComposer'
 import type { Newsletter } from '@/lib/supabase/types'
+import { decryptSettings } from '@/lib/crypto'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -22,7 +23,7 @@ export default async function NewsletterComposePage({ params }: Props) {
 
   if (newsletterResult.error || !newsletterResult.data) notFound()
 
-  const settings = settingsResult.data
+  const settings = settingsResult.data ? decryptSettings(settingsResult.data) : null
   const hasAi = !!(settings?.ai_provider && (process.env.AI_API_KEY ?? settings?.ai_api_key))
   const hasResend = !!((process.env.RESEND_API_KEY ?? settings?.resend_api_key) && (process.env.NEWSLETTER_FROM_EMAIL ?? settings?.newsletter_from_email))
 

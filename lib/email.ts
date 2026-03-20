@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { stripControlChars } from '@/lib/validate'
 import { interpolate, buildVars } from '@/lib/variables'
+import { decryptSettings } from '@/lib/crypto'
 
 interface SendEmailOptions {
   to: string
@@ -27,7 +28,7 @@ async function getSmtpSettings() {
     .from('settings')
     .select('contact_email, smtp_host, smtp_port, smtp_user, smtp_pass, business_name')
     .single()
-  return data
+  return data ? decryptSettings(data) : data
 }
 
 export async function sendEmail(options: SendEmailOptions): Promise<{ success: boolean; error?: string }> {
