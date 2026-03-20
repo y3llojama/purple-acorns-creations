@@ -1,5 +1,7 @@
 'use client'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import ConfirmDialog from '@/components/admin/ConfirmDialog'
 
 interface NewsletterRow {
   id: string; slug: string; title: string; status: string
@@ -8,8 +10,16 @@ interface NewsletterRow {
 
 interface Props { newsletters: NewsletterRow[] }
 
-export default function NewsletterList({ newsletters }: Props) {
+export default function NewsletterList({ newsletters: initial }: Props) {
   const router = useRouter()
+  const [newsletters, setNewsletters] = useState(initial)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+
+  async function handleDelete(id: string) {
+    const res = await fetch(`/api/admin/newsletter/${id}`, { method: 'DELETE' })
+    if (!res.ok) { alert('Could not delete newsletter'); return }
+    setNewsletters((prev) => prev.filter((nl) => nl.id !== id))
+  }
 
   async function handleCreate() {
     const res = await fetch('/api/admin/newsletter', { method: 'POST' })
@@ -33,8 +43,17 @@ export default function NewsletterList({ newsletters }: Props) {
     return `Created ${new Date(nl.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
   }
 
+  const confirmTarget = newsletters.find((nl) => nl.id === confirmDeleteId)
+
   return (
     <div style={{ maxWidth: '720px', margin: '0 auto', padding: '32px 24px' }}>
+      {confirmDeleteId && confirmTarget && (
+        <ConfirmDialog
+          message={`Delete "${confirmTarget.title || 'untitled'}"? This cannot be undone.`}
+          onConfirm={() => { handleDelete(confirmDeleteId); setConfirmDeleteId(null) }}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <h1 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary)', margin: 0 }}>Newsletters</h1>
         <button
@@ -61,9 +80,20 @@ export default function NewsletterList({ newsletters }: Props) {
                 </div>
                 <div style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>{dateLabel(nl)}</div>
               </div>
-              <span style={{ fontSize: '12px', fontWeight: 600, color: statusColor(nl.status), textTransform: 'uppercase', letterSpacing: '0.5px', flexShrink: 0 }}>
-                {nl.status}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: statusColor(nl.status), textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  {nl.status}
+                </span>
+                {['draft', 'cancelled'].includes(nl.status) && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(nl.id) }}
+                    aria-label={`Delete ${nl.title || 'untitled'}`}
+                    style={{ padding: '6px 10px', fontSize: '12px', background: 'transparent', color: 'var(--color-danger)', border: '1px solid var(--color-danger)', borderRadius: '4px', cursor: 'pointer', minHeight: '32px' }}
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
             </li>
           ))}
         </ul>

@@ -65,3 +65,32 @@ export async function PUT(request: Request, { params }: RouteContext) {
   if (dbError) return NextResponse.json({ error: 'Internal server error.' }, { status: 500 })
   return NextResponse.json({ newsletter: data })
 }
+
+export async function DELETE(_request: Request, { params }: RouteContext) {
+  const { error } = await requireAdminSession()
+  if (error) return error
+
+  const { id } = await params
+  const supabase = createServiceRoleClient()
+
+  const { data: existing, error: fetchError } = await supabase
+    .from('newsletters')
+    .select('status')
+    .eq('id', id)
+    .single()
+
+  if (fetchError?.code === 'PGRST116') return NextResponse.json({ error: 'Not found.' }, { status: 404 })
+  if (fetchError) return NextResponse.json({ error: 'Internal server error.' }, { status: 500 })
+
+  if (!['draft', 'cancelled'].includes(existing.status)) {
+    return NextResponse.json({ error: 'Only draft or cancelled newsletters can be deleted.' }, { status: 409 })
+  }
+
+  const { error: deleteError } = await supabase
+    .from('newsletters')
+    .delete()
+    .eq('id', id)
+
+  if (deleteError) return NextResponse.json({ error: 'Internal server error.' }, { status: 500 })
+  return new NextResponse(null, { status: 204 })
+}
