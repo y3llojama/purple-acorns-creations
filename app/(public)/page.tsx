@@ -5,10 +5,12 @@ import { sanitizeText } from '@/lib/sanitize'
 import { interpolate, buildVars } from '@/lib/variables'
 import InstagramFeed from '@/components/home/InstagramFeed'
 import NewsletterSignup from '@/components/home/NewsletterSignup'
+import GalleryScroller from '@/components/home/GalleryScroller'
 import ModernHero from '@/components/modern/ModernHero'
 import ModernFeaturedGrid from '@/components/modern/ModernFeaturedGrid'
 import ModernStorySection from '@/components/modern/ModernStorySection'
 import ModernEventSection from '@/components/modern/ModernEventSection'
+import type { Product } from '@/lib/supabase/types'
 
 // Shown when no featured gallery items exist in the DB yet.
 // Disappears automatically once items are marked as featured in the admin panel.
@@ -27,7 +29,7 @@ export default async function HomePage() {
   const [content, settings, featured, gallery, eventResult, followAlongResult] = await Promise.all([
     getAllContent(),
     getSettings(),
-    supabase.from('gallery').select('*').eq('is_featured', true).order('sort_order').then(r => r.data ?? []),
+    supabase.from('products').select('*').eq('is_active', true).eq('gallery_featured', true).order('gallery_sort_order').limit(4).then(r => r.data ?? []),
     supabase.from('gallery').select('*').eq('is_featured', false).order('sort_order').limit(8).then(r => r.data ?? []),
     supabase.from('events').select('*').gte('date', today).order('date').limit(1).single(),
     supabase.from('follow_along_photos').select('*').order('display_order').then(r => r.data ?? []),
@@ -55,14 +57,13 @@ export default async function HomePage() {
       />
       <ModernFeaturedGrid
         items={(() => {
-          const dbItems = featured
-            .filter(item => item.url?.startsWith('http') || item.url?.startsWith('/'))
-            .map(item => ({ id: item.id, image_url: item.url, title: item.alt_text || null, description: null }))
+          const dbItems = (featured as Product[])
+            .map(p => ({ id: p.id, image_url: p.images[0] ?? '', title: p.name, description: null }))
           return dbItems.length > 0 ? dbItems : FALLBACK_FEATURED
         })()}
         watermark={settings.gallery_watermark ? interpolate(settings.gallery_watermark, vars) : null}
-        squareStoreUrl={settings.square_store_url}
       />
+      <GalleryScroller />
       <ModernStorySection
         teaser={sanitizeText(interpolate(content.story_teaser ?? '', vars))}
         images={gallery.length > 0

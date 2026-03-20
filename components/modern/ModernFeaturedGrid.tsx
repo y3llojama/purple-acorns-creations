@@ -8,13 +8,12 @@ interface Item {
 interface Props {
   items: Item[]
   watermark: string | null | undefined
-  squareStoreUrl: string | null | undefined
 }
 
 const SKELETON_CARDS = ['sk-1', 'sk-2', 'sk-3', 'sk-4']
 
-export default function ModernFeaturedGrid({ items, watermark, squareStoreUrl }: Props) {
-  const viewAllHref = squareStoreUrl ?? '/shop'
+export default function ModernFeaturedGrid({ items, watermark }: Props) {
+  const viewAllHref = '/shop'
   const isEmpty = items.length === 0
 
   return (
@@ -187,7 +186,7 @@ export default function ModernFeaturedGrid({ items, watermark, squareStoreUrl }:
                       </p>
                     )}
                     <a
-                      href={viewAllHref}
+                      href={`/shop/${item.id}`}
                       style={{
                         fontSize: '11px',
                         color: 'var(--color-accent)',
