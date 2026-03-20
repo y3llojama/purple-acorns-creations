@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
 import { createServiceRoleClient } from '@/lib/supabase/server'
-import { encryptToken } from '@/lib/crypto'
+import { encryptToken, decryptValue } from '@/lib/crypto'
 import { SquareClient, SquareEnvironment } from 'square'
 
 export async function GET(request: Request) {
@@ -14,7 +14,19 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/admin/channels?error=square_denied`)
   }
 
-  const baseUrl = process.env.SQUARE_ENVIRONMENT === 'production'
+  const supabase = createServiceRoleClient()
+  const { data: settings } = await supabase
+    .from('settings')
+    .select('square_application_id, square_application_secret, square_environment')
+    .limit(1)
+    .maybeSingle()
+
+  const appId = settings?.square_application_id ?? process.env.SQUARE_APPLICATION_ID
+  const rawSecret = settings?.square_application_secret
+  const appSecret = rawSecret ? decryptValue(rawSecret) : (process.env.SQUARE_APPLICATION_SECRET ?? '')
+  const environment = settings?.square_environment ?? process.env.SQUARE_ENVIRONMENT
+
+  const baseUrl = environment === 'production'
     ? 'https://connect.squareup.com'
     : 'https://connect.squareupsandbox.com'
 
@@ -22,8 +34,8 @@ export async function GET(request: Request) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Square-Version': '2024-01-18' },
     body: JSON.stringify({
-      client_id: process.env.SQUARE_APPLICATION_ID,
-      client_secret: process.env.SQUARE_APPLICATION_SECRET,
+      client_id: appId,
+      client_secret: appSecret,
       code,
       grant_type: 'authorization_code',
       redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/admin/channels/square/callback`,
@@ -38,7 +50,7 @@ export async function GET(request: Request) {
 
   const client = new SquareClient({
     token: tokens.access_token,
-    environment: process.env.SQUARE_ENVIRONMENT === 'production'
+    environment: environment === 'production'
       ? SquareEnvironment.Production
       : SquareEnvironment.Sandbox,
   })
@@ -51,7 +63,6 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/admin/channels?error=square_location`)
   }
 
-  const supabase = createServiceRoleClient()
   await supabase.from('settings').update({
     square_access_token: encryptToken(tokens.access_token),
     square_refresh_token: tokens.refresh_token ? encryptToken(tokens.refresh_token) : null,

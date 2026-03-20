@@ -1,14 +1,24 @@
 import { NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
+import { createServiceRoleClient } from '@/lib/supabase/server'
 
 export async function GET(request: Request) {
   const { error } = await requireAdminSession()
   if (error) return error
 
-  const appId = process.env.SQUARE_APPLICATION_ID
+  const supabase = createServiceRoleClient()
+  const { data: settings } = await supabase
+    .from('settings')
+    .select('square_application_id, square_environment')
+    .limit(1)
+    .maybeSingle()
+
+  const appId = settings?.square_application_id ?? process.env.SQUARE_APPLICATION_ID
+  const environment = settings?.square_environment ?? process.env.SQUARE_ENVIRONMENT
+
   if (!appId) return NextResponse.json({ error: 'Square not configured' }, { status: 500 })
 
-  const baseUrl = process.env.SQUARE_ENVIRONMENT === 'production'
+  const baseUrl = environment === 'production'
     ? 'https://connect.squareup.com'
     : 'https://connect.squareupsandbox.com'
 
@@ -21,7 +31,7 @@ export async function GET(request: Request) {
   ].join(' ')
 
   const url = new URL(`${baseUrl}/oauth2/authorize`)
-  url.searchParams.set('client_id', appId)
+  url.searchParams.set('client_id', appId as string)
   url.searchParams.set('scope', scope)
   url.searchParams.set('redirect_uri', redirectUri)
   url.searchParams.set('session', 'false')

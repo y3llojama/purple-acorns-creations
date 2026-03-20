@@ -7,7 +7,7 @@ export async function GET() {
   if (error) return error
   const supabase = createServiceRoleClient()
   const [{ data: settings }, { data: conflicts }, { data: recentErrors }] = await Promise.all([
-    supabase.from('settings').select('square_sync_enabled,pinterest_sync_enabled,square_location_id,pinterest_catalog_id,square_access_token,pinterest_access_token').single(),
+    supabase.from('settings').select('square_sync_enabled,pinterest_sync_enabled,square_location_id,pinterest_catalog_id,square_access_token,pinterest_access_token,square_application_id,square_application_secret,square_environment').single(),
     supabase.from('channel_sync_log').select('product_id,channel,error,created_at,products(name)').eq('status', 'conflict'),
     supabase.from('channel_sync_log').select('product_id,channel,error,created_at').eq('status', 'error').order('created_at', { ascending: false }).limit(10),
   ])
@@ -15,7 +15,13 @@ export async function GET() {
   const allErrors = recentErrors ?? []
   return NextResponse.json({
     square: {
-      status: { connected: !!settings?.square_access_token, enabled: settings?.square_sync_enabled ?? false, locationId: settings?.square_location_id ?? null },
+      status: {
+        connected: !!settings?.square_access_token,
+        enabled: settings?.square_sync_enabled ?? false,
+        locationId: settings?.square_location_id ?? null,
+        hasAppCredentials: !!(settings?.square_application_id && settings?.square_application_secret),
+        environment: settings?.square_environment ?? (process.env.SQUARE_ENVIRONMENT ?? 'sandbox'),
+      },
       conflicts: allConflicts.filter(c => c.channel === 'square'),
       recentErrors: allErrors.filter(e => e.channel === 'square'),
     },

@@ -4,6 +4,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server'
 import { requireAdminSession } from '@/lib/auth'
 import { isValidHttpsUrl, isValidEmail } from '@/lib/validate'
 import { sanitizeText } from '@/lib/sanitize'
+import { encryptValue } from '@/lib/crypto'
 
 const ALLOWED_THEMES = ['warm-artisan', 'soft-botanical', 'custom', 'modern'] as const
 type Theme = typeof ALLOWED_THEMES[number]
@@ -73,6 +74,19 @@ export async function POST(request: Request) {
   }
   if (body.mailchimp_api_key !== undefined) update.mailchimp_api_key = sanitizeText(String(body.mailchimp_api_key ?? '')) || null
   if (body.mailchimp_audience_id !== undefined) update.mailchimp_audience_id = sanitizeText(String(body.mailchimp_audience_id ?? '')) || null
+  // Square app credentials — secret is encrypted at rest.
+  // Omitting square_application_secret from the body preserves the existing encrypted value.
+  if (body.square_application_id !== undefined) {
+    update.square_application_id = sanitizeText(String(body.square_application_id ?? '')).slice(0, 200) || null
+  }
+  if (body.square_application_secret !== undefined) {
+    const secret = String(body.square_application_secret ?? '').trim()
+    update.square_application_secret = secret ? encryptValue(secret) : null
+  }
+  if (body.square_environment !== undefined) {
+    const env = String(body.square_environment ?? '')
+    update.square_environment = ['sandbox', 'production'].includes(env) ? env : 'sandbox'
+  }
   if (body.ai_provider !== undefined) {
     const val = String(body.ai_provider ?? '')
     update.ai_provider = ['claude', 'openai', 'groq'].includes(val) ? val : null

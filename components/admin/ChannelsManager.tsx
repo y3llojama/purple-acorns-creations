@@ -5,7 +5,7 @@ import PinterestChannelCard from './PinterestChannelCard'
 
 interface ChannelsData {
   square: {
-    status: { connected: boolean; enabled: boolean; locationId: string | null }
+    status: { connected: boolean; enabled: boolean; locationId: string | null; hasAppCredentials: boolean; environment: string }
     conflicts: Array<{ product_id: string; channel: string; error: string | null; products: { name: string } | null }>
     recentErrors: Array<{ error: string | null; created_at: string }>
   }

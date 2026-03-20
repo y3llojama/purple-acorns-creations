@@ -14,7 +14,7 @@ interface RecentError {
 }
 
 interface Props {
-  status: { connected: boolean; enabled: boolean; locationId: string | null }
+  status: { connected: boolean; enabled: boolean; locationId: string | null; hasAppCredentials: boolean; environment: string }
   conflicts: Conflict[]
   recentErrors: RecentError[]
   onRefresh: () => void
@@ -54,6 +54,38 @@ export default function SquareChannelCard({ status, conflicts, recentErrors, onR
   const [syncing, setSyncing] = useState(false)
   const [toggling, setToggling] = useState(false)
   const [syncError, setSyncError] = useState('')
+  const [credAppId, setCredAppId] = useState('')
+  const [credSecret, setCredSecret] = useState('')
+  const [credEnv, setCredEnv] = useState(status.environment ?? 'sandbox')
+  const [savingCreds, setSavingCreds] = useState(false)
+  const [credsMsg, setCredsMsg] = useState('')
+
+  async function saveCredentials() {
+    setSavingCreds(true)
+    setCredsMsg('')
+    try {
+      const body: Record<string, string> = { square_environment: credEnv }
+      if (credAppId.trim()) body.square_application_id = credAppId.trim()
+      if (credSecret.trim()) body.square_application_secret = credSecret.trim()
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (res.ok) {
+        setCredsMsg('Saved.')
+        setCredSecret('')
+        onRefresh()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setCredsMsg(data.error ?? 'Save failed.')
+      }
+    } catch {
+      setCredsMsg('Network error.')
+    } finally {
+      setSavingCreds(false)
+    }
+  }
 
   async function toggleSync() {
     setToggling(true)
@@ -112,14 +144,101 @@ export default function SquareChannelCard({ status, conflicts, recentErrors, onR
         </span>
       </div>
 
+      {/* App Credentials */}
+      <div style={{ marginBottom: '24px' }}>
+        <h3 style={{ fontSize: '16px', color: 'var(--color-primary)', marginBottom: '12px' }}>App Credentials</h3>
+        {!status.hasAppCredentials && (
+          <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginBottom: '12px' }}>
+            Enter your Square Application ID and Secret to enable OAuth. Find these in the{' '}
+            <a href="https://developer.squareup.com/apps" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>
+              Square Developer Dashboard
+            </a>.
+          </p>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '420px' }}>
+          <label style={{ fontSize: '14px', fontWeight: '500' }}>
+            Application ID
+            <input
+              type="text"
+              value={credAppId}
+              onChange={e => setCredAppId(e.target.value)}
+              placeholder={status.hasAppCredentials ? '(saved — enter to replace)' : 'sq0idp-…'}
+              style={{
+                display: 'block', width: '100%', marginTop: '4px',
+                padding: '8px 10px', fontSize: '14px',
+                border: '1px solid var(--color-border)', borderRadius: '4px',
+                background: 'var(--color-bg)', color: 'var(--color-primary)',
+                boxSizing: 'border-box',
+              }}
+            />
+          </label>
+          <label style={{ fontSize: '14px', fontWeight: '500' }}>
+            Application Secret
+            <input
+              type="password"
+              value={credSecret}
+              onChange={e => setCredSecret(e.target.value)}
+              placeholder={status.hasAppCredentials ? '(saved — enter to replace)' : 'sq0csp-…'}
+              autoComplete="new-password"
+              style={{
+                display: 'block', width: '100%', marginTop: '4px',
+                padding: '8px 10px', fontSize: '14px',
+                border: '1px solid var(--color-border)', borderRadius: '4px',
+                background: 'var(--color-bg)', color: 'var(--color-primary)',
+                boxSizing: 'border-box',
+              }}
+            />
+          </label>
+          <label style={{ fontSize: '14px', fontWeight: '500' }}>
+            Environment
+            <select
+              value={credEnv}
+              onChange={e => setCredEnv(e.target.value)}
+              style={{
+                display: 'block', width: '100%', marginTop: '4px',
+                padding: '8px 10px', fontSize: '14px',
+                border: '1px solid var(--color-border)', borderRadius: '4px',
+                background: 'var(--color-bg)', color: 'var(--color-primary)',
+                boxSizing: 'border-box',
+              }}
+            >
+              <option value="sandbox">Sandbox</option>
+              <option value="production">Production</option>
+            </select>
+          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <button style={btnStyle} onClick={saveCredentials} disabled={savingCreds}>
+              {savingCreds ? 'Saving…' : 'Save Credentials'}
+            </button>
+            {credsMsg && (
+              <span style={{ fontSize: '14px', color: credsMsg === 'Saved.' ? 'var(--color-success-text)' : 'var(--color-error)' }}>
+                {credsMsg}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
       {!status.connected && (
         <div style={{ marginBottom: '16px' }}>
           <a
             href="/api/admin/channels/square/connect"
-            style={{ ...btnStyle, display: 'inline-block', textDecoration: 'none', textAlign: 'center' }}
+            style={{
+              ...btnStyle,
+              display: 'inline-block',
+              textDecoration: 'none',
+              textAlign: 'center',
+              opacity: status.hasAppCredentials ? 1 : 0.5,
+              pointerEvents: status.hasAppCredentials ? 'auto' : 'none',
+            }}
           >
             Connect Square
           </a>
+          {!status.hasAppCredentials && (
+            <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginTop: '6px' }}>
+              Save App Credentials above before connecting.
+            </p>
+          )}
         </div>
       )}
 
