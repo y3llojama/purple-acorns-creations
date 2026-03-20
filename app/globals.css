@@ -70,6 +70,12 @@
   --color-overlay: rgba(0, 0, 0, 0.4);
   --color-shadow-drawer: rgba(0, 0, 0, 0.15);
   --color-on-image: #ffffff;
+  --color-error: #c05050;
+  --color-error-text: #ffffff;
+  --color-success-bg: #d4edda;
+  --color-success-text: #155724;
+  --color-danger-bg: #f8d7da;
+  --color-danger-text: #721c24;
 }
 
 *, *::before, *::after {

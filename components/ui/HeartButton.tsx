@@ -22,8 +22,8 @@ export default function HeartButton({ itemId, itemTitle, imageUrl }: Props) {
           background: rgba(255, 255, 255, 0.92);
           border: none;
           border-radius: 50%;
-          width: 36px;
-          height: 36px;
+          width: 48px;
+          height: 48px;
           display: flex;
           align-items: center;
           justify-content: center;
