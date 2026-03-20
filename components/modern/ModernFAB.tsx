@@ -364,7 +364,6 @@ export default function ModernFAB() {
               {chatStep === 'quick' && (
                 <>
                   <div className="mfab-quick-label">Quick links</div>
-                  <a href="/contact" className="mfab-quick-btn"><span aria-hidden="true">✉️</span> Send us a message</a>
                   <a href="/our-story" className="mfab-quick-btn"><span aria-hidden="true">✨</span> Our story</a>
                   <a href="/shop" className="mfab-quick-btn"><span aria-hidden="true">🛍</span> Browse the shop</a>
                   <button className="mfab-quick-btn" onClick={() => setChatStep('compose')} style={{ fontWeight: 600, borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}>

@@ -40,8 +40,8 @@ export default async function OurStoryPage() {
           inset: 0;
           width: 100%;
           height: 100%;
-          object-fit: cover;
-          object-position: center 40%;
+          object-fit: contain;
+          object-position: center center;
           animation: ks-zoom 14s ease-in-out infinite;
           will-change: transform;
         }

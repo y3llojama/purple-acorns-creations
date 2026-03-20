@@ -1,5 +1,9 @@
 import { render, screen } from '@testing-library/react'
-import ContentAdminPage from '@/app/admin/content/page'
+import ContentAdminPage from '@/app/admin/(dashboard)/content/page'
+
+jest.mock('@/lib/theme', () => ({
+  getSettings: jest.fn().mockResolvedValue({ business_name: 'Test Shop' }),
+}))
 
 jest.mock('@/lib/content', () => ({
   getAllContent: jest.fn().mockResolvedValue({

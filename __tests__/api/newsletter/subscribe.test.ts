@@ -17,25 +17,26 @@ function req(body: unknown) {
 }
 beforeEach(() => jest.clearAllMocks())
 
+function mockSettings(keys: { mailchimp_api_key?: string; mailchimp_audience_id?: string } | null) {
+  const mockSingle = jest.fn().mockResolvedValue({ data: keys })
+  const mockSelect = jest.fn().mockReturnValue({ single: mockSingle })
+  ;(createServiceRoleClient as jest.Mock).mockReturnValue({ from: () => ({ select: mockSelect }) })
+}
+
 it('400 for invalid email', async () => {
   const res = await POST(req({ email: 'notanemail' }))
   expect(res.status).toBe(400)
 })
 
-it('200 and upserts subscriber', async () => {
-  const mockUpsert = jest.fn().mockResolvedValue({ error: null })
-  ;(createServiceRoleClient as jest.Mock).mockReturnValue({ from: () => ({ upsert: mockUpsert }) })
+it('200 when mailchimp accepts subscriber', async () => {
+  mockSettings({ mailchimp_api_key: 'testkey-us1', mailchimp_audience_id: 'list123' })
+  global.fetch = jest.fn().mockResolvedValue({ ok: true } as Response)
   const res = await POST(req({ email: 'test@example.com' }))
   expect(res.status).toBe(200)
-  expect(mockUpsert).toHaveBeenCalledWith(
-    expect.objectContaining({ email: 'test@example.com', status: 'active', source: 'public_signup' }),
-    expect.objectContaining({ onConflict: 'email' })
-  )
 })
 
-it('500 on DB error', async () => {
-  const mockUpsert = jest.fn().mockResolvedValue({ error: { message: 'DB failure' } })
-  ;(createServiceRoleClient as jest.Mock).mockReturnValue({ from: () => ({ upsert: mockUpsert }) })
-  const res = await POST(req({ email: 'error@example.com' }))
-  expect(res.status).toBe(500)
+it('503 when mailchimp not configured', async () => {
+  mockSettings(null)
+  const res = await POST(req({ email: 'test@example.com' }))
+  expect(res.status).toBe(503)
 })

@@ -19,7 +19,7 @@ describe('AnnouncementBanner', () => {
   })
   it('renders link with noopener rel when provided', () => {
     render(<AnnouncementBanner text="Event" linkUrl="https://example.com" linkLabel="Learn more" />)
-    const link = screen.getByRole('link', { name: 'Learn more' })
+    const link = screen.getByRole('link', { name: /Learn more/ })
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
   })
   it('does not render link for non-https URL', () => {
