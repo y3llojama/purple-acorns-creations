@@ -7,7 +7,8 @@ import EditStep from './EditStep'
 import PreviewStep from './PreviewStep'
 import SendStep from './SendStep'
 
-interface GalleryItem { id: string; url: string; alt_text: string }
+import type { GalleryItem as FullGalleryItem } from '@/lib/supabase/types'
+type GalleryItem = Pick<FullGalleryItem, 'id' | 'url' | 'alt_text'>
 interface UpcomingEvent { name: string; date: string; location: string }
 
 interface Props {

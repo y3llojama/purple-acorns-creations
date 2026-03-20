@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
+import { useSavedItems } from '@/lib/saved-items'
 
 interface SearchItem {
   id: string
@@ -142,6 +143,7 @@ interface Props {
 
 export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: Props) {
   const NAV_ITEMS = buildNavItems(businessName)
+  const { count: savedCount } = useSavedItems()
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -805,6 +807,40 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
             </button>
           )}
 
+          <Link
+            href="/shop/saved"
+            className="mh-icon-btn"
+            aria-label={savedCount > 0 ? `Saved items (${savedCount})` : 'Saved items'}
+            style={{ position: 'relative' }}
+          >
+            <HeartNavIcon />
+            {savedCount > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 6,
+                  right: 6,
+                  width: 14,
+                  height: 14,
+                  borderRadius: '50%',
+                  background: 'var(--color-primary)',
+                  color: '#fff',
+                  fontSize: '9px',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  fontFamily: "'Jost', sans-serif",
+                  pointerEvents: 'none',
+                }}
+                aria-hidden="true"
+              >
+                {savedCount > 9 ? '9+' : savedCount}
+              </span>
+            )}
+          </Link>
+
           <button
             className="mh-icon-btn"
             aria-label={searchOpen ? 'Submit search' : 'Open search'}
@@ -961,6 +997,14 @@ function MegaMenu({ columns, panel, visible, onMouseEnter, onMouseLeave }: {
         )}
       </div>
     </div>
+  )
+}
+
+function HeartNavIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
   )
 }
 

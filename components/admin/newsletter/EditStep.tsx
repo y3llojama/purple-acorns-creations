@@ -1,8 +1,10 @@
 'use client'
 import { useState } from 'react'
-import type { Newsletter, NewsletterSection, GalleryItem } from '@/lib/supabase/types'
+import type { Newsletter, NewsletterSection, GalleryItem as FullGalleryItem } from '@/lib/supabase/types'
 import { isValidHttpsUrl } from '@/lib/validate'
 import GalleryPickerModal from './GalleryPickerModal'
+
+type GalleryItem = Pick<FullGalleryItem, 'id' | 'url' | 'alt_text'>
 
 interface Props {
   newsletter: Newsletter
@@ -40,7 +42,7 @@ export default function EditStep({ newsletter, galleryItems, onChange, onNext, o
     setLocal((prev) => {
       let newSection: NewsletterSection
       if (type === 'text') newSection = { type: 'text', body: '' }
-      else if (type === 'image') newSection = { type: 'image', image_url: '', caption: null }
+      else if (type === 'image') newSection = { type: 'image', image_url: '', caption: undefined }
       else newSection = { type: 'cta', url: '', label: '' }
       return { ...prev, content: [...prev.content, newSection] }
     })
@@ -260,7 +262,7 @@ export default function EditStep({ newsletter, galleryItems, onChange, onNext, o
             <input
               type="text"
               value={section.caption ?? ''}
-              onChange={(e) => updateSection(index, { caption: e.target.value || null })}
+              onChange={(e) => updateSection(index, { caption: e.target.value || undefined })}
               onBlur={handleBlur}
               placeholder="Caption (optional)"
               style={inputStyle}

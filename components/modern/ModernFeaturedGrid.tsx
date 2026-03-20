@@ -1,3 +1,5 @@
+import HeartButton from '@/components/ui/HeartButton'
+
 interface Item {
   id: string
   image_url: string | null
@@ -146,6 +148,9 @@ export default function ModernFeaturedGrid({ items, watermark, squareStoreUrl }:
                         }}
                       />
                     )}
+                    {/* Heart save button */}
+                    <HeartButton itemId={item.id} itemTitle={item.title} imageUrl={item.image_url} />
+
                     {/* Watermark overlay — bottom-right, toggleable via gallery_watermark setting */}
                     {watermark && (
                       <span

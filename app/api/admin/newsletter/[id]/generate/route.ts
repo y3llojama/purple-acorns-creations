@@ -81,8 +81,9 @@ export async function POST(request: Request, { params }: RouteContext) {
   const sections: NewsletterSection[] = rawSections
     .filter(isValidNewsletterSection)
     .map((s) => {
-      if (s.type === 'text') return { ...s, body: sanitizeContent(s.body) }
-      return s
+      const section = s as NewsletterSection
+      if (section.type === 'text') return { ...section, body: sanitizeContent(section.body) }
+      return section
     })
 
   // Save to newsletter
