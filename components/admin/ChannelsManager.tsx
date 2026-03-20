@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import SquareChannelCard from './SquareChannelCard'
 import PinterestChannelCard from './PinterestChannelCard'
 
@@ -20,9 +20,10 @@ export default function ChannelsManager() {
   const [data, setData] = useState<ChannelsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const hasLoaded = useRef(false)
 
   const fetchData = useCallback(async () => {
-    if (!data) setLoading(true)
+    if (!hasLoaded.current) setLoading(true)
     setError('')
     try {
       const res = await fetch('/api/admin/channels')
@@ -32,12 +33,13 @@ export default function ChannelsManager() {
       }
       const json = await res.json()
       setData(json)
+      hasLoaded.current = true
     } catch {
       setError('Network error loading channels.')
     } finally {
       setLoading(false)
     }
-  }, [data])
+  }, [])
 
   useEffect(() => {
     fetchData()
