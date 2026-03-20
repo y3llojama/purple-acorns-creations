@@ -12,8 +12,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
-  if (!pathname.startsWith('/admin')) return NextResponse.next()
-  if (pathname === '/admin/login') return NextResponse.next()
 
   let response = NextResponse.next({ request })
   const supabase = createServerClient(
@@ -33,7 +31,15 @@ export async function proxy(request: NextRequest) {
   )
 
   // Use getUser() — performs server-side JWT verification (never getSession())
+  // Also refreshes the session token and writes updated cookies to the response
   const { data: { user } } = await supabase.auth.getUser()
+
+  // For API routes: let the route handler return 401/403 — don't redirect
+  if (pathname.startsWith('/api/')) return response
+
+  // For admin pages: redirect unauthenticated users to login
+  if (!pathname.startsWith('/admin') || pathname === '/admin/login') return response
+
   if (!user) return NextResponse.redirect(new URL('/admin/login', request.url))
 
   const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim())
@@ -48,4 +54,9 @@ export async function proxy(request: NextRequest) {
   return response
 }
 
-export const config = { matcher: ['/admin/:path*'] }
+export const config = {
+  matcher: [
+    '/admin/:path*',
+    '/api/admin/:path*',
+  ],
+}
