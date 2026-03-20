@@ -30,7 +30,7 @@ export default async function OurStoryPage() {
         .os-hero {
           position: relative;
           width: 100%;
-          height: clamp(160px, 22vw, 260px);
+          height: clamp(120px, 14vw, 180px);
           overflow: hidden;
           background: #2a1845;
         }
