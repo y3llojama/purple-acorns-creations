@@ -22,7 +22,7 @@ export default function NewsletterList({ newsletters }: Props) {
     switch (status) {
       case 'sent': return 'var(--color-accent)'
       case 'scheduled': return 'var(--color-primary)'
-      case 'cancelled': return '#c0392b'
+      case 'cancelled': return 'var(--color-danger)'
       default: return 'var(--color-text-muted)'
     }
   }

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { cache } from 'react'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { sanitizeContent } from '@/lib/sanitize'
 import { isValidHttpsUrl } from '@/lib/validate'
@@ -8,28 +9,29 @@ import type { Metadata } from 'next'
 
 type Props = { params: Promise<{ slug: string }> }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params
+// cache() deduplicates this query across generateMetadata and the page component
+// within the same render pass — only one DB round-trip per request
+const getNewsletter = cache(async (slug: string) => {
   const supabase = createServiceRoleClient()
   const { data } = await supabase
     .from('newsletters')
-    .select('title, teaser_text')
+    .select('slug, title, teaser_text, hero_image_url, content, sent_at')
     .eq('slug', slug)
     .eq('status', 'sent')
     .single()
+  return data
+})
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params
+  const data = await getNewsletter(slug)
   if (!data) return { title: 'Newsletter — Purple Acorns Creations' }
   return { title: `${data.title} — Purple Acorns Creations`, description: data.teaser_text }
 }
 
 export default async function NewsletterDetailPage({ params }: Props) {
   const { slug } = await params
-  const supabase = createServiceRoleClient()
-  const { data: newsletter } = await supabase
-    .from('newsletters')
-    .select('slug, title, teaser_text, hero_image_url, content, sent_at')
-    .eq('slug', slug)
-    .eq('status', 'sent')
-    .single()
+  const newsletter = await getNewsletter(slug)
 
   if (!newsletter) notFound()
 

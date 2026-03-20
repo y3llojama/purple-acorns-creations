@@ -11,6 +11,7 @@
   --color-text-muted: #6b5b7b;
   --color-border: #e8d9c5;
   --color-focus: #d4a853;
+  --color-danger: #c0392b;
 }
 
 /* Soft Botanical theme — soft lavender, sage, cream */
@@ -24,6 +25,7 @@
   --color-text-muted: #6b7b6b;
   --color-border: #e0d4ec;
   --color-focus: #9b7bb8;
+  --color-danger: #b03060;
 }
 
 /* Modern theme — purple + white */
@@ -37,6 +39,7 @@
   --color-text-muted: #7a7a8c;
   --color-border: #e8e0f0;
   --color-focus: #7b5ea7;
+  --color-danger: #c0392b;
   --color-announce-bg: #b09dce;
   --color-announce-text: #ffffff;
   --font-display: 'Jost', 'DM Sans', sans-serif;

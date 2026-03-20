@@ -41,6 +41,10 @@ export async function POST(request: Request, { params }: RouteContext) {
   if (newsletterResult.error) return NextResponse.json({ error: 'Internal server error.' }, { status: 500 })
   if (settingsResult.error) return NextResponse.json({ error: 'Internal server error.' }, { status: 500 })
 
+  const { status: nlStatus } = newsletterResult.data
+  if (nlStatus === 'sent') return NextResponse.json({ error: 'This newsletter has already been sent.' }, { status: 400 })
+  if (nlStatus === 'cancelled') return NextResponse.json({ error: 'Cannot schedule a cancelled newsletter.' }, { status: 400 })
+
   const settings = settingsResult.data
   const resendApiKey = process.env.RESEND_API_KEY ?? settings?.resend_api_key
   const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? settings?.newsletter_from_email

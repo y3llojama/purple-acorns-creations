@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
 import { createServiceRoleClient } from '@/lib/supabase/server'
-import { buildAiPrompt } from '@/lib/newsletter'
+import { buildAiPrompt, isValidNewsletterSection } from '@/lib/newsletter'
+import { sanitizeContent } from '@/lib/sanitize'
+import type { NewsletterSection } from '@/lib/supabase/types'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -74,6 +76,15 @@ export async function POST(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: 'AI returned invalid JSON. Try regenerating.' }, { status: 502 })
   }
 
+  // Validate and sanitize AI-generated sections before saving
+  const rawSections = (draft.sections ?? []) as unknown[]
+  const sections: NewsletterSection[] = rawSections
+    .filter(isValidNewsletterSection)
+    .map((s) => {
+      if (s.type === 'text') return { ...s, body: sanitizeContent(s.body) }
+      return s
+    })
+
   // Save to newsletter
   const aiBrief = { workingOn, selectedChips, tone, extra }
   const { data: updatedNewsletter, error: updateError } = await supabase
@@ -82,7 +93,7 @@ export async function POST(request: Request, { params }: RouteContext) {
       title: draft.title ?? '',
       subject_line: draft.subject_line ?? '',
       teaser_text: draft.teaser_text ?? '',
-      content: draft.sections ?? [],
+      content: sections,
       ai_brief: aiBrief,
     })
     .eq('id', id)
