@@ -136,14 +136,16 @@ export default function CartDrawer() {
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
           {items.length === 0 ? (
             <div style={{ textAlign: 'center', paddingTop: '48px' }}>
-              <p style={{ color: 'var(--color-text-muted)', marginBottom: '16px' }}>Your cart is empty.</p>
-              <Link
-                href="/shop"
-                onClick={() => setIsOpen(false)}
-                style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}
-              >
-                Browse the shop →
-              </Link>
+              <p style={{ color: 'var(--color-text-muted)', marginBottom: '16px' }}>
+                Your cart is empty.{' '}
+                <Link
+                  href="/shop"
+                  onClick={() => setIsOpen(false)}
+                  style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}
+                >
+                  Browse the shop →
+                </Link>
+              </p>
             </div>
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
