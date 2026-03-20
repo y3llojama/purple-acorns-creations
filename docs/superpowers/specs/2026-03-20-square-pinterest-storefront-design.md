@@ -50,7 +50,8 @@ CREATE TABLE products (
   price            NUMERIC(10,2) NOT NULL,
   category         TEXT NOT NULL CHECK (category IN ('rings','necklaces','earrings','bracelets','crochet','other')),
   stock_count      INTEGER NOT NULL DEFAULT 0,
-  images           TEXT[] NOT NULL DEFAULT '{}',  -- Supabase Storage URLs
+  images           TEXT[] NOT NULL DEFAULT '{}'
+                   CHECK (array_length(images, 1) IS NULL OR array_length(images, 1) <= 10),  -- max 10 images; validated server-side too
   is_active        BOOLEAN NOT NULL DEFAULT true,
 
   -- Gallery curation
@@ -79,7 +80,8 @@ CREATE TABLE channel_sync_log (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id  UUID REFERENCES products(id) ON DELETE CASCADE,
   channel     TEXT NOT NULL CHECK (channel IN ('square','pinterest','etsy')),
-  status      TEXT NOT NULL CHECK (status IN ('pending','synced','error')),
+  status      TEXT NOT NULL CHECK (status IN ('pending','synced','error','conflict')),
+  -- 'conflict': Square catalog.version.updated received — admin review required before next push
   synced_at   TIMESTAMPTZ,
   error       TEXT,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -101,14 +103,16 @@ Remove `square_store_url` (iframe retired). Add OAuth tokens and channel config.
 ```sql
 ALTER TABLE settings
   DROP COLUMN square_store_url,
-  ADD COLUMN square_access_token      TEXT,
-  ADD COLUMN square_refresh_token     TEXT,
+  ADD COLUMN square_access_token      TEXT,  -- AES-256-GCM encrypted, key from OAUTH_ENCRYPTION_KEY env var
+  ADD COLUMN square_refresh_token     TEXT,  -- AES-256-GCM encrypted
   ADD COLUMN square_location_id       TEXT,
-  ADD COLUMN pinterest_access_token   TEXT,
-  ADD COLUMN pinterest_refresh_token  TEXT,
+  ADD COLUMN pinterest_access_token   TEXT,  -- AES-256-GCM encrypted
+  ADD COLUMN pinterest_refresh_token  TEXT,  -- AES-256-GCM encrypted
   ADD COLUMN pinterest_catalog_id     TEXT,
   ADD COLUMN gallery_max_items        INTEGER NOT NULL DEFAULT 8;
 ```
+
+**Token encryption:** OAuth tokens are encrypted at the application layer before writing to the DB using AES-256-GCM. The encryption key is stored in the `OAUTH_ENCRYPTION_KEY` environment variable (never in the DB). A `lib/crypto.ts` module exposes `encryptToken(plaintext)` and `decryptToken(ciphertext)` — all reads/writes to OAuth token columns go through these helpers. This protects tokens if the DB is compromised independently of the application layer.
 
 ---
 
@@ -222,16 +226,24 @@ See Section 7.
 
 ### 7.4 Checkout (Square Web Payments SDK)
 
-- Card fields rendered inline via Square's Web Payments SDK (Square-hosted iframes for PCI compliance)
-- On submit: client sends cart to `/api/shop/checkout` route
-- API route:
-  1. Validates cart items against current stock
-  2. Creates a Square Order via Catalog API
-  3. Tokenises payment via SDK
-  4. Charges payment via Square Payments API
-  5. On success: decrements `stock_count` locally, returns order confirmation
+Tokenization is **client-side only** — card data never reaches this server.
+
+**Client-side steps:**
+1. Square Web Payments SDK renders card input fields as Square-hosted iframes
+2. On "Pay" click: client calls `card.tokenize()` → receives a one-time-use `sourceId` nonce
+3. Client POSTs `{ cart: [...], sourceId }` to `/api/shop/checkout`
+
+**Server-side steps (`/api/shop/checkout`):**
+1. Validate each cart item against current `stock_count` — return 409 if any item is sold out
+2. Atomically decrement stock: `UPDATE products SET stock_count = stock_count - 1 WHERE id = $1 AND stock_count > 0 RETURNING id` — if 0 rows returned after payment succeeds, issue a Square refund and return a "sold out" error to the client
+3. Create a Square Order via the Orders API
+4. Charge the order via Square Payments API using `sourceId`
+5. On success: return order ID + confirmation data to client
+
+**Why atomic decrement:** Handmade items are often one-of-a-kind. Using `stock_count > 0` in the UPDATE (rather than check-then-update) prevents two simultaneous checkouts from both succeeding on the last unit.
+
 - Order confirmation page: order summary, "Continue shopping" link
-- Square handles all order records and receipts
+- Square handles all order records and receipts; no order table on this site
 
 ---
 
@@ -252,7 +264,8 @@ See Section 7.
 
 - Standard Pinterest Save button rendered on each product card (homepage layers 1 + 2, `/shop`, `/shop/[id]`)
 - Clicking opens Pinterest's native save flow — user saves the product image + URL to their Pinterest board
-- Requires Pinterest JS SDK loaded in `<head>`
+- Pinterest JS SDK loaded **only in the shop route group layout** (`app/(public)/shop/layout.tsx`) using Next.js `<Script strategy="lazyOnload">` — not in the root layout, to avoid Pinterest tracking all page views
+- The CSP in `next.config.js` must be updated to allow `assets.pinterest.com` and `pinimg.com` as `script-src` and `img-src` sources
 - No Pinterest account required from the business owner for the Save button
 
 ### 9.2 Pinterest Catalog Sync
@@ -282,15 +295,15 @@ Triggered on product create/update in admin (if Square channel enabled) + manual
 Square sends webhook events to `/api/webhooks/square`:
 
 - `inventory.count.updated` → update `products.stock_count`
-- `catalog.version.updated` → flag product for re-sync review (admin notified in Channels UI)
+- `catalog.version.updated` → set `channel_sync_log.status = 'conflict'` for the affected product's Square row; Channels admin UI surfaces a "Review needed" badge on the Square card, listing all conflicted products. Admin dismisses by clicking "Mark reviewed" which sets status back to `'synced'` and triggers a fresh push from site → Square.
 
 Webhook endpoint verifies Square's HMAC signature before processing.
 
 ### 10.3 Sync scheduling
 
-- On product save: immediate async sync (non-blocking, queued)
-- Daily full sync at 3am: reconciles all active products against Square catalog
-- Manual "Sync Now" in Channels admin: full sync, progress shown in UI
+- On product save: immediate async sync (non-blocking, fire-and-forget API call)
+- Daily full sync at 3am: implemented via **Vercel Cron Jobs** (configured in `vercel.json`). The cron calls `/api/cron/sync` with a `Authorization: Bearer $CRON_SECRET` header. The endpoint validates this header — `requireAdminSession()` is not used here since it's not a browser session. `CRON_SECRET` is an env var set in Vercel dashboard, never committed.
+- Manual "Sync Now" in Channels admin: calls the same `/api/cron/sync` route authenticated as admin via `requireAdminSession()`; full sync, progress shown in UI
 
 ### 10.4 Square OAuth
 
@@ -342,12 +355,18 @@ Square and Pinterest are Phase 1 adapters. Etsy slots in as a Phase 3 adapter wi
 
 ## 14. Migration from Iframe
 
-1. New `products` table created and populated via admin
-2. First Square sync pushes all products to Square catalog (reconciles with any existing Square items)
-3. Square.site iframe on `/shop` replaced with native product grid
-4. `settings.square_store_url` column dropped after migration confirmed
-5. `IntegrationsEditor` Square URL field removed; Channels section takes over
-6. `featured_products` table data migrated to `products` with `gallery_featured = true`
+Strict cutover order prevents any homepage blank-state window:
+
+1. Run DB migration: create `products`, `channel_sync_log`; add `product_id` to `gallery`; add new `settings` columns (do NOT drop `square_store_url` yet)
+2. Migrate `featured_products` data → `products` rows with `gallery_featured = true` (via admin script or one-off migration)
+3. Verify parity: confirm all `featured_products` rows appear correctly in `products`
+4. Switch `FeaturedPieces` component to read from `products` — only after step 3 is confirmed
+5. First Square sync: push all `products` to Square catalog, reconcile with any existing Square items
+6. Replace Square.site iframe on `/shop` with native product grid
+7. Connect Pinterest channel, trigger initial catalog sync
+8. Confirm all layers working end-to-end in production
+9. Drop `settings.square_store_url` column + remove `IntegrationsEditor` Square URL field
+10. `featured_products` table retained as-is in Phase 1 (dropped in a future cleanup migration)
 
 ---
 
