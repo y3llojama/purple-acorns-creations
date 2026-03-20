@@ -224,10 +224,10 @@ export default function BriefStep({ newsletter, upcomingEvents, hasAi, onDraftGe
           }}
         >
           {loading
-            ? 'Generating…'
+            ? hasAi ? 'Generating…' : 'Saving…'
             : hasAi
               ? 'Save & Generate AI Draft'
-              : 'Save (AI not configured)'}
+              : 'Save & Continue'}
         </button>
       </div>
     </form>

@@ -30,8 +30,19 @@ export default function NewsletterComposer({ newsletter: initial, galleryItems, 
   const [newsletter, setNewsletter] = useState<Newsletter>(initial)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  function onNext() { setStep((s) => Math.min(s + 1, STEPS.length - 1)) }
-  function onBack() { setStep((s) => Math.max(s - 1, 0)) }
+  // Step 1 ("Draft") is AI-only — skip it when AI is not configured
+  function onNext() {
+    setStep((s) => {
+      const next = Math.min(s + 1, STEPS.length - 1)
+      return next === 1 && !hasAi ? Math.min(2, STEPS.length - 1) : next
+    })
+  }
+  function onBack() {
+    setStep((s) => {
+      const prev = Math.max(s - 1, 0)
+      return prev === 1 && !hasAi ? 0 : prev
+    })
+  }
 
   async function handleDelete() {
     const res = await fetch(`/api/admin/newsletter/${newsletter.id}`, { method: 'DELETE' })
