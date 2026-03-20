@@ -20,8 +20,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
     .eq('id', id)
     .single()
 
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 })
-  if (!data) return NextResponse.json({ error: 'Not found.' }, { status: 404 })
+  if (dbError?.code === 'PGRST116') return NextResponse.json({ error: 'Not found.' }, { status: 404 })
+  if (dbError) return NextResponse.json({ error: 'Internal server error.' }, { status: 500 })
   return NextResponse.json({ newsletter: data })
 }
 
@@ -62,6 +62,6 @@ export async function PUT(request: Request, { params }: RouteContext) {
     .select()
     .single()
 
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 })
+  if (dbError) return NextResponse.json({ error: 'Internal server error.' }, { status: 500 })
   return NextResponse.json({ newsletter: data })
 }

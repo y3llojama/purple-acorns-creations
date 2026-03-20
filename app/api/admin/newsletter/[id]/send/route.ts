@@ -78,7 +78,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     .eq('id', id)
 
   if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error.' }, { status: 500 })
   }
 
   return NextResponse.json({ success: true, scheduled_at: scheduledAt, subscriber_count: subscriberCount })

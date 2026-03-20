@@ -37,20 +37,19 @@ it('400 when scheduled_at missing', async () => {
 })
 
 it('503 when resend not configured', async () => {
-  const mockSettings = { resend_api_key: null, newsletter_from_email: null }
-  ;(createServiceRoleClient as jest.Mock).mockReturnValue({
-    from: (table: string) => ({
-      select: () => ({
-        single: jest.fn().mockResolvedValue(
-          table === 'settings'
-            ? { data: mockSettings, error: null }
-            : { data: { id: 'abc', status: 'draft', title: 'Test' }, error: null }
-        ),
-        eq: () => ({ single: jest.fn().mockResolvedValue({ data: { id: 'abc', status: 'draft', title: 'Test' }, error: null }) }),
-        count: jest.fn().mockResolvedValue({ count: 0, error: null }),
-      }),
-    }),
-  })
+  const mockSupabase = {
+    from: (table: string) => {
+      if (table === 'settings') {
+        return { select: () => ({ single: jest.fn().mockResolvedValue({ data: { resend_api_key: null, newsletter_from_email: null, newsletter_from_name: null, newsletter_admin_emails: null }, error: null }) }) }
+      }
+      if (table === 'newsletters') {
+        return { select: () => ({ eq: () => ({ single: jest.fn().mockResolvedValue({ data: { id: 'abc', status: 'draft', title: 'Test', slug: 'test', subject_line: '', teaser_text: '', hero_image_url: null, content: [], tone: 'upbeat', ai_brief: null, scheduled_at: null, sent_at: null, created_at: '', updated_at: '' }, error: null }) }) }) }
+      }
+      // newsletter_subscribers count query
+      return { select: () => ({ eq: () => Promise.resolve({ count: 5, error: null }) }) }
+    },
+  }
+  ;(createServiceRoleClient as jest.Mock).mockReturnValue(mockSupabase)
   const future = new Date(Date.now() + 86400000 * 2).toISOString()
   const res = await POST(req({ confirmation: 'SEND NEWSLETTER', scheduled_at: future }), ctx)
   expect(res.status).toBe(503)

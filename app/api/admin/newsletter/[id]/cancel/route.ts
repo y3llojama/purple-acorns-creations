@@ -25,6 +25,6 @@ export async function POST(_request: Request, { params }: RouteContext) {
     .update({ status: 'cancelled', scheduled_at: null })
     .eq('id', id)
 
-  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+  if (updateError) return NextResponse.json({ error: 'Internal server error.' }, { status: 500 })
   return NextResponse.json({ success: true })
 }
