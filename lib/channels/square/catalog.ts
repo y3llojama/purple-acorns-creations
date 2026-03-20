@@ -33,7 +33,8 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
     })
 
     const catalogObjectId = result.catalogObject?.id
-    const variationId = result.catalogObject?.itemData?.variations?.[0]?.id
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const variationId = (result.catalogObject as any)?.itemData?.variations?.[0]?.id
     if (!catalogObjectId) throw new Error('Square upsert returned no catalog object ID')
 
     const supabase = createServiceRoleClient()
