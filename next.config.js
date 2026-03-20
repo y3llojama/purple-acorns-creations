@@ -32,6 +32,8 @@ const nextConfig = {
   },
   images: {
     localPatterns: [
+      { pathname: '/gallery/**' },
+      { pathname: '/craft/**' },
       { pathname: '/api/gallery/image' },
     ],
     remotePatterns: [
