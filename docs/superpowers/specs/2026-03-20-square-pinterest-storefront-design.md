@@ -235,12 +235,15 @@ Tokenization is **client-side only** — card data never reaches this server.
 
 **Server-side steps (`/api/shop/checkout`):**
 1. Validate each cart item against current `stock_count` — return 409 if any item is sold out
-2. Atomically decrement stock: `UPDATE products SET stock_count = stock_count - 1 WHERE id = $1 AND stock_count > 0 RETURNING id` — if 0 rows returned after payment succeeds, issue a Square refund and return a "sold out" error to the client
-3. Create a Square Order via the Orders API
-4. Charge the order via Square Payments API using `sourceId`
-5. On success: return order ID + confirmation data to client
+2. Create a Square Order via the Orders API
+3. Charge the order via Square Payments API using `sourceId`
+4. On successful charge: atomically decrement stock — `UPDATE products SET stock_count = stock_count - 1 WHERE id = $1 AND stock_count > 0 RETURNING id`
+5. If decrement returns 0 rows (race: last unit sold between validation and charge): issue Square refund immediately, return "sold out" error to client
+6. On successful decrement: return order ID + confirmation data to client
 
-**Why atomic decrement:** Handmade items are often one-of-a-kind. Using `stock_count > 0` in the UPDATE (rather than check-then-update) prevents two simultaneous checkouts from both succeeding on the last unit.
+**Why charge before decrement:** A failed charge leaves stock untouched (recoverable). A decremented stock with a failed charge would show the item as sold-out when no payment was taken. Charging first is always safer for one-of-a-kind handmade items.
+
+**Why atomic decrement:** Using `stock_count > 0` in the UPDATE prevents two simultaneous checkouts from both succeeding on the last unit — the second one triggers a refund rather than overselling.
 
 - Order confirmation page: order summary, "Continue shopping" link
 - Square handles all order records and receipts; no order table on this site
@@ -302,8 +305,8 @@ Webhook endpoint verifies Square's HMAC signature before processing.
 ### 10.3 Sync scheduling
 
 - On product save: immediate async sync (non-blocking, fire-and-forget API call)
-- Daily full sync at 3am: implemented via **Vercel Cron Jobs** (configured in `vercel.json`). The cron calls `/api/cron/sync` with a `Authorization: Bearer $CRON_SECRET` header. The endpoint validates this header — `requireAdminSession()` is not used here since it's not a browser session. `CRON_SECRET` is an env var set in Vercel dashboard, never committed.
-- Manual "Sync Now" in Channels admin: calls the same `/api/cron/sync` route authenticated as admin via `requireAdminSession()`; full sync, progress shown in UI
+- Daily full sync at 3am: implemented via **Vercel Cron Jobs** (configured in `vercel.json`). The cron calls `/api/cron/sync` with an `Authorization: Bearer $CRON_SECRET` header. The endpoint validates this header only — `requireAdminSession()` is not used since there is no browser session. `CRON_SECRET` is set in the Vercel dashboard, never committed.
+- Manual "Sync Now" in Channels admin: calls a **separate route** `/api/admin/sync`, protected by `requireAdminSession()`. Both `/api/cron/sync` and `/api/admin/sync` invoke the same underlying `syncAllProducts()` service function — the routes differ only in their auth mechanism. This keeps the cron endpoint non-browser-callable and the admin endpoint non-cron-callable.
 
 ### 10.4 Square OAuth
 
