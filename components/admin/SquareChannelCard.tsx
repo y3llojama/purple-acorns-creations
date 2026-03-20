@@ -105,8 +105,8 @@ export default function SquareChannelCard({ status, conflicts, recentErrors, onR
           padding: '3px 10px',
           borderRadius: '12px',
           fontSize: '13px',
-          background: status.connected ? '#d4edda' : '#f8d7da',
-          color: status.connected ? '#155724' : '#721c24',
+          background: status.connected ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
+          color: status.connected ? 'var(--color-success-text)' : 'var(--color-danger-text)',
         }}>
           {status.connected ? 'Connected' : 'Not connected'}
         </span>
@@ -149,7 +149,7 @@ export default function SquareChannelCard({ status, conflicts, recentErrors, onR
           </div>
 
           {syncError && (
-            <p role="alert" style={{ color: '#c05050', fontSize: '14px', marginBottom: '12px' }}>{syncError}</p>
+            <p role="alert" style={{ color: 'var(--color-error)', fontSize: '14px', marginBottom: '12px' }}>{syncError}</p>
           )}
 
           {conflicts.length > 0 && (
@@ -174,7 +174,7 @@ export default function SquareChannelCard({ status, conflicts, recentErrors, onR
                   <div>
                     <span style={{ fontWeight: '500' }}>{conflict.products?.name ?? 'Unknown product'}</span>
                     {conflict.error && (
-                      <p style={{ fontSize: '13px', color: '#c05050', margin: '2px 0 0' }}>{conflict.error}</p>
+                      <p style={{ fontSize: '13px', color: 'var(--color-error)', margin: '2px 0 0' }}>{conflict.error}</p>
                     )}
                   </div>
                   <button
@@ -202,7 +202,7 @@ export default function SquareChannelCard({ status, conflicts, recentErrors, onR
                       borderRadius: '4px',
                       marginBottom: '6px',
                       fontSize: '14px',
-                      color: '#c05050',
+                      color: 'var(--color-error)',
                     }}
                   >
                     <span style={{ color: 'var(--color-text-muted)', fontSize: '12px', display: 'block' }}>

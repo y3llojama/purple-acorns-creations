@@ -201,8 +201,8 @@ export default function InventoryManager({ initialProducts }: Props) {
                     padding: '2px 8px',
                     borderRadius: '12px',
                     fontSize: '12px',
-                    background: product.is_active ? '#d4edda' : '#f8d7da',
-                    color: product.is_active ? '#155724' : '#721c24',
+                    background: product.is_active ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
+                    color: product.is_active ? 'var(--color-success-text)' : 'var(--color-danger-text)',
                   }}>
                     {product.is_active ? 'Active' : 'Inactive'}
                   </span>
@@ -217,7 +217,7 @@ export default function InventoryManager({ initialProducts }: Props) {
                     </button>
                     <button
                       onClick={() => handleDelete(product.id)}
-                      style={{ ...btnSmallStyle, background: '#c05050', color: '#fff' }}
+                      style={{ ...btnSmallStyle, background: 'var(--color-error)', color: 'var(--color-error-text)' }}
                     >
                       Delete
                     </button>

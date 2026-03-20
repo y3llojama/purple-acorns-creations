@@ -190,12 +190,14 @@ export default function ProductForm({ product, onSave, onCancel }: Props) {
                     position: 'absolute',
                     top: '-6px',
                     right: '-6px',
-                    background: '#c05050',
-                    color: '#fff',
+                    background: 'var(--color-error)',
+                    color: 'var(--color-error-text)',
                     border: 'none',
                     borderRadius: '50%',
-                    width: '20px',
-                    height: '20px',
+                    width: '32px',
+                    height: '32px',
+                    minWidth: '32px',
+                    minHeight: '32px',
                     cursor: 'pointer',
                     fontSize: '12px',
                     display: 'flex',
@@ -255,7 +257,7 @@ export default function ProductForm({ product, onSave, onCancel }: Props) {
       </div>
 
       {error && (
-        <p role="alert" style={{ color: '#c05050', fontSize: '14px' }}>{error}</p>
+        <p role="alert" style={{ color: 'var(--color-error)', fontSize: '14px' }}>{error}</p>
       )}
 
       <div style={{ display: 'flex', gap: '12px', paddingTop: '8px' }}>

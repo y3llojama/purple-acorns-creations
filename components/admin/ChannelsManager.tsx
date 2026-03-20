@@ -50,7 +50,7 @@ export default function ChannelsManager() {
   if (error) {
     return (
       <div>
-        <p role="alert" style={{ color: '#c05050', marginBottom: '12px' }}>{error}</p>
+        <p role="alert" style={{ color: 'var(--color-error)', marginBottom: '12px' }}>{error}</p>
         <button
           onClick={fetchData}
           style={{
