@@ -20,6 +20,12 @@ export interface Settings {
   smtp_pass: string | null
   business_name: string
   updated_at: string
+  resend_api_key: string | null
+  newsletter_from_name: string | null
+  newsletter_from_email: string | null
+  newsletter_admin_emails: string | null
+  newsletter_scheduled_send_time: string | null
+  ai_api_key: string | null
 }
 
 export interface Event {
@@ -47,4 +53,27 @@ export interface Message {
 
 export interface MessageReply {
   id: string; message_id: string; body: string; created_at: string
+}
+
+export type NewsletterStatus = 'draft' | 'scheduled' | 'sent' | 'cancelled'
+export type NewsletterTone = 'excited' | 'upbeat' | 'neutral' | 'reflective' | 'sombre' | 'celebratory'
+
+export type NewsletterSection =
+  | { type: 'text'; body: string }
+  | { type: 'image'; image_url: string; caption?: string }
+  | { type: 'cta'; label: string; url: string }
+
+export interface Newsletter {
+  id: string; slug: string; title: string; subject_line: string
+  teaser_text: string; hero_image_url: string | null
+  content: NewsletterSection[]; tone: NewsletterTone; status: NewsletterStatus
+  ai_brief: Record<string, unknown> | null
+  scheduled_at: string | null; sent_at: string | null
+  created_at: string; updated_at: string
+}
+
+export interface NewsletterSubscriber {
+  id: string; email: string; status: 'active' | 'unsubscribed' | 'bounced'
+  unsubscribe_token: string; source: string
+  subscribed_at: string; unsubscribed_at: string | null
 }
