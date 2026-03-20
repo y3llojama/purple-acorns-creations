@@ -42,8 +42,14 @@ export async function GET(request: Request) {
       ? Environment.Production
       : Environment.Sandbox,
   })
-  const { result: locResult } = await client.locationsApi.listLocations()
-  const locationId = locResult.locations?.[0]?.id ?? ''
+
+  let locationId = ''
+  try {
+    const { result: locResult } = await client.locationsApi.listLocations()
+    locationId = locResult.locations?.[0]?.id ?? ''
+  } catch {
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/admin/channels?error=square_location`)
+  }
 
   const supabase = createServiceRoleClient()
   await supabase.from('settings').update({
