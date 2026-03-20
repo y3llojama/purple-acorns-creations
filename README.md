@@ -15,6 +15,7 @@ Website for Purple Acorns Creations — a handmade jewellery and crochet shop. B
 - [Development](#development)
 - [Testing](#testing)
 - [Admin Authentication](#admin-authentication)
+- [Newsletter](#newsletter)
 - [Supabase Infrastructure (Terraform)](#supabase-infrastructure-terraform)
 - [Database Backups](#database-backups)
 - [Deployment](#deployment)
@@ -195,7 +196,13 @@ cp .env.example .env.local
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key | Supabase dashboard → Project Settings → API |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-only) | Supabase dashboard → Project Settings → API |
 | `ADMIN_EMAILS` | Comma-separated admin Gmail addresses | Your choice |
-| `ANTHROPIC_API_KEY` | Anthropic API key (Phase 2 — leave blank) | console.anthropic.com |
+| `RESEND_API_KEY` | Resend API key for newsletter delivery | [resend.com](https://resend.com) |
+| `NEWSLETTER_FROM_EMAIL` | Verified sender address | Your verified Resend domain |
+| `NEWSLETTER_ADMIN_EMAILS` | Preview recipients (comma-separated) | Your choice |
+| `RESEND_WEBHOOK_SECRET` | Webhook signing secret (open/click tracking) | Resend dashboard → Webhooks |
+| `CRON_SECRET` | Shared secret for Vercel Cron endpoint | Generate with `openssl rand -hex 32` |
+| `AI_API_KEY` | API key for AI draft generation | Depends on provider (see [Newsletter](#newsletter)) |
+| `NEXT_PUBLIC_SITE_URL` | Production domain for newsletter links | Your Vercel domain |
 
 > **Never commit `.env.local`** — it is gitignored. Never put real credentials in `.env.example`.
 
@@ -262,6 +269,19 @@ See `docs/supabase-setup.md` for full detail.
 ```bash
 ./scripts/check-auth.sh
 ```
+
+---
+
+## Newsletter
+
+The newsletter system uses [Resend](https://resend.com) for delivery, Supabase for subscriber storage, and Vercel Cron for scheduled sends. AI-assisted draft generation supports Claude, OpenAI, and Groq.
+
+See **[docs/newsletter-setup.md](docs/newsletter-setup.md)** for full setup instructions including:
+- Required environment variables (`RESEND_API_KEY`, `CRON_SECRET`, `AI_API_KEY`, etc.)
+- Resend domain verification and webhook configuration
+- Vercel Cron setup
+- Admin workflow (Brief → Draft → Edit → Preview → Send)
+- Public pages (`/newsletter`, `/newsletter/[slug]`)
 
 ---
 
