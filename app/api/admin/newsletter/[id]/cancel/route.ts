@@ -23,7 +23,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
 
   const { error: updateError } = await supabase
     .from('newsletters')
-    .update({ status: 'cancelled', scheduled_at: null })
+    .update({ status: 'draft', scheduled_at: null })
     .eq('id', id)
 
   if (updateError) return NextResponse.json({ error: 'Internal server error.' }, { status: 500 })

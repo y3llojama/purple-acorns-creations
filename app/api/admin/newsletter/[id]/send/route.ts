@@ -44,7 +44,6 @@ export async function POST(request: Request, { params }: RouteContext) {
 
   const { status: nlStatus } = newsletterResult.data
   if (nlStatus === 'sent') return NextResponse.json({ error: 'This newsletter has already been sent.' }, { status: 400 })
-  if (nlStatus === 'cancelled') return NextResponse.json({ error: 'Cannot schedule a cancelled newsletter.' }, { status: 400 })
 
   const settings = settingsResult.data ? decryptSettings(settingsResult.data) : null
   const resendApiKey = process.env.RESEND_API_KEY ?? settings?.resend_api_key
