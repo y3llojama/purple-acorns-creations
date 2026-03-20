@@ -25,30 +25,30 @@ export function buildNewsletterEmail(
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>${newsletter.subject_line}</title>
 </head>
-<body style="margin:0;padding:0;background:#f9f5f0;font-family:Georgia,serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f9f5f0;">
+<body style="margin:0;padding:0;background:#f5ede0;font-family:Georgia,serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5ede0;">
     <tr><td align="center" style="padding:32px 16px;">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;">
         <!-- Header -->
-        <tr><td style="background:#7c5c3e;padding:24px 32px;text-align:center;">
+        <tr><td style="background:#2d1b4e;padding:24px 32px;text-align:center;">
           <p style="margin:0;font-size:20px;color:#ffffff;font-family:Georgia,serif;letter-spacing:1px;">Purple Acorns Creations</p>
         </td></tr>
         <!-- Body -->
         <tr><td style="padding:32px;">
           ${heroBlock}
-          <h1 style="margin:0 0 12px;font-size:26px;color:#3d2b1f;font-family:Georgia,serif;line-height:1.3;">${newsletter.title}</h1>
-          <p style="margin:0 0 24px;font-size:16px;color:#6b5344;line-height:1.6;">${newsletter.teaser_text}</p>
+          <h1 style="margin:0 0 12px;font-size:26px;color:#1a0f2e;font-family:Georgia,serif;line-height:1.3;">${newsletter.title}</h1>
+          <p style="margin:0 0 24px;font-size:16px;color:#6b5b7b;line-height:1.6;">${newsletter.teaser_text}</p>
           <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
-            <tr><td style="background:#7c5c3e;border-radius:4px;padding:14px 28px;text-align:center;">
-              <a href="${newsletterUrl}" style="color:#ffffff;text-decoration:none;font-size:16px;font-family:Georgia,serif;">Read the full story →</a>
+            <tr><td style="background:#d4a853;border-radius:4px;padding:14px 28px;text-align:center;">
+              <a href="${newsletterUrl}" style="color:#1a0f2e;text-decoration:none;font-size:16px;font-family:Georgia,serif;">Read the full story →</a>
             </td></tr>
           </table>
         </td></tr>
         <!-- Footer -->
-        <tr><td style="background:#f0ebe4;padding:24px 32px;text-align:center;border-top:1px solid #e0d8d0;">
-          <p style="margin:0;font-size:13px;color:#9e8575;">
+        <tr><td style="background:#fff8f0;padding:24px 32px;text-align:center;border-top:1px solid #e8d9c5;">
+          <p style="margin:0;font-size:13px;color:#6b5b7b;">
             You're receiving this because you subscribed to Purple Acorns Creations updates.<br/>
-            <a href="${unsubscribeUrl}" style="color:#7c5c3e;">Unsubscribe</a>
+            <a href="${unsubscribeUrl}" style="color:#2d1b4e;">Unsubscribe</a>
           </p>
         </td></tr>
       </table>
