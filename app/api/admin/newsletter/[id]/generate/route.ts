@@ -65,7 +65,7 @@ export async function POST(request: Request, { params }: RouteContext) {
   }
 
   // Strip markdown code fences and parse JSON
-  const cleaned = rawContent.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim()
+  const cleaned = rawContent.replace(/^```(?:json)?\n?/, '').replace(/\n?```\s*$/, '').trim()
   let draft: { title?: string; subject_line?: string; teaser_text?: string; sections?: unknown[] }
   try {
     draft = JSON.parse(cleaned)
@@ -90,7 +90,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     .single()
 
   if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to save newsletter draft. Please try again.' }, { status: 500 })
   }
 
   return NextResponse.json({ draft: updatedNewsletter })
