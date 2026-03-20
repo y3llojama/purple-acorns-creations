@@ -28,7 +28,14 @@ it('200 and upserts subscriber', async () => {
   const res = await POST(req({ email: 'test@example.com' }))
   expect(res.status).toBe(200)
   expect(mockUpsert).toHaveBeenCalledWith(
-    expect.objectContaining({ email: 'test@example.com', status: 'active' }),
+    expect.objectContaining({ email: 'test@example.com', status: 'active', source: 'public_signup' }),
     expect.objectContaining({ onConflict: 'email' })
   )
+})
+
+it('500 on DB error', async () => {
+  const mockUpsert = jest.fn().mockResolvedValue({ error: { message: 'DB failure' } })
+  ;(createServiceRoleClient as jest.Mock).mockReturnValue({ from: () => ({ upsert: mockUpsert }) })
+  const res = await POST(req({ email: 'error@example.com' }))
+  expect(res.status).toBe(500)
 })

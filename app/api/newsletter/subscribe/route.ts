@@ -10,13 +10,12 @@ export async function POST(request: Request) {
   if (now - (rateLimitMap.get(ip) ?? 0) < 60_000) {
     return NextResponse.json({ error: 'Too many requests. Please wait a minute.' }, { status: 429 })
   }
-  rateLimitMap.set(ip, now)
-
   const body = await request.json().catch(() => ({}))
   const email = ((body as { email?: string }).email ?? '').toString().trim().toLowerCase()
   if (!isValidEmail(email)) {
     return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 })
   }
+  rateLimitMap.set(ip, now)
 
   const supabase = createServiceRoleClient()
   const { error } = await supabase
