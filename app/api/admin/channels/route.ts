@@ -6,11 +6,13 @@ export async function GET() {
   const { error } = await requireAdminSession()
   if (error) return error
   const supabase = createServiceRoleClient()
-  const [{ data: settings }, { data: conflicts }, { data: recentErrors }] = await Promise.all([
+  const [{ data: settings, error: settingsError }, { data: conflicts }, { data: recentErrors }] = await Promise.all([
     supabase.from('settings').select('square_sync_enabled,pinterest_sync_enabled,square_location_id,pinterest_catalog_id,square_access_token,pinterest_access_token,square_application_id,square_application_secret,square_environment').single(),
     supabase.from('channel_sync_log').select('product_id,channel,error,created_at,products(name)').eq('status', 'conflict'),
     supabase.from('channel_sync_log').select('product_id,channel,error,created_at').eq('status', 'error').order('created_at', { ascending: false }).limit(10),
   ])
+  if (settingsError) console.error('[channels] settings query error:', settingsError.message)
+  console.log('[channels] hasAppCredentials:', !!(settings?.square_application_id && settings?.square_application_secret), 'appId:', !!settings?.square_application_id, 'secret:', !!settings?.square_application_secret)
   const allConflicts = conflicts ?? []
   const allErrors = recentErrors ?? []
   return NextResponse.json({
