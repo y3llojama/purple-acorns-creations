@@ -22,7 +22,7 @@ export default function ChannelsManager() {
   const [error, setError] = useState('')
 
   const fetchData = useCallback(async () => {
-    setLoading(true)
+    if (!data) setLoading(true)
     setError('')
     try {
       const res = await fetch('/api/admin/channels')
@@ -37,7 +37,7 @@ export default function ChannelsManager() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [data])
 
   useEffect(() => {
     fetchData()
