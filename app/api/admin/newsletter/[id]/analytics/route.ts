@@ -38,9 +38,10 @@ export async function GET(_request: Request, { params }: RouteContext) {
   ])
 
   const logs = sendLogResult.data ?? []
-  const sentCount = logs.filter((l) => l.status === 'sent').length
-  const openCount = logs.filter((l) => l.opened_at !== null).length
-  const clickCount = logs.filter((l) => l.clicked_at !== null).length
+  const sentLogs = logs.filter((l) => l.status === 'sent')
+  const sentCount = sentLogs.length
+  const openCount = sentLogs.filter((l) => l.opened_at !== null).length
+  const clickCount = sentLogs.filter((l) => l.clicked_at !== null).length
 
   // Unsubscribes within 7 days of sent_at
   let unsubscribes = 0

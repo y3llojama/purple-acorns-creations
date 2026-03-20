@@ -96,7 +96,10 @@ export async function GET(request: Request) {
 
         if (logRows.length > 0) {
           const { error: logError } = await supabase.from('newsletter_send_log').insert(logRows)
-          if (logError) console.error(`[cron] Failed to write send log for newsletter ${newsletter.id}:`, logError.message)
+          if (logError) {
+            console.error(`[cron] Failed to write send log for newsletter ${newsletter.id}:`, logError.message)
+            allSucceeded = false
+          }
         }
 
         if (failed > 0) {
