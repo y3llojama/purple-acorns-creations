@@ -66,6 +66,7 @@
   --font-body: 'DM Sans', system-ui, sans-serif;
   --color-overlay: rgba(0, 0, 0, 0.4);
   --color-shadow-drawer: rgba(0, 0, 0, 0.15);
+  --color-on-image: #ffffff;
 }
 
 *, *::before, *::after {

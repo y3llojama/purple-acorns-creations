@@ -1,3 +1,5 @@
+import { isValidHttpsUrl } from '@/lib/validate'
+
 interface Item {
   id: string
   image_url: string | null
@@ -129,7 +131,7 @@ export default function ModernFeaturedGrid({ items, watermark }: Props) {
                 <a key={item.id} href={`/shop/${item.id}`} className="modern-featured-card" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
                   {/* Image area */}
                   <div style={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
-                    {item.image_url ? (
+                    {item.image_url && isValidHttpsUrl(item.image_url) ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={item.image_url}
@@ -153,7 +155,7 @@ export default function ModernFeaturedGrid({ items, watermark }: Props) {
                           position: 'absolute',
                           bottom: '8px',
                           right: '10px',
-                          color: '#fff',
+                          color: 'var(--color-on-image)',
                           fontSize: '10px',
                           fontWeight: 500,
                           letterSpacing: '0.08em',

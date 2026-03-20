@@ -4,16 +4,31 @@ import Link from 'next/link'
 import Image from 'next/image'
 import type { Product } from '@/lib/supabase/types'
 
-export default async function GalleryScroller() {
+interface Props {
+  prefetchedFeatured?: Product[]
+  maxItems?: number
+}
+
+export default async function GalleryScroller({ prefetchedFeatured, maxItems: maxItemsProp }: Props = {}) {
   const supabase = createServiceRoleClient()
-  const { data: settings } = await supabase.from('settings').select('gallery_max_items').single()
-  const maxItems = settings?.gallery_max_items ?? 8
 
-  const { data: featured } = await supabase
-    .from('products').select('*').eq('is_active', true).eq('gallery_featured', true)
-    .order('gallery_sort_order', { ascending: true }).limit(maxItems)
+  let maxItems = maxItemsProp ?? 8
+  if (maxItemsProp === undefined) {
+    const { data: s } = await supabase.from('settings').select('gallery_max_items').single()
+    maxItems = s?.gallery_max_items ?? 8
+  }
 
-  const featuredIds = (featured ?? []).map((p: Product) => p.id)
+  let featuredProducts: Product[]
+  if (prefetchedFeatured !== undefined) {
+    featuredProducts = prefetchedFeatured.slice(0, maxItems)
+  } else {
+    const { data } = await supabase
+      .from('products').select('*').eq('is_active', true).eq('gallery_featured', true)
+      .order('gallery_sort_order', { ascending: true }).limit(maxItems)
+    featuredProducts = (data ?? []) as Product[]
+  }
+
+  const featuredIds = featuredProducts.map(p => p.id)
   const remaining = maxItems - featuredIds.length
 
   let filler: Product[] = []
@@ -28,7 +43,7 @@ export default async function GalleryScroller() {
     filler = (data ?? []) as Product[]
   }
 
-  const items = [...(featured ?? []), ...filler] as Product[]
+  const items = [...featuredProducts, ...filler]
   if (!items.length) return null
 
   return (

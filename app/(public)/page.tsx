@@ -29,7 +29,7 @@ export default async function HomePage() {
   const [content, settings, featured, gallery, eventResult, followAlongResult] = await Promise.all([
     getAllContent(),
     getSettings(),
-    supabase.from('products').select('*').eq('is_active', true).eq('gallery_featured', true).order('gallery_sort_order').limit(4).then(r => r.data ?? []),
+    supabase.from('products').select('*').eq('is_active', true).eq('gallery_featured', true).order('gallery_sort_order').limit(8).then(r => r.data ?? []),
     supabase.from('gallery').select('*').eq('is_featured', false).order('sort_order').limit(8).then(r => r.data ?? []),
     supabase.from('events').select('*').gte('date', today).order('date').limit(1).single(),
     supabase.from('follow_along_photos').select('*').order('display_order').then(r => r.data ?? []),
@@ -57,13 +57,13 @@ export default async function HomePage() {
       />
       <ModernFeaturedGrid
         items={(() => {
-          const dbItems = (featured as Product[])
+          const dbItems = (featured as Product[]).slice(0, 4)
             .map(p => ({ id: p.id, image_url: p.images[0] ?? '', title: p.name, description: null }))
           return dbItems.length > 0 ? dbItems : FALLBACK_FEATURED
         })()}
         watermark={settings.gallery_watermark ? interpolate(settings.gallery_watermark, vars) : null}
       />
-      <GalleryScroller />
+      <GalleryScroller prefetchedFeatured={featured as Product[]} maxItems={settings.gallery_max_items ?? 8} />
       <ModernStorySection
         teaser={sanitizeText(interpolate(content.story_teaser ?? '', vars))}
         images={gallery.length > 0
