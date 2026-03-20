@@ -32,9 +32,21 @@ const btnStyle: React.CSSProperties = { background: 'var(--color-primary)', colo
 interface Props {
   initialMode: 'gallery' | 'widget'
   initialPhotos: FollowAlongPhoto[]
+  initialResendApiKey: string
+  initialNewsletterFromName: string
+  initialNewsletterFromEmail: string
+  initialNewsletterAdminEmails: string
+  initialNewsletterSendTime: string
+  initialAiProvider: string
+  initialAiApiKey: string
 }
 
-export default function IntegrationsEditor({ initialMode, initialPhotos }: Props) {
+export default function IntegrationsEditor({
+  initialMode, initialPhotos,
+  initialResendApiKey, initialNewsletterFromName, initialNewsletterFromEmail,
+  initialNewsletterAdminEmails, initialNewsletterSendTime,
+  initialAiProvider, initialAiApiKey,
+}: Props) {
   const [square, setSquare] = useState('')
   const [squareSaved, setSquareSaved] = useState(false)
 
@@ -47,9 +59,16 @@ export default function IntegrationsEditor({ initialMode, initialPhotos }: Props
   const [contactEmail, setContactEmail] = useState('')
   const [contactSaved, setContactSaved] = useState(false)
 
-  const [mailchimpKey, setMailchimpKey] = useState('')
-  const [mailchimpAudience, setMailchimpAudience] = useState('')
-  const [mailchimpSaved, setMailchimpSaved] = useState(false)
+  const [resendApiKey, setResendApiKey] = useState(initialResendApiKey)
+  const [newsletterFromName, setNewsletterFromName] = useState(initialNewsletterFromName)
+  const [newsletterFromEmail, setNewsletterFromEmail] = useState(initialNewsletterFromEmail)
+  const [newsletterAdminEmails, setNewsletterAdminEmails] = useState(initialNewsletterAdminEmails)
+  const [newsletterSendTime, setNewsletterSendTime] = useState(initialNewsletterSendTime)
+  const [resendSaved, setResendSaved] = useState(false)
+
+  const [aiProvider, setAiProvider] = useState(initialAiProvider)
+  const [aiApiKey, setAiApiKey] = useState(initialAiApiKey)
+  const [aiSaved, setAiSaved] = useState(false)
 
   const [smtpHost, setSmtpHost] = useState('smtp.gmail.com')
   const [smtpPort, setSmtpPort] = useState('587')
@@ -136,28 +155,49 @@ export default function IntegrationsEditor({ initialMode, initialPhotos }: Props
         <SavedStatus saved={smtpSaved} />
       </Section>
 
-      <Section title="Newsletter (Mailchimp)">
-        <label htmlFor="mailchimp-key" style={labelStyle}>Mailchimp API Key</label>
-        <input id="mailchimp-key" value={mailchimpKey} onChange={e => { setMailchimpKey(e.target.value); setMailchimpSaved(false) }} placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-us1" style={inputStyle} />
-        <label htmlFor="mailchimp-audience" style={{ ...labelStyle, marginTop: '12px' }}>Mailchimp Audience ID</label>
-        <input id="mailchimp-audience" value={mailchimpAudience} onChange={e => { setMailchimpAudience(e.target.value); setMailchimpSaved(false) }} placeholder="abc1234567" style={inputStyle} />
-        <button style={btnStyle} onClick={async () => { const r = await save({ mailchimp_api_key: mailchimpKey, mailchimp_audience_id: mailchimpAudience }); if (r.ok) setMailchimpSaved(true) }}>Save</button>
-        <SavedStatus saved={mailchimpSaved} />
+      <Section title="Newsletter (Resend)">
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '14px', marginBottom: '16px' }}>
+          Used to send newsletters to subscribers. Get your API key at{' '}
+          <a href="https://resend.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)' }}>resend.com</a>.
+        </p>
+        <label htmlFor="resend-api-key" style={labelStyle}>Resend API Key</label>
+        <input id="resend-api-key" type="password" value={resendApiKey} onChange={e => { setResendApiKey(e.target.value); setResendSaved(false) }} placeholder="re_..." style={inputStyle} />
+        <label htmlFor="newsletter-from-name" style={{ ...labelStyle, marginTop: '12px' }}>From Name</label>
+        <input id="newsletter-from-name" value={newsletterFromName} onChange={e => { setNewsletterFromName(e.target.value); setResendSaved(false) }} placeholder="Purple Acorns Creations" style={inputStyle} />
+        <label htmlFor="newsletter-from-email" style={{ ...labelStyle, marginTop: '12px' }}>From Email</label>
+        <input id="newsletter-from-email" type="email" value={newsletterFromEmail} onChange={e => { setNewsletterFromEmail(e.target.value); setResendSaved(false) }} placeholder="newsletter@yourdomain.com" style={inputStyle} />
+        <label htmlFor="newsletter-admin-emails" style={{ ...labelStyle, marginTop: '12px' }}>Admin Preview Emails</label>
+        <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px' }}>Comma-separated. These addresses receive a preview before the newsletter goes out.</p>
+        <input id="newsletter-admin-emails" value={newsletterAdminEmails} onChange={e => { setNewsletterAdminEmails(e.target.value); setResendSaved(false) }} placeholder="you@example.com, partner@example.com" style={inputStyle} />
+        <label htmlFor="newsletter-send-time" style={{ ...labelStyle, marginTop: '12px' }}>Default Send Time</label>
+        <input id="newsletter-send-time" type="time" value={newsletterSendTime} onChange={e => { setNewsletterSendTime(e.target.value); setResendSaved(false) }} style={{ ...inputStyle, width: 'auto' }} />
+        <div style={{ marginTop: '16px' }}>
+          <button style={btnStyle} onClick={async () => {
+            const r = await save({ resend_api_key: resendApiKey, newsletter_from_name: newsletterFromName, newsletter_from_email: newsletterFromEmail, newsletter_admin_emails: newsletterAdminEmails, newsletter_scheduled_send_time: newsletterSendTime })
+            if (r.ok) setResendSaved(true)
+          }}>Save Newsletter Settings</button>
+          <SavedStatus saved={resendSaved} />
+        </div>
       </Section>
 
       <Section title="AI Provider">
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '16px', marginBottom: '8px' }}>
-          AI-powered features (content generation, newsletter digest) are coming in Phase 2.
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '14px', marginBottom: '16px' }}>
+          Used to generate newsletter drafts. Provide your own API key for the selected provider.
         </p>
-        <fieldset disabled style={{ border: '1px solid var(--color-border)', borderRadius: '4px', padding: '16px' }}>
-          <legend style={{ fontSize: '14px', color: 'var(--color-text-muted)' }}>Coming in Phase 2</legend>
-          {['Claude (Anthropic)', 'OpenAI', 'Groq'].map(provider => (
-            <label key={provider} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', cursor: 'not-allowed', color: 'var(--color-text-muted)' }}>
-              <input type="radio" name="ai_provider" disabled />
-              {provider}
-            </label>
-          ))}
-        </fieldset>
+        <label htmlFor="ai-provider" style={labelStyle}>Provider</label>
+        <select id="ai-provider" value={aiProvider} onChange={e => { setAiProvider(e.target.value); setAiSaved(false) }} style={{ ...inputStyle, cursor: 'pointer' }}>
+          <option value="">— Select provider —</option>
+          <option value="claude">Claude (Anthropic)</option>
+          <option value="openai">OpenAI</option>
+          <option value="groq">Groq</option>
+        </select>
+        <label htmlFor="ai-api-key" style={{ ...labelStyle, marginTop: '12px' }}>API Key</label>
+        <input id="ai-api-key" type="password" value={aiApiKey} onChange={e => { setAiApiKey(e.target.value); setAiSaved(false) }} placeholder="sk-..." style={inputStyle} />
+        <button style={btnStyle} onClick={async () => {
+          const r = await save({ ai_provider: aiProvider || null, ai_api_key: aiApiKey })
+          if (r.ok) setAiSaved(true)
+        }}>Save AI Settings</button>
+        <SavedStatus saved={aiSaved} />
       </Section>
     </div>
   )
