@@ -7,6 +7,7 @@ import {
   LayoutDashboard, FileText, Calendar, Image, MessageSquare,
   Palette, Plug, Mail, BarChart2, ClipboardList,
   ChevronLeft, ChevronRight, ExternalLink, LogOut,
+  Package, Radio,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -14,9 +15,11 @@ const NAV_ITEMS = [
   { href: '/admin/content', label: 'Content', Icon: FileText },
   { href: '/admin/events', label: 'Events', Icon: Calendar },
   { href: '/admin/gallery', label: 'Gallery', Icon: Image },
+  { href: '/admin/inventory', label: 'Inventory', Icon: Package },
   { href: '/admin/messages', label: 'Messages', Icon: MessageSquare },
   { href: '/admin/branding', label: 'Branding', Icon: Palette },
   { href: '/admin/integrations', label: 'Integrations', Icon: Plug },
+  { href: '/admin/channels', label: 'Channels', Icon: Radio },
   { href: '/admin/newsletter', label: 'Newsletter', Icon: Mail },
   { href: '/admin/analytics', label: 'Analytics', Icon: BarChart2 },
   { href: '/admin/reports', label: 'Reports', Icon: ClipboardList },

@@ -10,10 +10,6 @@ jest.mock('@/components/admin/FollowAlongManager', () => ({
 describe('IntegrationsEditor', () => {
   const defaultProps = { initialMode: 'widget' as const, initialPhotos: [] }
 
-  it('renders Square URL input', () => {
-    render(<IntegrationsEditor {...defaultProps} />)
-    expect(screen.getByLabelText(/square store url/i)).toBeInTheDocument()
-  })
   it('renders Behold widget ID input', () => {
     render(<IntegrationsEditor {...defaultProps} />)
     expect(screen.getByLabelText(/behold widget id/i)).toBeInTheDocument()
