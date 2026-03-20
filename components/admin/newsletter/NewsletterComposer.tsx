@@ -1,6 +1,8 @@
 'use client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import type { Newsletter } from '@/lib/supabase/types'
+import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import BriefStep from './BriefStep'
 import DraftStep from './DraftStep'
 import EditStep from './EditStep'
@@ -23,14 +25,43 @@ interface Props {
 const STEPS = ['Brief', 'Draft', 'Edit & Photos', 'Preview', 'Send']
 
 export default function NewsletterComposer({ newsletter: initial, galleryItems, upcomingEvents, defaultSendTime, hasAi, hasResend }: Props) {
+  const router = useRouter()
   const [step, setStep] = useState(0)
   const [newsletter, setNewsletter] = useState<Newsletter>(initial)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   function onNext() { setStep((s) => Math.min(s + 1, STEPS.length - 1)) }
   function onBack() { setStep((s) => Math.max(s - 1, 0)) }
 
+  async function handleDelete() {
+    const res = await fetch(`/api/admin/newsletter/${newsletter.id}`, { method: 'DELETE' })
+    if (!res.ok) { alert('Could not delete newsletter'); return }
+    router.push('/admin/newsletter')
+  }
+
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto', padding: '32px 24px' }}>
+      {confirmDelete && (
+        <ConfirmDialog
+          message={`Delete "${newsletter.title || 'untitled'}"? This cannot be undone.`}
+          onConfirm={() => { handleDelete(); setConfirmDelete(false) }}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
+
+      {/* Header row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+        <a href="/admin/newsletter" style={{ fontSize: '13px', color: 'var(--color-text-muted)', textDecoration: 'none' }}>← All newsletters</a>
+        {['draft', 'cancelled'].includes(newsletter.status) && (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            style={{ fontSize: '13px', background: 'transparent', color: 'var(--color-danger)', border: '1px solid var(--color-danger)', borderRadius: '4px', padding: '6px 12px', cursor: 'pointer', minHeight: '32px' }}
+          >
+            Delete draft
+          </button>
+        )}
+      </div>
+
       {/* Step indicator */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '40px', gap: 0 }}>
         {STEPS.map((label, i) => (

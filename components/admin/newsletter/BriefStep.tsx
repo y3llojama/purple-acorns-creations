@@ -41,7 +41,7 @@ export default function BriefStep({ newsletter, upcomingEvents, hasAi, onDraftGe
     try {
       // Step 1: Save brief
       const saveRes = await fetch(`/api/admin/newsletter/${newsletter.id}`, {
-        method: 'POST',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, teaser_text: teaserText, tone }),
       })
