@@ -72,7 +72,7 @@ export async function POST(request: Request) {
   for (const item of cart) {
     const { data: rows } = await supabase.rpc('decrement_stock', { product_id: item.productId, qty: item.quantity })
     // Step 5: Race condition — item sold between validation and charge
-    if (!rows || (Array.isArray(rows) && rows.length === 0)) {
+    if (Array.isArray(rows) && rows.length === 0) {
       try {
         const { client } = await getSquareClient()
         await client.refundsApi.refundPayment({
