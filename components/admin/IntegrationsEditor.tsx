@@ -28,6 +28,17 @@ async function save(data: Record<string, string | boolean | null>) {
 const inputStyle: React.CSSProperties = { width: '100%', padding: '10px', fontSize: '16px', borderRadius: '4px', border: '1px solid var(--color-border)', marginBottom: '8px' }
 const labelStyle: React.CSSProperties = { display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }
 const btnStyle: React.CSSProperties = { background: 'var(--color-primary)', color: 'var(--color-accent)', padding: '10px 20px', fontSize: '16px', border: 'none', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }
+const testBtnStyle: React.CSSProperties = { background: 'transparent', color: 'var(--color-primary)', padding: '10px 20px', fontSize: '16px', border: '1px solid var(--color-border)', borderRadius: '4px', cursor: 'pointer', minHeight: '48px', marginLeft: '8px' }
+
+async function testIntegration(type: 'ai' | 'resend' | 'smtp') {
+  const res = await fetch('/api/admin/test-integration', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type }),
+  })
+  const data = await res.json()
+  return { ok: res.ok, message: data.message ?? data.error ?? 'Unknown response' }
+}
 
 interface Props {
   initialMode: 'gallery' | 'widget'
@@ -70,6 +81,14 @@ export default function IntegrationsEditor({
   const [aiProvider, setAiProvider] = useState(initialAiProvider)
   const [aiApiKey, setAiApiKey] = useState('')
   const [aiSaved, setAiSaved] = useState(false)
+  const [aiTestResult, setAiTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [aiTesting, setAiTesting] = useState(false)
+
+  const [resendTestResult, setResendTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [resendTesting, setResendTesting] = useState(false)
+
+  const [smtpTestResult, setSmtpTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [smtpTesting, setSmtpTesting] = useState(false)
 
   const [smtpHost, setSmtpHost] = useState('smtp.gmail.com')
   const [smtpPort, setSmtpPort] = useState('587')
@@ -144,16 +163,28 @@ export default function IntegrationsEditor({
         <input id="smtp-user" value={smtpUser} onChange={e => { setSmtpUser(e.target.value); setSmtpSaved(false) }} placeholder="you@gmail.com" style={inputStyle} />
         <label htmlFor="smtp-pass" style={labelStyle}>SMTP Password / App Password</label>
         <input id="smtp-pass" type="password" value={smtpPass} onChange={e => { setSmtpPass(e.target.value); setSmtpSaved(false) }} placeholder="App password" style={inputStyle} />
-        <button style={btnStyle} onClick={async () => {
-          const r = await save({
-            smtp_host: smtpHost || 'smtp.gmail.com',
-            smtp_port: smtpPort || '587',
-            smtp_user: smtpUser,
-            smtp_pass: smtpPass,
-          })
-          if (r.ok) setSmtpSaved(true)
-        }}>Save SMTP Settings</button>
-        <SavedStatus saved={smtpSaved} />
+        <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          <button style={btnStyle} onClick={async () => {
+            const r = await save({
+              smtp_host: smtpHost || 'smtp.gmail.com',
+              smtp_port: smtpPort || '587',
+              smtp_user: smtpUser,
+              smtp_pass: smtpPass,
+            })
+            if (r.ok) setSmtpSaved(true)
+          }}>Save SMTP Settings</button>
+          <button style={testBtnStyle} disabled={smtpTesting} onClick={async () => {
+            setSmtpTesting(true); setSmtpTestResult(null)
+            const result = await testIntegration('smtp')
+            setSmtpTestResult(result); setSmtpTesting(false)
+          }}>{smtpTesting ? 'Testing…' : 'Test Connection'}</button>
+          <SavedStatus saved={smtpSaved} />
+          {smtpTestResult && (
+            <span role="status" aria-live="polite" style={{ fontSize: '14px', color: smtpTestResult.ok ? 'green' : 'red' }}>
+              {smtpTestResult.ok ? '✓' : '✗'} {smtpTestResult.message}
+            </span>
+          )}
+        </div>
       </Section>
 
       <Section title="Newsletter (Resend)">
@@ -172,12 +203,22 @@ export default function IntegrationsEditor({
         <input id="newsletter-admin-emails" value={newsletterAdminEmails} onChange={e => { setNewsletterAdminEmails(e.target.value); setResendSaved(false) }} placeholder="you@example.com, partner@example.com" style={inputStyle} />
         <label htmlFor="newsletter-send-time" style={{ ...labelStyle, marginTop: '12px' }}>Default Send Time</label>
         <input id="newsletter-send-time" type="time" value={newsletterSendTime} onChange={e => { setNewsletterSendTime(e.target.value); setResendSaved(false) }} style={{ ...inputStyle, width: 'auto' }} />
-        <div style={{ marginTop: '16px' }}>
+        <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
           <button style={btnStyle} onClick={async () => {
             const r = await save({ resend_api_key: resendApiKey, newsletter_from_name: newsletterFromName, newsletter_from_email: newsletterFromEmail, newsletter_admin_emails: newsletterAdminEmails, newsletter_scheduled_send_time: newsletterSendTime })
             if (r.ok) setResendSaved(true)
           }}>Save Newsletter Settings</button>
+          <button style={testBtnStyle} disabled={resendTesting} onClick={async () => {
+            setResendTesting(true); setResendTestResult(null)
+            const result = await testIntegration('resend')
+            setResendTestResult(result); setResendTesting(false)
+          }}>{resendTesting ? 'Testing…' : 'Test Resend'}</button>
           <SavedStatus saved={resendSaved} />
+          {resendTestResult && (
+            <span role="status" aria-live="polite" style={{ fontSize: '14px', color: resendTestResult.ok ? 'green' : 'red' }}>
+              {resendTestResult.ok ? '✓' : '✗'} {resendTestResult.message}
+            </span>
+          )}
         </div>
       </Section>
 
@@ -194,11 +235,23 @@ export default function IntegrationsEditor({
         </select>
         <label htmlFor="ai-api-key" style={{ ...labelStyle, marginTop: '12px' }}>API Key {hasAiApiKey && <span style={{ color: 'green', fontWeight: 400, fontSize: '13px' }}>✓ saved</span>}</label>
         <input id="ai-api-key" type="password" value={aiApiKey} onChange={e => { setAiApiKey(e.target.value); setAiSaved(false) }} placeholder={hasAiApiKey ? '•••••••• (leave blank to keep current)' : 'sk-...'} style={inputStyle} />
-        <button style={btnStyle} onClick={async () => {
-          const r = await save({ ai_provider: aiProvider || null, ai_api_key: aiApiKey })
-          if (r.ok) setAiSaved(true)
-        }}>Save AI Settings</button>
-        <SavedStatus saved={aiSaved} />
+        <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          <button style={btnStyle} onClick={async () => {
+            const r = await save({ ai_provider: aiProvider || null, ai_api_key: aiApiKey })
+            if (r.ok) setAiSaved(true)
+          }}>Save AI Settings</button>
+          <button style={testBtnStyle} disabled={aiTesting} onClick={async () => {
+            setAiTesting(true); setAiTestResult(null)
+            const result = await testIntegration('ai')
+            setAiTestResult(result); setAiTesting(false)
+          }}>{aiTesting ? 'Testing…' : 'Test AI'}</button>
+          <SavedStatus saved={aiSaved} />
+          {aiTestResult && (
+            <span role="status" aria-live="polite" style={{ fontSize: '14px', color: aiTestResult.ok ? 'green' : 'red' }}>
+              {aiTestResult.ok ? '✓' : '✗'} {aiTestResult.message}
+            </span>
+          )}
+        </div>
       </Section>
     </div>
   )
