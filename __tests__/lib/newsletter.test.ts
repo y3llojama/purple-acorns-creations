@@ -22,6 +22,12 @@ describe('isValidNewsletterSection', () => {
   it('rejects cta with http url', () => {
     expect(isValidNewsletterSection({ type: 'cta', label: 'Shop', url: 'http://example.com' })).toBe(false)
   })
+  it('accepts image with https url', () => {
+    expect(isValidNewsletterSection({ type: 'image', image_url: 'https://example.com/img.jpg' })).toBe(true)
+  })
+  it('rejects image with http url', () => {
+    expect(isValidNewsletterSection({ type: 'image', image_url: 'http://example.com/img.jpg' })).toBe(false)
+  })
   it('rejects unknown type', () => {
     expect(isValidNewsletterSection({ type: 'script', body: 'bad' } as any)).toBe(false)
   })
