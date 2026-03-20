@@ -6,7 +6,36 @@ import { isValidHttpsUrl } from '@/lib/validate'
 import { getSettings } from '@/lib/theme'
 import { interpolate, buildVars } from '@/lib/variables'
 
+// Rate limiter: 30 requests per IP per 60 seconds
+const rateLimitMap = new Map<string, { count: number; windowStart: number }>()
+const RATE_WINDOW = 60_000
+const RATE_LIMIT = 30
+const PRUNE_INTERVAL = 5 * 60_000
+let lastPrune = Date.now()
+
+function pruneRateLimitMap() {
+  const now = Date.now()
+  if (now - lastPrune < PRUNE_INTERVAL) return
+  lastPrune = now
+  for (const [ip, entry] of rateLimitMap) {
+    if (now - entry.windowStart > RATE_WINDOW) rateLimitMap.delete(ip)
+  }
+}
+
 export async function GET(request: NextRequest) {
+  pruneRateLimitMap()
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ?? 'unknown'
+  const now = Date.now()
+  const entry = rateLimitMap.get(ip)
+  if (entry && now - entry.windowStart < RATE_WINDOW) {
+    if (entry.count >= RATE_LIMIT) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+    entry.count++
+  } else {
+    rateLimitMap.set(ip, { count: 1, windowStart: now })
+  }
+
   const url = request.nextUrl.searchParams.get('url')
   if (!url || !isValidHttpsUrl(url)) {
     return NextResponse.json({ error: 'Valid image URL required' }, { status: 400 })

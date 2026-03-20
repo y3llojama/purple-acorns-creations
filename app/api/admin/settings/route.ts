@@ -4,14 +4,8 @@ import { createServiceRoleClient } from '@/lib/supabase/server'
 import { requireAdminSession } from '@/lib/auth'
 import { isValidHttpsUrl, isValidEmail } from '@/lib/validate'
 import { sanitizeText } from '@/lib/sanitize'
-import { encryptValue } from '@/lib/crypto'
 
-// Encrypt a non-empty string value; skip empty/null
-function enc(val: string | null): string | null {
-  return val ? encryptValue(val) : null
-}
-
-const ALLOWED_THEMES = ['warm-artisan', 'soft-botanical', 'custom'] as const
+const ALLOWED_THEMES = ['warm-artisan', 'soft-botanical', 'custom', 'modern'] as const
 type Theme = typeof ALLOWED_THEMES[number]
 
 export async function POST(request: Request) {
@@ -23,14 +17,14 @@ export async function POST(request: Request) {
   if (body.theme !== undefined) {
     if (!ALLOWED_THEMES.includes(String(body.theme) as Theme)) return NextResponse.json({ error: 'Invalid theme' }, { status: 400 })
     update.theme = String(body.theme)
-    if (body.theme === 'warm-artisan' || body.theme === 'soft-botanical') {
+    if (body.theme === 'warm-artisan' || body.theme === 'soft-botanical' || body.theme === 'modern') {
       update.custom_primary = null
       update.custom_accent  = null
     }
   }
   // Hex color fields — only processed when saving a custom theme
   // (named presets always clear these server-side, ignoring what the client sends)
-  const savingNamedPreset = body.theme === 'warm-artisan' || body.theme === 'soft-botanical'
+  const savingNamedPreset = body.theme === 'warm-artisan' || body.theme === 'soft-botanical' || body.theme === 'modern'
   if (!savingNamedPreset) {
     for (const field of ['custom_primary', 'custom_accent'] as const) {
       if (body[field] !== undefined) {
@@ -53,7 +47,7 @@ export async function POST(request: Request) {
   }
   if (body.contact_email !== undefined) {
     const email = String(body.contact_email ?? '')
-    update.contact_email = enc(isValidEmail(email) ? email : null)
+    update.contact_email = isValidEmail(email) ? email : null
   }
   if (body.announcement_enabled !== undefined) update.announcement_enabled = Boolean(body.announcement_enabled)
   if (body.announcement_text !== undefined) update.announcement_text = sanitizeText(String(body.announcement_text ?? '')).slice(0, 300) || null
@@ -77,45 +71,11 @@ export async function POST(request: Request) {
     const name = sanitizeText(String(body.business_name ?? '')).slice(0, 200).trim()
     if (name) update.business_name = name
   }
-  if (body.mailchimp_api_key !== undefined) update.mailchimp_api_key = enc(sanitizeText(String(body.mailchimp_api_key ?? '')) || null)
+  if (body.mailchimp_api_key !== undefined) update.mailchimp_api_key = sanitizeText(String(body.mailchimp_api_key ?? '')) || null
   if (body.mailchimp_audience_id !== undefined) update.mailchimp_audience_id = sanitizeText(String(body.mailchimp_audience_id ?? '')) || null
   if (body.ai_provider !== undefined) {
     const val = String(body.ai_provider ?? '')
     update.ai_provider = ['claude', 'openai', 'groq'].includes(val) ? val : null
-  }
-  // API keys — encrypted at rest; empty submission = no change (keeps existing key)
-  if (body.ai_api_key !== undefined) {
-    const val = sanitizeText(String(body.ai_api_key ?? ''))
-    if (val) update.ai_api_key = encryptValue(val)
-  }
-  if (body.resend_api_key !== undefined) {
-    const val = sanitizeText(String(body.resend_api_key ?? ''))
-    if (val) update.resend_api_key = encryptValue(val)
-  }
-  // SMTP — password encrypted; other fields plain text
-  if (body.smtp_host !== undefined) update.smtp_host = sanitizeText(String(body.smtp_host ?? '')) || null
-  if (body.smtp_port !== undefined) {
-    const port = parseInt(String(body.smtp_port ?? ''), 10)
-    update.smtp_port = (!isNaN(port) && port > 0 && port < 65536) ? String(port) : null
-  }
-  if (body.smtp_user !== undefined) update.smtp_user = enc(sanitizeText(String(body.smtp_user ?? '')) || null)
-  if (body.smtp_pass !== undefined) {
-    const val = sanitizeText(String(body.smtp_pass ?? ''))
-    if (val) update.smtp_pass = encryptValue(val)
-  }
-  // Newsletter settings
-  if (body.newsletter_from_name !== undefined) update.newsletter_from_name = sanitizeText(String(body.newsletter_from_name ?? '')).slice(0, 200) || null
-  if (body.newsletter_from_email !== undefined) {
-    const email = String(body.newsletter_from_email ?? '')
-    update.newsletter_from_email = enc(isValidEmail(email) ? email : null)
-  }
-  if (body.newsletter_admin_emails !== undefined) {
-    const val = sanitizeText(String(body.newsletter_admin_emails ?? ''))
-    update.newsletter_admin_emails = enc(val || null)
-  }
-  if (body.newsletter_scheduled_send_time !== undefined) {
-    const val = String(body.newsletter_scheduled_send_time ?? '')
-    update.newsletter_scheduled_send_time = /^\d{2}:\d{2}$/.test(val) ? val : null
   }
 
   update.updated_at = new Date().toISOString()
