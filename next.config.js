@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Allow Jest (via next/jest) to transform these ESM-only packages
+  transpilePackages: ['marked'],
   async headers() {
     return [
       // Security headers for all routes
