@@ -126,7 +126,7 @@ export default function ModernFeaturedGrid({ items, watermark }: Props) {
                 </div>
               ))
             : items.map((item) => (
-                <div key={item.id} className="modern-featured-card">
+                <a key={item.id} href={`/shop/${item.id}`} className="modern-featured-card" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
                   {/* Image area */}
                   <div style={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
                     {item.image_url ? (
@@ -185,19 +185,17 @@ export default function ModernFeaturedGrid({ items, watermark }: Props) {
                         {item.title}
                       </p>
                     )}
-                    <a
-                      href={`/shop/${item.id}`}
+                    <span
                       style={{
                         fontSize: '11px',
                         color: 'var(--color-accent)',
-                        textDecoration: 'none',
                         display: 'block',
                       }}
                     >
                       Shop Now
-                    </a>
+                    </span>
                   </div>
-                </div>
+                </a>
               ))}
         </div>
       </div>
