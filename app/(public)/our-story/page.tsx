@@ -152,7 +152,7 @@ export default async function OurStoryPage() {
         }
       `}</style>
 
-      <div className="os-hero">
+      <div className="os-hero" style={{ marginTop: 'calc(-1 * var(--logo-overflow, clamp(60px, 7vw, 90px)))' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           className="os-hero-img"
