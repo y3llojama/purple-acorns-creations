@@ -35,9 +35,11 @@ export async function POST(request: Request, { params }: RouteContext) {
     supabase.from('newsletter_subscribers').select('*', { count: 'exact', head: true }).eq('status', 'active'),
   ])
 
-  if (newsletterResult.error || !newsletterResult.data) {
+  if (newsletterResult.error?.code === 'PGRST116' || !newsletterResult.data) {
     return NextResponse.json({ error: 'Newsletter not found.' }, { status: 404 })
   }
+  if (newsletterResult.error) return NextResponse.json({ error: 'Internal server error.' }, { status: 500 })
+  if (settingsResult.error) return NextResponse.json({ error: 'Internal server error.' }, { status: 500 })
 
   const settings = settingsResult.data
   const resendApiKey = process.env.RESEND_API_KEY ?? settings?.resend_api_key

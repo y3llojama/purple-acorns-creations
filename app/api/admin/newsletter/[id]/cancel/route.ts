@@ -17,7 +17,8 @@ export async function POST(_request: Request, { params }: RouteContext) {
     .eq('id', id)
     .single()
 
-  if (fetchError || !newsletter) return NextResponse.json({ error: 'Not found.' }, { status: 404 })
+  if (fetchError?.code === 'PGRST116' || !newsletter) return NextResponse.json({ error: 'Not found.' }, { status: 404 })
+  if (fetchError) return NextResponse.json({ error: 'Internal server error.' }, { status: 500 })
   if (newsletter.status === 'sent') return NextResponse.json({ error: 'Cannot cancel a sent newsletter.' }, { status: 400 })
 
   const { error: updateError } = await supabase
