@@ -16,12 +16,12 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' https://w.behold.so",
+              "script-src 'self' 'unsafe-inline' https://w.behold.so https://web.squarecdn.com https://sandbox.web.squarecdn.com https://assets.pinterest.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
-              "frame-src 'self' https://*.squarespace.com https://*.square.site https://*.squareup.com",
-              "img-src 'self' data: https://*.supabase.co https://cdn.behold.so",
-              "connect-src 'self' https://*.supabase.co https://*.mailchimp.com",
+              "frame-src 'self' https://*.squarespace.com https://*.square.site https://*.squareup.com https://web.squarecdn.com https://sandbox.web.squarecdn.com",
+              "img-src 'self' data: https://*.supabase.co https://cdn.behold.so https://pinimg.com https://i.pinimg.com",
+              "connect-src 'self' https://*.supabase.co https://*.mailchimp.com https://connect.squareup.com https://connect.squareupsandbox.com",
               "frame-ancestors 'self'",
             ].join('; '),
           },
@@ -36,6 +36,8 @@ const nextConfig = {
     ],
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },
+      { protocol: 'https', hostname: 'items-images-sandbox.s3.amazonaws.com' },
+      { protocol: 'https', hostname: 'items-images.s3.amazonaws.com' },
     ],
   },
 }
