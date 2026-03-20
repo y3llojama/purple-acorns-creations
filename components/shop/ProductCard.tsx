@@ -11,9 +11,7 @@ interface Props {
 
 export default function ProductCard({ product, showPrice = true }: Props) {
   const firstImage = product.images && product.images.length > 0 ? product.images[0] : null
-  const fullUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/shop/${product.id}`
-    : `/shop/${product.id}`
+  const fullUrl = typeof window !== 'undefined' ? window.location.origin + '/shop/' + product.id : ''
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid var(--color-border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--color-surface)' }}>
@@ -60,6 +58,8 @@ export default function ProductCard({ product, showPrice = true }: Props) {
             data-pin-do="buttonPin"
             data-pin-href={fullUrl}
             data-pin-media={firstImage}
+            rel="noopener noreferrer"
+            target="_blank"
             style={{ display: 'block', marginTop: '4px', fontSize: '12px', color: 'var(--color-text-muted)', textDecoration: 'none' }}
           >
             Save

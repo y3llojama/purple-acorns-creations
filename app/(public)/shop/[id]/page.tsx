@@ -7,7 +7,7 @@ import type { Product } from '@/lib/supabase/types'
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
   const supabase = createServiceRoleClient()
-  const { data } = await supabase.from('products').select('name,description').eq('id', id).single()
+  const { data } = await supabase.from('products').select('name,description').eq('id', id).eq('is_active', true).single()
   if (!data) return { title: 'Product Not Found' }
   return { title: data.name, description: data.description ?? undefined }
 }

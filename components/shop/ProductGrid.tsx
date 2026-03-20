@@ -12,10 +12,9 @@ interface ApiResponse {
   total: number
   page: number
   pageSize: number
-  totalPages: number
 }
 
-const PAGE_SIZE = 12
+const PAGE_SIZE = 24
 
 export default function ProductGrid() {
   const [category, setCategory] = useState('')
@@ -60,7 +59,7 @@ export default function ProductGrid() {
     setPage(1)
   }
 
-  const totalPages = data?.totalPages ?? 1
+  const totalPages = Math.ceil((data?.total ?? 0) / 24)
 
   return (
     <div>

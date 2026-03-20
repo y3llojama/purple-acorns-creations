@@ -14,7 +14,7 @@ function checkRate(ip: string): boolean {
 }
 
 export async function GET(request: Request) {
-  const ip = request.headers.get('x-forwarded-for') ?? 'unknown'
+  const ip = (request.headers.get('x-forwarded-for') ?? 'unknown').split(',')[0].trim()
   if (!checkRate(ip)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
   const { searchParams } = new URL(request.url)
   const category = searchParams.get('category')

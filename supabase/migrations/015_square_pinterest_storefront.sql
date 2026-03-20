@@ -55,3 +55,9 @@ ALTER TABLE settings
   ADD COLUMN IF NOT EXISTS gallery_max_items       INTEGER NOT NULL DEFAULT 8,
   ADD COLUMN IF NOT EXISTS square_sync_enabled     BOOLEAN NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS pinterest_sync_enabled  BOOLEAN NOT NULL DEFAULT false;
+
+-- Atomic view count increment
+CREATE OR REPLACE FUNCTION increment_view_count(product_id UUID)
+RETURNS void AS $$
+  UPDATE products SET view_count = view_count + 1 WHERE id = product_id;
+$$ LANGUAGE sql;
