@@ -18,17 +18,22 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | null>(null)
 
-function loadCart(): CartItem[] {
-  try { const s = localStorage.getItem('pac_cart'); return s ? JSON.parse(s) : [] } catch { return [] }
-}
-
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>(loadCart)
+  const [items, setItems] = useState<CartItem[]>([])
   const [isOpen, setIsOpen] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
 
+  // Load from localStorage after mount (avoids SSR/hydration mismatch)
   useEffect(() => {
+    try { const s = localStorage.getItem('pac_cart'); if (s) setItems(JSON.parse(s)) } catch {}
+    setHydrated(true)
+  }, [])
+
+  // Only persist after hydration to prevent overwriting stored cart with empty initial state
+  useEffect(() => {
+    if (!hydrated) return
     try { localStorage.setItem('pac_cart', JSON.stringify(items)) } catch {}
-  }, [items])
+  }, [items, hydrated])
 
   const addToCart = useCallback((product: Product) => {
     setItems(prev => {

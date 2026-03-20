@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server'
 import { verifySquareSignature, handleInventoryUpdate, handleCatalogConflict } from '@/lib/channels/square/webhook'
 
-// In-memory rate limiter: 60 requests per IP per 60 seconds
-const rateLimitMap = new Map<string, number>()
+// In-memory rate limiter: 120 requests per IP per 60 seconds (Square uses shared egress IPs)
+const rateLimitMap = new Map<string, { count: number; reset: number }>()
 
 export async function POST(request: Request) {
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ?? 'unknown'
+  const ip = (request.headers.get('x-forwarded-for') ?? 'unknown').split(',')[0].trim()
   const now = Date.now()
-  const last = rateLimitMap.get(ip) ?? 0
-  if (now - last < 60_000) {
+  const entry = rateLimitMap.get(ip) ?? { count: 0, reset: now + 60_000 }
+  if (now > entry.reset) { entry.count = 0; entry.reset = now + 60_000 }
+  entry.count++; rateLimitMap.set(ip, entry)
+  if (entry.count > 120) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
   }
-  rateLimitMap.set(ip, now)
   const rawBody = await request.text()
   const signature = request.headers.get('x-square-hmacsha256-signature') ?? ''
   const webhookKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY ?? ''
