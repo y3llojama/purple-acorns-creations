@@ -13,8 +13,8 @@ create table newsletters (
   ai_brief jsonb,
   scheduled_at timestamptz,
   sent_at timestamptz,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 create index idx_newsletters_status on newsletters(status);
 create index idx_newsletters_scheduled on newsletters(scheduled_at) where status = 'scheduled';
@@ -33,7 +33,7 @@ create table newsletter_subscribers (
     check (status in ('active', 'unsubscribed', 'bounced')),
   unsubscribe_token text unique not null default encode(gen_random_bytes(24), 'hex'),
   source text not null default 'public_signup',
-  subscribed_at timestamptz default now(),
+  subscribed_at timestamptz not null default now(),
   unsubscribed_at timestamptz
 );
 create index idx_subscribers_status on newsletter_subscribers(status);
@@ -48,7 +48,7 @@ create table newsletter_send_log (
   resend_message_id text,
   status text not null default 'sent' check (status in ('sent', 'failed', 'bounced')),
   error_message text,
-  sent_at timestamptz default now(),
+  sent_at timestamptz not null default now(),
   opened_at timestamptz,
   clicked_at timestamptz
 );
