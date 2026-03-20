@@ -8,7 +8,17 @@ jest.mock('@/components/admin/FollowAlongManager', () => ({
 }))
 
 describe('IntegrationsEditor', () => {
-  const defaultProps = { initialMode: 'widget' as const, initialPhotos: [] }
+  const defaultProps = {
+    initialMode: 'widget' as const,
+    initialPhotos: [],
+    initialResendApiKey: '',
+    initialNewsletterFromName: '',
+    initialNewsletterFromEmail: '',
+    initialNewsletterAdminEmails: '',
+    initialNewsletterSendTime: '10:00',
+    initialAiProvider: '',
+    initialAiApiKey: '',
+  }
 
   it('renders Square URL input', () => {
     render(<IntegrationsEditor {...defaultProps} />)
@@ -22,10 +32,13 @@ describe('IntegrationsEditor', () => {
     render(<IntegrationsEditor {...defaultProps} />)
     expect(screen.getByLabelText(/instagram/i)).toBeInTheDocument()
   })
-  it('shows "Coming in Phase 2" for AI provider section', () => {
+  it('renders Resend API key input', () => {
     render(<IntegrationsEditor {...defaultProps} />)
-    const matches = screen.getAllByText(/coming in phase 2/i)
-    expect(matches.length).toBeGreaterThan(0)
+    expect(screen.getByLabelText(/resend api key/i)).toBeInTheDocument()
+  })
+  it('renders AI provider select', () => {
+    render(<IntegrationsEditor {...defaultProps} />)
+    expect(screen.getByLabelText(/provider/i)).toBeInTheDocument()
   })
   it('renders Follow Along Manager', () => {
     render(<IntegrationsEditor {...defaultProps} />)

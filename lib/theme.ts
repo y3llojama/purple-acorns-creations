@@ -16,6 +16,12 @@ const DEFAULT_SETTINGS: Settings = {
   smtp_host: 'smtp.gmail.com', smtp_port: 587, smtp_user: null, smtp_pass: null,
   business_name: 'Purple Acorns Creations',
   updated_at: '',
+  resend_api_key: null,
+  newsletter_from_name: 'Purple Acorns Creations',
+  newsletter_from_email: null,
+  newsletter_admin_emails: null,
+  newsletter_scheduled_send_time: '10:00',
+  ai_api_key: null,
 }
 
 export async function getSettings(): Promise<Settings> {

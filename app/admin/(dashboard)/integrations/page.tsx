@@ -18,6 +18,13 @@ export default async function IntegrationsPage() {
     <IntegrationsEditor
       initialMode={settings.follow_along_mode ?? 'widget'}
       initialPhotos={photosResult}
+      initialResendApiKey={settings.resend_api_key ?? ''}
+      initialNewsletterFromName={settings.newsletter_from_name ?? ''}
+      initialNewsletterFromEmail={settings.newsletter_from_email ?? ''}
+      initialNewsletterAdminEmails={settings.newsletter_admin_emails ?? ''}
+      initialNewsletterSendTime={settings.newsletter_scheduled_send_time ?? '10:00'}
+      initialAiProvider={settings.ai_provider ?? ''}
+      initialAiApiKey={settings.ai_api_key ?? ''}
     />
   )
 }
