@@ -7,7 +7,7 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
     const { client, locationId } = await getSquareClient()
     const idempotencyKey = `product-${product.id}-${Date.now()}`
 
-    const { result } = await client.catalogApi.upsertCatalogObject({
+    const result = await client.catalog.object.upsert({
       idempotencyKey,
       object: {
         type: 'ITEM',
@@ -43,7 +43,7 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
     }).eq('id', product.id)
 
     if (variationId) {
-      await client.inventoryApi.batchChangeInventory({
+      await client.inventory.batchCreateChanges({
         idempotencyKey: `inv-${product.id}-${Date.now()}`,
         changes: [{
           type: 'PHYSICAL_COUNT',

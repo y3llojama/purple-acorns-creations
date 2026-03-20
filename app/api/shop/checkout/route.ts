@@ -46,7 +46,7 @@ export async function POST(request: Request) {
   try {
     const { client, locationId } = await getSquareClient()
 
-    const { result: orderResult } = await client.ordersApi.createOrder({
+    const orderResult = await client.orders.create({
       order: {
         locationId,
         lineItems: cart.map(item => {
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     })
     orderId = orderResult.order?.id ?? ''
 
-    const { result: paymentResult } = await client.paymentsApi.createPayment({
+    const paymentResult = await client.payments.create({
       sourceId, orderId, locationId,
       amountMoney: { amount: BigInt(totalCents), currency: 'USD' },
       idempotencyKey: crypto.randomUUID(),
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       }
       try {
         const { client } = await getSquareClient()
-        await client.refundsApi.refundPayment({
+        await client.refunds.refundPayment({
           paymentId,
           idempotencyKey: `refund-${paymentId}`,
           amountMoney: { amount: BigInt(totalCents), currency: 'USD' },

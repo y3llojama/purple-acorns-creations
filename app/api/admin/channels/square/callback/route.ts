@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { encryptToken } from '@/lib/crypto'
-import { Client, Environment } from 'square'
+import { SquareClient, SquareEnvironment } from 'square'
 
 export async function GET(request: Request) {
   const { error } = await requireAdminSession()
@@ -36,16 +36,16 @@ export async function GET(request: Request) {
 
   const tokens = await tokenRes.json()
 
-  const client = new Client({
-    accessToken: tokens.access_token,
+  const client = new SquareClient({
+    token: tokens.access_token,
     environment: process.env.SQUARE_ENVIRONMENT === 'production'
-      ? Environment.Production
-      : Environment.Sandbox,
+      ? SquareEnvironment.Production
+      : SquareEnvironment.Sandbox,
   })
 
   let locationId = ''
   try {
-    const { result: locResult } = await client.locationsApi.listLocations()
+    const locResult = await client.locations.list()
     locationId = locResult.locations?.[0]?.id ?? ''
   } catch {
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/admin/channels?error=square_location`)

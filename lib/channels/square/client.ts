@@ -1,8 +1,8 @@
-import { Client, Environment } from 'square'
+import { SquareClient, SquareEnvironment } from 'square'
 import { decryptToken } from '@/lib/crypto'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 
-export async function getSquareClient(): Promise<{ client: Client; locationId: string }> {
+export async function getSquareClient(): Promise<{ client: SquareClient; locationId: string }> {
   const supabase = createServiceRoleClient()
   const { data } = await supabase
     .from('settings')
@@ -12,11 +12,11 @@ export async function getSquareClient(): Promise<{ client: Client; locationId: s
   if (!data?.square_access_token) throw new Error('Square not connected')
 
   const accessToken = decryptToken(data.square_access_token)
-  const client = new Client({
-    accessToken,
+  const client = new SquareClient({
+    token: accessToken,
     environment: process.env.SQUARE_ENVIRONMENT === 'production'
-      ? Environment.Production
-      : Environment.Sandbox,
+      ? SquareEnvironment.Production
+      : SquareEnvironment.Sandbox,
   })
   return { client, locationId: data.square_location_id ?? '' }
 }
