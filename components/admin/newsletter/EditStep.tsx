@@ -89,7 +89,8 @@ export default function EditStep({ newsletter, galleryItems, onChange, onNext, o
         setError(body?.error ?? `Save failed (${res.status})`)
         return null
       }
-      const updated: Newsletter = await res.json()
+      const body = await res.json()
+      const updated: Newsletter = body.newsletter ?? body
       setLocal(updated)
       onChange(updated)
       return updated
