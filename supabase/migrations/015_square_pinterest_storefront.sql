@@ -22,7 +22,7 @@ CREATE TABLE products (
 -- Channel sync log — per-product, per-channel sync state
 CREATE TABLE channel_sync_log (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  product_id  UUID REFERENCES products(id) ON DELETE CASCADE,
+  product_id  UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   channel     TEXT NOT NULL CHECK (channel IN ('square','pinterest','etsy')),
   status      TEXT NOT NULL CHECK (status IN ('pending','synced','error','conflict')),
   synced_at   TIMESTAMPTZ,

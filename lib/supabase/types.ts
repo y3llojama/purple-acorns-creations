@@ -37,7 +37,7 @@ export interface Event {
 }
 
 export interface GalleryItem {
-  id: string; url: string; alt_text: string; category: Category | null; sort_order: number; is_featured: boolean; square_url: string | null; created_at: string
+  id: string; url: string; alt_text: string; category: Category | null; sort_order: number; is_featured: boolean; square_url: string | null; product_id: string | null; created_at: string
 }
 
 export interface FollowAlongPhoto {
