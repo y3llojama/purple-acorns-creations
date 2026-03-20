@@ -2,15 +2,22 @@ import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import crypto from 'crypto'
 
-const rateLimitMap = new Map<string, number>()
+const rateLimitMap = new Map<string, { count: number; windowStart: number }>()
+const RATE_LIMIT_MAX = 100
+const RATE_LIMIT_WINDOW = 60_000
 
 export async function POST(request: Request) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ?? 'unknown'
   const now = Date.now()
-  if (now - (rateLimitMap.get(ip) ?? 0) < 60_000) {
-    return NextResponse.json({ error: 'Too many requests.' }, { status: 429 })
+  const entry = rateLimitMap.get(ip)
+  if (entry && now - entry.windowStart < RATE_LIMIT_WINDOW) {
+    if (entry.count >= RATE_LIMIT_MAX) {
+      return NextResponse.json({ error: 'Too many requests.' }, { status: 429 })
+    }
+    entry.count++
+  } else {
+    rateLimitMap.set(ip, { count: 1, windowStart: now })
   }
-  rateLimitMap.set(ip, now)
 
   // HMAC signature validation
   const webhookSecret = process.env.RESEND_WEBHOOK_SECRET
@@ -32,7 +39,12 @@ export async function POST(request: Request) {
     }
     if (!valid) return NextResponse.json({ error: 'Invalid signature.' }, { status: 401 })
 
-    const body = JSON.parse(rawBody)
+    let body: Record<string, unknown>
+    try {
+      body = JSON.parse(rawBody)
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 })
+    }
     return handleEvent(body)
   }
 
@@ -52,26 +64,36 @@ async function handleEvent(body: Record<string, unknown>) {
   const supabase = createServiceRoleClient()
 
   if (type === 'email.opened') {
-    await supabase
+    const { error } = await supabase
       .from('newsletter_send_log')
       .update({ opened_at: new Date().toISOString() })
       .eq('resend_message_id', emailId)
+    if (error) {
+      console.error('[webhook] opened update failed:', error.message)
+      return NextResponse.json({ error: 'DB error.' }, { status: 500 })
+    }
   } else if (type === 'email.clicked') {
-    await supabase
+    const { error } = await supabase
       .from('newsletter_send_log')
       .update({ clicked_at: new Date().toISOString() })
       .eq('resend_message_id', emailId)
+    if (error) {
+      console.error('[webhook] clicked update failed:', error.message)
+      return NextResponse.json({ error: 'DB error.' }, { status: 500 })
+    }
   } else if (type === 'email.bounced') {
     const email = data.to as string | undefined
-    await supabase
+    const { error: logError } = await supabase
       .from('newsletter_send_log')
       .update({ status: 'bounced' })
       .eq('resend_message_id', emailId)
+    if (logError) console.error('[webhook] bounce log update failed:', logError.message)
     if (email) {
-      await supabase
+      const { error: subError } = await supabase
         .from('newsletter_subscribers')
         .update({ status: 'bounced' })
         .eq('email', email)
+      if (subError) console.error('[webhook] subscriber bounce update failed:', subError.message)
     }
   }
 
