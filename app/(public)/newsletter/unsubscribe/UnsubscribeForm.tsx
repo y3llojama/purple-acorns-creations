@@ -55,7 +55,7 @@ export default function UnsubscribeForm() {
   }
 
   const bodyStyle: React.CSSProperties = {
-    color: 'rgba(255,255,255,0.75)',
+    color: 'var(--color-text)',
     fontSize: '18px',
     lineHeight: 1.6,
     marginBottom: '40px',
