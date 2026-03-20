@@ -32,10 +32,12 @@ export default function BriefStep({ newsletter, upcomingEvents, hasAi, onDraftGe
   const [tone, setTone] = useState<NewsletterTone>(newsletter.tone ?? 'upbeat')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [savedNewsletter, setSavedNewsletter] = useState<Newsletter | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    setSavedNewsletter(null)
     setLoading(true)
 
     try {
@@ -66,6 +68,7 @@ export default function BriefStep({ newsletter, upcomingEvents, hasAi, onDraftGe
         if (!genRes.ok) {
           const data = await genRes.json().catch(() => ({}))
           setError(data.error ?? `AI generation failed (${genRes.status})`)
+          setSavedNewsletter(updatedNewsletter)
           return
         }
 
@@ -79,6 +82,13 @@ export default function BriefStep({ newsletter, upcomingEvents, hasAi, onDraftGe
       setError(err instanceof Error ? err.message : 'An unexpected error occurred')
     } finally {
       setLoading(false)
+    }
+  }
+
+  function handleContinueWithoutAi() {
+    if (savedNewsletter) {
+      onDraftGenerated(savedNewsletter)
+      onNext()
     }
   }
 
@@ -189,18 +199,39 @@ export default function BriefStep({ newsletter, upcomingEvents, hasAi, onDraftGe
 
       {/* Error message */}
       {error && (
-        <div
-          role="alert"
-          style={{
-            padding: '12px 16px',
-            background: '#fdf0f0',
-            border: '1px solid #c0392b',
-            borderRadius: '6px',
-            color: '#c0392b',
-            fontSize: '14px',
-          }}
-        >
-          {error}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div
+            role="alert"
+            style={{
+              padding: '12px 16px',
+              background: '#fdf0f0',
+              border: '1px solid #c0392b',
+              borderRadius: '6px',
+              color: '#c0392b',
+              fontSize: '14px',
+            }}
+          >
+            {error}
+          </div>
+          {savedNewsletter && (
+            <button
+              type="button"
+              onClick={handleContinueWithoutAi}
+              style={{
+                alignSelf: 'flex-start',
+                padding: '10px 20px',
+                fontSize: '14px',
+                background: 'transparent',
+                color: 'var(--color-text)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                minHeight: '44px',
+              }}
+            >
+              Continue without AI →
+            </button>
+          )}
         </div>
       )}
 
