@@ -18,13 +18,13 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | null>(null)
 
-export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([])
-  const [isOpen, setIsOpen] = useState(false)
+function loadCart(): CartItem[] {
+  try { const s = localStorage.getItem('pac_cart'); return s ? JSON.parse(s) : [] } catch { return [] }
+}
 
-  useEffect(() => {
-    try { const s = localStorage.getItem('pac_cart'); if (s) setItems(JSON.parse(s)) } catch {}
-  }, [])
+export function CartProvider({ children }: { children: React.ReactNode }) {
+  const [items, setItems] = useState<CartItem[]>(loadCart)
+  const [isOpen, setIsOpen] = useState(false)
 
   useEffect(() => {
     try { localStorage.setItem('pac_cart', JSON.stringify(items)) } catch {}

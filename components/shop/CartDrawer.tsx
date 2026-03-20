@@ -73,7 +73,7 @@ export default function CartDrawer() {
         style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0,0,0,0.4)',
+          background: 'var(--color-overlay)',
           zIndex: 900,
         }}
       />
@@ -95,7 +95,7 @@ export default function CartDrawer() {
           zIndex: 901,
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '-4px 0 24px rgba(0,0,0,0.15)',
+          boxShadow: '-4px 0 24px var(--color-shadow-drawer)',
         }}
       >
         {/* Header */}

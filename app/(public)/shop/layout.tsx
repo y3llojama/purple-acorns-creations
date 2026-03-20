@@ -12,7 +12,7 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
       {children}
       <CartDrawer />
       <Script src={squareSrc} strategy="beforeInteractive" />
-      <Script src="//assets.pinterest.com/js/pinit.js" strategy="lazyOnload" />
+      <Script src="https://assets.pinterest.com/js/pinit.js" strategy="lazyOnload" />
     </CartProvider>
   )
 }
