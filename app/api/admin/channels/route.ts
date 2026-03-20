@@ -11,11 +11,19 @@ export async function GET() {
     supabase.from('channel_sync_log').select('product_id,channel,error,created_at,products(name)').eq('status', 'conflict'),
     supabase.from('channel_sync_log').select('product_id,channel,error,created_at').eq('status', 'error').order('created_at', { ascending: false }).limit(10),
   ])
+  const allConflicts = conflicts ?? []
+  const allErrors = recentErrors ?? []
   return NextResponse.json({
-    square: { connected: !!settings?.square_access_token, enabled: settings?.square_sync_enabled ?? false, locationId: settings?.square_location_id },
-    pinterest: { connected: !!settings?.pinterest_access_token, enabled: settings?.pinterest_sync_enabled ?? false, catalogId: settings?.pinterest_catalog_id },
-    conflicts: conflicts ?? [],
-    recentErrors: recentErrors ?? [],
+    square: {
+      status: { connected: !!settings?.square_access_token, enabled: settings?.square_sync_enabled ?? false, locationId: settings?.square_location_id ?? null },
+      conflicts: allConflicts.filter(c => c.channel === 'square'),
+      recentErrors: allErrors.filter(e => e.channel === 'square'),
+    },
+    pinterest: {
+      status: { connected: !!settings?.pinterest_access_token, enabled: settings?.pinterest_sync_enabled ?? false, catalogId: settings?.pinterest_catalog_id ?? null },
+      conflicts: allConflicts.filter(c => c.channel === 'pinterest'),
+      recentErrors: allErrors.filter(e => e.channel === 'pinterest'),
+    },
   })
 }
 
