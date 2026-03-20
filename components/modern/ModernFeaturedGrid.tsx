@@ -1,4 +1,5 @@
 import HeartButton from '@/components/ui/HeartButton'
+import { isValidHttpsUrl } from '@/lib/validate'
 
 interface Item {
   id: string
@@ -10,13 +11,12 @@ interface Item {
 interface Props {
   items: Item[]
   watermark: string | null | undefined
-  squareStoreUrl: string | null | undefined
 }
 
 const SKELETON_CARDS = ['sk-1', 'sk-2', 'sk-3', 'sk-4']
 
-export default function ModernFeaturedGrid({ items, watermark, squareStoreUrl }: Props) {
-  const viewAllHref = squareStoreUrl ?? '/shop'
+export default function ModernFeaturedGrid({ items, watermark }: Props) {
+  const viewAllHref = '/shop'
   const isEmpty = items.length === 0
 
   return (
@@ -129,10 +129,10 @@ export default function ModernFeaturedGrid({ items, watermark, squareStoreUrl }:
                 </div>
               ))
             : items.map((item) => (
-                <div key={item.id} className="modern-featured-card">
+                <a key={item.id} href={`/shop/${item.id}`} className="modern-featured-card" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
                   {/* Image area */}
                   <div style={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
-                    {item.image_url ? (
+                    {item.image_url && isValidHttpsUrl(item.image_url) ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={item.image_url}
@@ -159,7 +159,7 @@ export default function ModernFeaturedGrid({ items, watermark, squareStoreUrl }:
                           position: 'absolute',
                           bottom: '8px',
                           right: '10px',
-                          color: '#fff',
+                          color: 'var(--color-on-image)',
                           fontSize: '10px',
                           fontWeight: 500,
                           letterSpacing: '0.08em',
@@ -191,19 +191,17 @@ export default function ModernFeaturedGrid({ items, watermark, squareStoreUrl }:
                         {item.title}
                       </p>
                     )}
-                    <a
-                      href={viewAllHref}
+                    <span
                       style={{
                         fontSize: '11px',
                         color: 'var(--color-accent)',
-                        textDecoration: 'none',
                         display: 'block',
                       }}
                     >
                       Shop Now
-                    </a>
+                    </span>
                   </div>
-                </div>
+                </a>
               ))}
         </div>
       </div>

@@ -58,8 +58,6 @@ export default function IntegrationsEditor({
   initialNewsletterAdminEmails, initialNewsletterSendTime,
   initialAiProvider, hasAiApiKey,
 }: Props) {
-  const [square, setSquare] = useState('')
-  const [squareSaved, setSquareSaved] = useState(false)
 
   const [behold, setBehold] = useState('')
   const [beholdSaved, setBeholdSaved] = useState(false)
@@ -101,13 +99,6 @@ export default function IntegrationsEditor({
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', color: 'var(--color-primary)', marginBottom: '32px' }}>Integrations</h1>
 
       <FollowAlongManager initialMode={initialMode} initialPhotos={initialPhotos} />
-
-      <Section title="Square Store">
-        <label htmlFor="square-url" style={labelStyle}>Square Store URL</label>
-        <input id="square-url" value={square} onChange={e => { setSquare(e.target.value); setSquareSaved(false) }} placeholder="https://square.site/..." style={inputStyle} />
-        <button style={btnStyle} onClick={async () => { const r = await save({ square_store_url: square }); if (r.ok) setSquareSaved(true) }}>Save</button>
-        <SavedStatus saved={squareSaved} />
-      </Section>
 
       <Section title="Instagram Embed (Behold.so)">
         <label htmlFor="behold-id" style={labelStyle}>Behold Widget ID</label>

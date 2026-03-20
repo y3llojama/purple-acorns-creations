@@ -12,6 +12,12 @@
   --color-border: #e8d9c5;
   --color-focus: #d4a853;
   --color-danger: #c0392b;
+  --color-error: #c05050;
+  --color-error-text: #ffffff;
+  --color-success-bg: #d4edda;
+  --color-success-text: #155724;
+  --color-danger-bg: #f8d7da;
+  --color-danger-text: #721c24;
 }
 
 /* Soft Botanical theme — soft lavender, sage, cream */
@@ -26,6 +32,12 @@
   --color-border: #e0d4ec;
   --color-focus: #9b7bb8;
   --color-danger: #b03060;
+  --color-error: #c05050;
+  --color-error-text: #ffffff;
+  --color-success-bg: #d4edda;
+  --color-success-text: #155724;
+  --color-danger-bg: #f8d7da;
+  --color-danger-text: #721c24;
 }
 
 /* Modern theme — purple + white */
@@ -44,11 +56,20 @@
   --color-announce-text: #ffffff;
   --font-display: 'Jost', 'DM Sans', sans-serif;
   --font-body: 'Jost', 'DM Sans', sans-serif;
+  --color-error: #c05050;
+  --color-error-text: #ffffff;
+  --color-success-bg: #d4edda;
+  --color-success-text: #155724;
+  --color-danger-bg: #f8d7da;
+  --color-danger-text: #721c24;
 }
 
 :root {
   --font-display: 'Cormorant Garamond', Georgia, serif;
   --font-body: 'DM Sans', system-ui, sans-serif;
+  --color-overlay: rgba(0, 0, 0, 0.4);
+  --color-shadow-drawer: rgba(0, 0, 0, 0.15);
+  --color-on-image: #ffffff;
 }
 
 *, *::before, *::after {

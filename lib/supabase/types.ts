@@ -3,7 +3,7 @@ export type Category = 'rings' | 'necklaces' | 'earrings' | 'bracelets' | 'croch
 export type AiProvider = 'claude' | 'openai' | 'groq'
 
 export interface Settings {
-  id: string; theme: Theme; logo_url: string | null; square_store_url: string | null
+  id: string; theme: Theme; logo_url: string | null
   contact_email: string | null; mailchimp_api_key: string | null; mailchimp_audience_id: string | null
   ai_provider: AiProvider | null; announcement_enabled: boolean; announcement_text: string | null
   announcement_link_url: string | null; announcement_link_label: string | null
@@ -19,6 +19,15 @@ export interface Settings {
   smtp_user: string | null
   smtp_pass: string | null
   business_name: string
+  square_access_token: string | null
+  square_refresh_token: string | null
+  square_location_id: string | null
+  pinterest_access_token: string | null
+  pinterest_refresh_token: string | null
+  pinterest_catalog_id: string | null
+  gallery_max_items: number
+  square_sync_enabled: boolean
+  pinterest_sync_enabled: boolean
   updated_at: string
   resend_api_key: string | null
   newsletter_from_name: string | null
@@ -34,7 +43,7 @@ export interface Event {
 }
 
 export interface GalleryItem {
-  id: string; url: string; alt_text: string; category: Category | null; sort_order: number; is_featured: boolean; square_url: string | null; created_at: string
+  id: string; url: string; alt_text: string; category: Category | null; sort_order: number; is_featured: boolean; square_url: string | null; product_id: string | null; created_at: string
 }
 
 export interface FollowAlongPhoto {
@@ -76,4 +85,37 @@ export interface NewsletterSubscriber {
   id: string; email: string; status: 'active' | 'unsubscribed' | 'bounced'
   unsubscribe_token: string; source: string
   subscribed_at: string; unsubscribed_at: string | null
+}
+
+export type ProductCategory = 'rings' | 'necklaces' | 'earrings' | 'bracelets' | 'crochet' | 'other'
+export type ChannelStatus = 'pending' | 'synced' | 'error' | 'conflict'
+export type Channel = 'square' | 'pinterest' | 'etsy'
+
+export interface Product {
+  id: string
+  name: string
+  description: string | null
+  price: number
+  category: ProductCategory
+  stock_count: number
+  images: string[]
+  is_active: boolean
+  gallery_featured: boolean
+  gallery_sort_order: number | null
+  view_count: number
+  square_catalog_id: string | null
+  square_variation_id: string | null
+  pinterest_product_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ChannelSyncLog {
+  id: string
+  product_id: string
+  channel: Channel
+  status: ChannelStatus
+  synced_at: string | null
+  error: string | null
+  created_at: string
 }

@@ -73,3 +73,31 @@ export function decryptSettings<T extends Partial<Record<SensitiveField, string 
   }
   return result
 }
+
+// --- OAuth token encryption (Square, Pinterest) ---
+// Format: base64(iv[12] + tag[16] + ciphertext)
+
+const IV_BYTES = 12
+const TAG_BYTES = 16
+
+/** Encrypt an OAuth token. Returns base64-encoded iv+tag+ciphertext. */
+export function encryptToken(plaintext: string): string {
+  const key = getKey()
+  const iv = crypto.randomBytes(IV_BYTES)
+  const cipher = crypto.createCipheriv(ALGO, key, iv)
+  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
+  const tag = cipher.getAuthTag()
+  return Buffer.concat([iv, tag, encrypted]).toString('base64')
+}
+
+/** Decrypt a token produced by encryptToken. Throws on tampering. */
+export function decryptToken(ciphertext: string): string {
+  const key = getKey()
+  const buf = Buffer.from(ciphertext, 'base64')
+  const iv = buf.subarray(0, IV_BYTES)
+  const tag = buf.subarray(IV_BYTES, IV_BYTES + TAG_BYTES)
+  const encrypted = buf.subarray(IV_BYTES + TAG_BYTES)
+  const decipher = crypto.createDecipheriv(ALGO, key, iv)
+  decipher.setAuthTag(tag)
+  return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8')
+}

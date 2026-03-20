@@ -148,7 +148,3 @@ export default function SavedItemsPage() {
             </Link>
           </div>
         </>
-      )}
-    </div>
-  )
-}
