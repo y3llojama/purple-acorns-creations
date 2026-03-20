@@ -93,7 +93,7 @@ export default async function NewsletterDetailPage({ params }: Props) {
             ) : null
           }
           if (section.type === 'cta') {
-            return (
+            return isValidHttpsUrl(section.url) ? (
               <div key={i} style={{ textAlign: 'center' }}>
                 <a
                   href={section.url}
@@ -114,7 +114,7 @@ export default async function NewsletterDetailPage({ params }: Props) {
                   {section.label}
                 </a>
               </div>
-            )
+            ) : null
           }
           return null
         })}

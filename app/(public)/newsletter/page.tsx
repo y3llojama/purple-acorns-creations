@@ -1,5 +1,6 @@
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { isValidHttpsUrl } from '@/lib/validate'
 
 export const metadata = { title: 'Newsletter — Purple Acorns Creations' }
 
@@ -26,7 +27,7 @@ export default async function NewsletterArchivePage() {
         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '32px' }}>
           {newsletters.map((nl) => (
             <li key={nl.slug} style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', paddingBottom: '32px', borderBottom: '1px solid var(--color-border)' }}>
-              {nl.hero_image_url && (
+              {nl.hero_image_url && isValidHttpsUrl(nl.hero_image_url) && (
                 <img
                   src={nl.hero_image_url}
                   alt=""
