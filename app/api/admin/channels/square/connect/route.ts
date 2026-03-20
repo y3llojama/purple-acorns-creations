@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     ? 'https://connect.squareup.com'
     : 'https://connect.squareupsandbox.com'
 
-  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/admin/channels/square/callback`
+  const redirectUri = `${(process.env.NEXT_PUBLIC_APP_URL ?? '').trim()}/api/admin/channels/square/callback`
   const scope = [
     'MERCHANT_PROFILE_READ', 'ITEMS_READ', 'ITEMS_WRITE',
     'INVENTORY_READ', 'INVENTORY_WRITE',

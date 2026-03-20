@@ -1,5 +1,5 @@
 -- Products table — inventory source of truth
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
   id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name                 TEXT NOT NULL,
   description          TEXT,
@@ -20,7 +20,7 @@ CREATE TABLE products (
 );
 
 -- Channel sync log — per-product, per-channel sync state
-CREATE TABLE channel_sync_log (
+CREATE TABLE IF NOT EXISTS channel_sync_log (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id  UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   channel     TEXT NOT NULL CHECK (channel IN ('square','pinterest','etsy')),
