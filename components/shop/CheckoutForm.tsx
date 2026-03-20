@@ -25,8 +25,16 @@ export default function CheckoutForm() {
   const [sdkReady, setSdkReady] = useState(false)
 
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+    let attempts = 0
+    const MAX_ATTEMPTS = 20 // 10 seconds at 500ms intervals
+
     async function init() {
-      if (!window.Square) { setTimeout(init, 500); return }
+      if (!window.Square) {
+        if (++attempts >= MAX_ATTEMPTS) { setError('Payment form failed to load. Please refresh and try again.'); return }
+        timeoutId = setTimeout(init, 500)
+        return
+      }
       const appId = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID ?? ''
       const locationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID ?? ''
       const payments = await window.Square.payments(appId, locationId)
@@ -36,6 +44,7 @@ export default function CheckoutForm() {
       setSdkReady(true)
     }
     init()
+    return () => { if (timeoutId) clearTimeout(timeoutId) }
   }, [])
 
   async function handlePay() {

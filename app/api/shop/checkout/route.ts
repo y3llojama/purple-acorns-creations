@@ -54,25 +54,30 @@ export async function POST(request: Request) {
           return { name: p.name, quantity: String(item.quantity), basePriceMoney: { amount: BigInt(Math.round(p.price * 100)), currency: 'USD' } }
         }),
       },
-      idempotencyKey: `order-${Date.now()}-${Math.random()}`,
+      idempotencyKey: crypto.randomUUID(),
     })
     orderId = orderResult.order?.id ?? ''
 
     const { result: paymentResult } = await client.paymentsApi.createPayment({
       sourceId, orderId, locationId,
       amountMoney: { amount: BigInt(totalCents), currency: 'USD' },
-      idempotencyKey: `pay-${Date.now()}-${Math.random()}`,
+      idempotencyKey: crypto.randomUUID(),
     })
     paymentId = paymentResult.payment?.id ?? ''
   } catch (err) {
     return NextResponse.json({ error: 'Payment failed', detail: String(err) }, { status: 402 })
   }
 
-  // Step 4: Atomically decrement stock (charge already succeeded)
+  // Step 4: Atomically decrement stock per item (charge already succeeded)
+  const decremented: LineItem[] = []
   for (const item of cart) {
     const { data: rows } = await supabase.rpc('decrement_stock', { product_id: item.productId, qty: item.quantity })
     // Step 5: Race condition — item sold between validation and charge
     if (Array.isArray(rows) && rows.length === 0) {
+      // Roll back stock for already-decremented items in this order
+      for (const done of decremented) {
+        await supabase.rpc('increment_stock', { product_id: done.productId, qty: done.quantity })
+      }
       try {
         const { client } = await getSquareClient()
         await client.refundsApi.refundPayment({
@@ -81,9 +86,12 @@ export async function POST(request: Request) {
           amountMoney: { amount: BigInt(totalCents), currency: 'USD' },
           reason: 'Item sold out during checkout',
         })
-      } catch {}
+      } catch (err) {
+        console.error('Refund failed after sold-out race condition. paymentId:', paymentId, err)
+      }
       return NextResponse.json({ error: 'Item sold out — payment refunded', soldOut: item.productId }, { status: 409 })
     }
+    decremented.push(item)
   }
 
   return NextResponse.json({ orderId, paymentId })

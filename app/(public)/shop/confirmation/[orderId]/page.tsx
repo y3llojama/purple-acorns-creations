@@ -1,5 +1,12 @@
+import { notFound } from 'next/navigation'
+
+// Square order IDs are base62 alphanumeric, typically 25-30 chars
+const SQUARE_ORDER_ID_RE = /^[A-Za-z0-9]{10,50}$/
+
 export default async function ConfirmationPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = await params
+  if (!SQUARE_ORDER_ID_RE.test(orderId)) notFound()
+
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '80px 24px', textAlign: 'center' }}>
       <h1 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary)', marginBottom: '24px' }}>Order Confirmed!</h1>

@@ -61,3 +61,9 @@ CREATE OR REPLACE FUNCTION increment_view_count(product_id UUID)
 RETURNS void AS $$
   UPDATE products SET view_count = view_count + 1 WHERE id = product_id;
 $$ LANGUAGE sql;
+
+-- Atomic stock restore (used to roll back decrements on checkout race condition)
+CREATE OR REPLACE FUNCTION increment_stock(product_id UUID, qty INTEGER)
+RETURNS void AS $$
+  UPDATE products SET stock_count = stock_count + qty WHERE id = product_id;
+$$ LANGUAGE sql;
