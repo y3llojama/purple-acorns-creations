@@ -146,7 +146,7 @@ Note: `availability` must be set dynamically from `product.is_active` per the `b
 
 Associates the website with the Google Business Profile and Instagram. `businessName` sourced from `settings.business_name` (already fetched by the page).
 
-> **ACTION REQUIRED before shipping:** The GBP URL must be retrieved from the Google Business Profile dashboard and hardcoded in `lib/seo.ts` (or stored as `NEXT_PUBLIC_GBP_URL` env var). It cannot be derived from the codebase. Leaving it as a placeholder will silently emit an invalid `sameAs` value that Googlebot will index.
+> **GBP URL is set.** Hardcode in `lib/seo.ts` — no env var needed.
 
 ```json
 {
@@ -157,7 +157,7 @@ Associates the website with the Google Business Profile and Instagram. `business
   "logo": "https://www.purpleacornz.com/og-image.jpg",
   "sameAs": [
     "https://www.instagram.com/purpleacornz/",
-    "ACTION REQUIRED: replace with actual GBP URL from dashboard"
+    "https://www.google.com/maps/place/Purple+Acornz+Creations/data=!4m2!3m1!1s0x0:0xe3c107aad4de5135?sa=X&ved=1t:2428&hl=en&ictx=111"
   ]
 }
 ```
