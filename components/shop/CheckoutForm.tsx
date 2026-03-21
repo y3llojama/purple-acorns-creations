@@ -75,7 +75,7 @@ export default function CheckoutForm({ onSuccess }: { onSuccess?: () => void }) 
         }),
       })
       const data = await res.json()
-      if (!res.ok) { setError(`${data.error ?? 'Payment failed'}${data.detail ? ` — ${data.detail}` : ''}`); return }
+      if (!res.ok) { setError(data.error ?? 'Payment failed'); return }
       onSuccess?.()
       router.push(`/shop/confirmation/${data.orderId}`)
       clearCart()
