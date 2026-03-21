@@ -335,9 +335,17 @@ export default function AnalyticsDashboard() {
           <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--color-primary)', marginBottom: '4px' }}>
             Google Search Console
           </div>
-          <div style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
+          <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '6px' }}>
             Search impressions, clicks, and keyword rankings
           </div>
+          <a
+            href="https://www.purpleacornz.com/sitemap.xml"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: '12px', color: 'var(--color-primary)', opacity: 0.6, fontFamily: 'monospace' }}
+          >
+            purpleacornz.com/sitemap.xml ↗
+          </a>
         </div>
         <a
           href="https://search.google.com/search-console?resource_id=sc-domain%3Apurpleacornz.com"
