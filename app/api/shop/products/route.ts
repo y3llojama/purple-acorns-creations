@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 
-const VALID_CATEGORIES = ['rings', 'necklaces', 'earrings', 'bracelets', 'crochet', 'other']
 const VALID_SORTS = ['new', 'popular', 'price_asc', 'price_desc']
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const rateMap = new Map<string, { count: number; reset: number }>()
 
 function checkRate(ip: string): boolean {
@@ -17,14 +17,14 @@ export async function GET(request: Request) {
   const ip = (request.headers.get('x-forwarded-for') ?? 'unknown').split(',')[0].trim()
   if (!checkRate(ip)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
   const { searchParams } = new URL(request.url)
-  const category = searchParams.get('category')
+  const categoryId = searchParams.get('category_id')
   const sort = searchParams.get('sort') ?? 'new'
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
   if (!VALID_SORTS.includes(sort)) return NextResponse.json({ error: 'invalid sort' }, { status: 400 })
   const offset = (page - 1) * 24
   const supabase = createServiceRoleClient()
   let query = supabase.from('products').select('*', { count: 'exact' }).eq('is_active', true)
-  if (category && VALID_CATEGORIES.includes(category)) query = query.eq('category', category)
+  if (categoryId && UUID_RE.test(categoryId)) query = query.eq('category_id', categoryId)
   switch (sort) {
     case 'popular': query = query.order('view_count', { ascending: false }); break
     case 'price_asc': query = query.order('price', { ascending: true }); break

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import CategoryFilter from './CategoryFilter'
+import CategoryFilter, { type CategoryOption } from './CategoryFilter'
 import ProductCard from './ProductCard'
 import { Product } from '@/lib/supabase/types'
 
@@ -17,19 +17,27 @@ interface ApiResponse {
 const PAGE_SIZE = 24
 
 export default function ProductGrid() {
-  const [category, setCategory] = useState('')
+  const [categoryId, setCategoryId] = useState('')
+  const [categories, setCategories] = useState<CategoryOption[]>([])
   const [sort, setSort] = useState<SortOption>('new')
   const [page, setPage] = useState(1)
   const [data, setData] = useState<ApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    fetch('/api/shop/categories')
+      .then(res => { if (!res.ok) return; return res.json() })
+      .then((json: CategoryOption[] | undefined) => { if (json) setCategories(json) })
+      .catch(() => { /* best-effort */ })
+  }, [])
+
   const fetchProducts = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
       const params = new URLSearchParams()
-      if (category) params.set('category', category)
+      if (categoryId) params.set('category_id', categoryId)
       params.set('sort', sort)
       params.set('page', String(page))
       params.set('pageSize', String(PAGE_SIZE))
@@ -43,14 +51,14 @@ export default function ProductGrid() {
     } finally {
       setLoading(false)
     }
-  }, [category, sort, page])
+  }, [categoryId, sort, page])
 
   useEffect(() => {
     fetchProducts()
   }, [fetchProducts])
 
-  const handleCategoryChange = (cat: string) => {
-    setCategory(cat)
+  const handleCategoryChange = (id: string) => {
+    setCategoryId(id)
     setPage(1)
   }
 
@@ -65,7 +73,7 @@ export default function ProductGrid() {
     <div>
       {/* Controls row */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '8px' }}>
-        <CategoryFilter active={category} onChange={handleCategoryChange} />
+        <CategoryFilter categories={categories} active={categoryId} onChange={handleCategoryChange} />
         <div>
           <label htmlFor="shop-sort" style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginRight: '8px' }}>Sort by</label>
           <select

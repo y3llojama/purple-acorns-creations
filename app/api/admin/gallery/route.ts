@@ -4,7 +4,7 @@ import { requireAdminSession } from '@/lib/auth'
 import { isValidHttpsUrl, clampLength } from '@/lib/validate'
 import { sanitizeText } from '@/lib/sanitize'
 
-const ALLOWED_CATEGORIES = ['rings', 'necklaces', 'earrings', 'bracelets', 'crochet', 'other'] as const
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function POST(request: Request) {
   const { error } = await requireAdminSession()
@@ -14,12 +14,10 @@ export async function POST(request: Request) {
   const alt_text = sanitizeText(clampLength(String(body.alt_text ?? ''), 500))
   if (!isValidHttpsUrl(url)) return NextResponse.json({ error: 'Valid https image URL required' }, { status: 400 })
   if (!alt_text) return NextResponse.json({ error: 'Alt text required for accessibility' }, { status: 400 })
-  const category = body.category && ALLOWED_CATEGORIES.includes(String(body.category) as typeof ALLOWED_CATEGORIES[number])
-    ? String(body.category)
-    : null
+  const categoryId = body.category_id && UUID_RE.test(String(body.category_id)) ? String(body.category_id) : null
   const supabase = createServiceRoleClient()
   const { data, error: dbError } = await supabase.from('gallery').insert({
-    url, alt_text, category,
+    url, alt_text, category_id: categoryId,
     sort_order: Number(body.sort_order) || 0,
   }).select().single()
   if (dbError) return NextResponse.json({ error: 'Failed to add gallery item' }, { status: 500 })

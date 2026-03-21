@@ -48,7 +48,7 @@ export default function ProductCard({ product, showPrice = true }: Props) {
           </p>
           {showPrice && (
             <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-muted)' }}>
-              ${(product.price / 100).toFixed(2)}
+              ${product.price.toFixed(2)}
             </p>
           )}
         </div>

@@ -109,7 +109,6 @@ export interface NewsletterSubscriber {
   subscribed_at: string; unsubscribed_at: string | null
 }
 
-export type ProductCategory = 'rings' | 'necklaces' | 'earrings' | 'bracelets' | 'crochet' | 'other'
 export type ChannelStatus = 'pending' | 'synced' | 'error' | 'conflict'
 export type Channel = 'square' | 'pinterest' | 'etsy'
 

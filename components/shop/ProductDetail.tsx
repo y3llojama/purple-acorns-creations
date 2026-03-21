@@ -38,7 +38,7 @@ export default function ProductDetail({ product }: Props) {
 
   // Fetch related products
   useEffect(() => {
-    fetch(`/api/shop/products?category=${product.category}&sort=popular`)
+    fetch(`/api/shop/products?${product.category_id ? `category_id=${product.category_id}&` : ''}sort=popular`)
       .then((res) => {
         if (!res.ok) return
         return res.json()
@@ -52,9 +52,9 @@ export default function ProductDetail({ product }: Props) {
       .catch(() => {
         // Best-effort — silently ignore errors
       })
-  }, [product.category, product.id])
+  }, [product.category_id, product.id])
 
-  const priceFormatted = `$${(product.price / 100).toFixed(2)}`
+  const priceFormatted = `$${product.price.toFixed(2)}`
   const inStock = product.stock_count > 0
   // sanitizeContent is always called before injecting any HTML
   const sanitizedDescription = sanitizeContent(product.description ?? '')
@@ -94,23 +94,6 @@ export default function ProductDetail({ product }: Props) {
           <p style={{ fontSize: '20px', margin: 0, color: 'var(--color-text)' }}>
             {priceFormatted}
           </p>
-
-          {/* Category badge */}
-          <span
-            style={{
-              display: 'inline-block',
-              padding: '4px 12px',
-              borderRadius: '999px',
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              fontSize: '13px',
-              color: 'var(--color-text-muted)',
-              textTransform: 'capitalize',
-              alignSelf: 'flex-start',
-            }}
-          >
-            {product.category}
-          </span>
 
           {/* Stock status */}
           <p
