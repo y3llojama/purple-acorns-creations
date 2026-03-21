@@ -109,10 +109,13 @@ export default function InventoryManager({ initialProducts, categories, squareSy
   return (
     <div>
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: '0', marginBottom: '24px', borderBottom: '2px solid var(--color-border)' }}>
+      <div role="tablist" aria-label="Inventory tabs" style={{ display: 'flex', gap: '0', marginBottom: '24px', borderBottom: '2px solid var(--color-border)' }}>
         {(['products', 'categories'] as const).map(tab => (
           <button
             key={tab}
+            id={`tab-${tab}`}
+            role="tab"
+            aria-selected={activeTab === tab}
             onClick={() => setActiveTab(tab)}
             style={{
               padding: '8px 20px', fontSize: '15px', fontWeight: activeTab === tab ? 600 : 400,
@@ -128,11 +131,13 @@ export default function InventoryManager({ initialProducts, categories, squareSy
       </div>
 
       {activeTab === 'categories' && (
-        <CategoryManager initialCategories={categories} squareSyncEnabled={squareSyncEnabled} />
+        <div role="tabpanel" id="panel-categories" aria-labelledby="tab-categories">
+          <CategoryManager initialCategories={categories} squareSyncEnabled={squareSyncEnabled} />
+        </div>
       )}
 
       {activeTab === 'products' && (
-        <div>
+        <div role="tabpanel" id="panel-products" aria-labelledby="tab-products">
           {/* Toolbar */}
           <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
             <input

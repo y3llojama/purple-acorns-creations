@@ -11,11 +11,18 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
   const { tab } = await searchParams
   const initialTab = tab === 'categories' ? 'categories' : 'products'
   const supabase = createServiceRoleClient()
-  const [{ data: products }, { data: settings }, { data: categories }] = await Promise.all([
+  const [
+    { data: products, error: productsError },
+    { data: settings },
+    { data: categories, error: categoriesError },
+  ] = await Promise.all([
     supabase.from('products').select('*').order('created_at', { ascending: false }),
     supabase.from('settings').select('square_sync_enabled').single(),
     supabase.from('categories').select(`*, product_count:products(count)`).order('sort_order', { ascending: true }),
   ])
+
+  if (productsError) throw new Error('Failed to load products')
+  if (categoriesError) throw new Error('Failed to load categories')
 
   // Normalize product_count and nest children
   const flatCats = (categories ?? []).map((c: Record<string, unknown>) => ({
