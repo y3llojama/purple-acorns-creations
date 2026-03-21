@@ -319,6 +319,47 @@ export default function AnalyticsDashboard() {
           </ChartSection>
         </>
       )}
+      {/* Search Console */}
+      <section style={{
+        background: 'var(--color-surface)',
+        border: '1px solid var(--color-border)',
+        borderRadius: '8px',
+        padding: '20px 24px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '16px',
+        flexWrap: 'wrap',
+      }}>
+        <div>
+          <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--color-primary)', marginBottom: '4px' }}>
+            Google Search Console
+          </div>
+          <div style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
+            Search impressions, clicks, and keyword rankings
+          </div>
+        </div>
+        <a
+          href="https://search.google.com/search-console?resource_id=sc-domain%3Apurpleacornz.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'inline-block',
+            padding: '10px 20px',
+            background: 'var(--color-primary)',
+            color: 'var(--color-accent)',
+            borderRadius: '6px',
+            fontSize: '14px',
+            fontWeight: '600',
+            textDecoration: 'none',
+            whiteSpace: 'nowrap',
+            minHeight: '48px',
+            lineHeight: '28px',
+          }}
+        >
+          Open Search Console ↗
+        </a>
+      </section>
     </div>
   )
 }
