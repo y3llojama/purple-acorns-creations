@@ -268,6 +268,15 @@ export default function SquareChannelCard({ status, conflicts, recentErrors, onR
             </p>
           )}
 
+          <div style={{ marginBottom: '16px' }}>
+            <a href="/api/admin/channels/square/connect" style={{ ...btnSecondaryStyle, display: 'inline-block', textDecoration: 'none', fontSize: '14px' }}>
+              Re-authorize Square
+            </a>
+            <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+              Use this to grant new permissions to an existing connection.
+            </p>
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px', flexWrap: 'wrap' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', minHeight: '48px' }}>
               <input
