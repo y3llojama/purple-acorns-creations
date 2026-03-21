@@ -12,11 +12,39 @@ export default function EventsManager({ initialEvents }: Props) {
   const [events, setEvents] = useState<Event[]>(initialEvents)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
+  const [editId, setEditId] = useState<string | null>(null)
   const [status, setStatus] = useState<'idle' | 'saving' | 'error'>('idle')
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [discoverStatus, setDiscoverStatus] = useState<'idle' | 'loading'>('idle')
+  const [discoverMessage, setDiscoverMessage] = useState<string | null>(null)
+  const [discoverError, setDiscoverError] = useState<string | null>(null)
 
   function field(k: keyof typeof emptyForm) {
     return { value: form[k], onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm(f => ({ ...f, [k]: e.target.value })) }
+  }
+
+  function handleEdit(ev: Event) {
+    setEditId(ev.id)
+    setForm({
+      name: ev.name,
+      date: ev.date,
+      time: ev.time ?? '',
+      location: ev.location,
+      description: ev.description ?? '',
+      link_url: ev.link_url ?? '',
+      link_label: ev.link_label ?? '',
+    })
+    setShowForm(true)
+    setStatus('idle')
+    // Scroll to the top of the page so the form is visible
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function handleCancelForm() {
+    setShowForm(false)
+    setEditId(null)
+    setForm(emptyForm)
+    setStatus('idle')
   }
 
   async function handleAdd(e: React.FormEvent) {
@@ -38,6 +66,30 @@ export default function EventsManager({ initialEvents }: Props) {
     } catch { setStatus('error') }
   }
 
+  async function handleUpdate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editId) return
+    setStatus('saving')
+    const link_url = form.link_url && isValidHttpsUrl(form.link_url) ? form.link_url : undefined
+    try {
+      const res = await fetch('/api/admin/events', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editId, ...form, link_url }),
+      })
+      if (!res.ok) { setStatus('error'); return }
+      setEvents(ev => ev.map(item =>
+        item.id === editId
+          ? { ...item, ...form, link_url: link_url ?? null, link_label: form.link_label || null, time: form.time || null, description: form.description || null }
+          : item
+      ))
+      setForm(emptyForm)
+      setEditId(null)
+      setShowForm(false)
+      setStatus('idle')
+    } catch { setStatus('error') }
+  }
+
   async function handleDelete(id: string) {
     try {
       const res = await fetch('/api/admin/events', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
@@ -47,18 +99,73 @@ export default function EventsManager({ initialEvents }: Props) {
     setDeleteId(null)
   }
 
+  async function handleFindEvents() {
+    setDiscoverStatus('loading')
+    setDiscoverMessage(null)
+    setDiscoverError(null)
+    try {
+      const res = await fetch('/api/admin/events/discover', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setDiscoverError(data.error ?? 'Discovery failed. Please try again.')
+        setDiscoverStatus('idle')
+        return
+      }
+      const { added, skipped } = data as { added: number; skipped: number }
+      if (added === 0 && skipped === 0) {
+        setDiscoverMessage('No new events found.')
+      } else if (added === 0) {
+        setDiscoverMessage(`No new events found — ${skipped} already in your list.`)
+      } else {
+        setDiscoverMessage(`${added} event${added !== 1 ? 's' : ''} added${skipped > 0 ? `, ${skipped} already in your list` : ''}.`)
+      }
+      // Re-fetch events list to show newly added events
+      const listRes = await fetch('/api/admin/events')
+      if (listRes.ok) {
+        const updated = await listRes.json()
+        setEvents(updated)
+      }
+    } catch {
+      setDiscoverError('Discovery failed. Please try again.')
+    }
+    setDiscoverStatus('idle')
+  }
+
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', color: 'var(--color-primary)' }}>Events</h1>
-        <button onClick={() => setShowForm(s => !s)} style={{ background: 'var(--color-primary)', color: 'var(--color-accent)', padding: '12px 20px', fontSize: '16px', border: 'none', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}>
-          + Add New Event
-        </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: discoverMessage || discoverError ? '12px' : '24px', flexWrap: 'wrap', gap: '12px' }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', color: 'var(--color-primary)', margin: 0 }}>Events</h1>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            onClick={handleFindEvents}
+            disabled={discoverStatus === 'loading'}
+            style={{ background: 'transparent', color: 'var(--color-primary)', padding: '12px 20px', fontSize: '16px', border: '2px solid var(--color-primary)', borderRadius: '4px', cursor: discoverStatus === 'loading' ? 'not-allowed' : 'pointer', minHeight: '48px', opacity: discoverStatus === 'loading' ? 0.7 : 1 }}
+          >
+            {discoverStatus === 'loading' ? 'Searching…' : 'Find Events'}
+          </button>
+          <button
+            onClick={() => { setShowForm(s => !s); if (showForm && editId) { setEditId(null); setForm(emptyForm) } }}
+            style={{ background: 'var(--color-primary)', color: 'var(--color-accent)', padding: '12px 20px', fontSize: '16px', border: 'none', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}
+          >
+            + Add New Event
+          </button>
+        </div>
       </div>
 
+      {discoverMessage && (
+        <p style={{ color: 'var(--color-primary)', fontSize: '15px', marginBottom: '20px', padding: '10px 14px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '4px' }}>
+          {discoverMessage}
+        </p>
+      )}
+      {discoverError && (
+        <p role="alert" style={{ color: '#c05050', fontSize: '15px', marginBottom: '20px', padding: '10px 14px', background: 'var(--color-surface)', border: '1px solid #c05050', borderRadius: '4px' }}>
+          {discoverError}
+        </p>
+      )}
+
       {showForm && (
-        <form onSubmit={handleAdd} style={{ background: 'var(--color-surface)', padding: '24px', borderRadius: '8px', marginBottom: '24px', border: '1px solid var(--color-border)' }}>
-          <h2 style={{ fontSize: '18px', marginBottom: '16px' }}>New Event</h2>
+        <form onSubmit={editId ? handleUpdate : handleAdd} style={{ background: 'var(--color-surface)', padding: '24px', borderRadius: '8px', marginBottom: '24px', border: '1px solid var(--color-border)' }}>
+          <h2 style={{ fontSize: '18px', marginBottom: '16px' }}>{editId ? 'Edit Event' : 'New Event'}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div>
               <label htmlFor="event-name" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Event Name *</label>
@@ -99,7 +206,7 @@ export default function EventsManager({ initialEvents }: Props) {
             <button type="submit" disabled={status === 'saving'} style={{ background: 'var(--color-primary)', color: 'var(--color-accent)', padding: '12px 24px', fontSize: '16px', border: 'none', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}>
               {status === 'saving' ? 'Saving…' : 'Save Event'}
             </button>
-            <button type="button" onClick={() => setShowForm(false)} style={{ background: 'transparent', color: 'var(--color-primary)', padding: '12px 24px', fontSize: '16px', border: '2px solid var(--color-primary)', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}>
+            <button type="button" onClick={handleCancelForm} style={{ background: 'transparent', color: 'var(--color-primary)', padding: '12px 24px', fontSize: '16px', border: '2px solid var(--color-primary)', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}>
               Cancel
             </button>
           </div>
@@ -121,13 +228,22 @@ export default function EventsManager({ initialEvents }: Props) {
                 {' · '}{ev.location}
               </div>
             </div>
-            <button
-              onClick={() => setDeleteId(ev.id)}
-              aria-label={`Delete event ${ev.name}`}
-              style={{ background: 'none', border: '1px solid #c05050', color: '#c05050', padding: '8px 16px', fontSize: '14px', borderRadius: '4px', cursor: 'pointer', minHeight: '44px' }}
-            >
-              Delete
-            </button>
+            <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+              <button
+                onClick={() => handleEdit(ev)}
+                aria-label={`Edit event ${ev.name}`}
+                style={{ background: 'none', border: '1px solid var(--color-primary)', color: 'var(--color-primary)', padding: '8px 16px', fontSize: '14px', borderRadius: '4px', cursor: 'pointer', minHeight: '44px' }}
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => setDeleteId(ev.id)}
+                aria-label={`Delete event ${ev.name}`}
+                style={{ background: 'none', border: '1px solid #c05050', color: '#c05050', padding: '8px 16px', fontSize: '14px', borderRadius: '4px', cursor: 'pointer', minHeight: '44px' }}
+              >
+                Delete
+              </button>
+            </div>
           </li>
         ))}
       </ul>
