@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
+import { useDiscovery } from './DiscoveryProvider'
 import type { Event } from '@/lib/supabase/types'
 import { isValidHttpsUrl } from '@/lib/validate'
 
@@ -15,9 +16,7 @@ export default function EventsManager({ initialEvents }: Props) {
   const [editId, setEditId] = useState<string | null>(null)
   const [status, setStatus] = useState<'idle' | 'saving' | 'error'>('idle')
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [discoverStatus, setDiscoverStatus] = useState<'idle' | 'loading'>('idle')
-  const [discoverMessage, setDiscoverMessage] = useState<string | null>(null)
-  const [discoverError, setDiscoverError] = useState<string | null>(null)
+  const { state: discoverState, startDiscovery } = useDiscovery()
 
   function field(k: keyof typeof emptyForm) {
     return { value: form[k], onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm(f => ({ ...f, [k]: e.target.value })) }
@@ -99,49 +98,18 @@ export default function EventsManager({ initialEvents }: Props) {
     setDeleteId(null)
   }
 
-  async function handleFindEvents() {
-    setDiscoverStatus('loading')
-    setDiscoverMessage(null)
-    setDiscoverError(null)
-    try {
-      const res = await fetch('/api/admin/events/discover', { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) {
-        setDiscoverError(data.error ?? 'Discovery failed. Please try again.')
-        setDiscoverStatus('idle')
-        return
-      }
-      const { added, skipped } = data as { added: number; skipped: number }
-      if (added === 0 && skipped === 0) {
-        setDiscoverMessage('No new events found.')
-      } else if (added === 0) {
-        setDiscoverMessage(`No new events found — ${skipped} already in your list.`)
-      } else {
-        setDiscoverMessage(`${added} event${added !== 1 ? 's' : ''} added${skipped > 0 ? `, ${skipped} already in your list` : ''}.`)
-      }
-      // Re-fetch events list to show newly added events
-      const listRes = await fetch('/api/admin/events')
-      if (listRes.ok) {
-        const updated = await listRes.json()
-        setEvents(updated)
-      }
-    } catch {
-      setDiscoverError('Discovery failed. Please try again.')
-    }
-    setDiscoverStatus('idle')
-  }
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: discoverMessage || discoverError ? '12px' : '24px', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', color: 'var(--color-primary)', margin: 0 }}>Events</h1>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           <button
-            onClick={handleFindEvents}
-            disabled={discoverStatus === 'loading'}
-            style={{ background: 'transparent', color: 'var(--color-primary)', padding: '12px 20px', fontSize: '16px', border: '2px solid var(--color-primary)', borderRadius: '4px', cursor: discoverStatus === 'loading' ? 'not-allowed' : 'pointer', minHeight: '48px', opacity: discoverStatus === 'loading' ? 0.7 : 1 }}
+            onClick={startDiscovery}
+            disabled={discoverState === 'searching'}
+            style={{ background: 'transparent', color: 'var(--color-primary)', padding: '12px 20px', fontSize: '16px', border: '2px solid var(--color-primary)', borderRadius: '4px', cursor: discoverState === 'searching' ? 'not-allowed' : 'pointer', minHeight: '48px', opacity: discoverState === 'searching' ? 0.7 : 1 }}
           >
-            {discoverStatus === 'loading' ? 'Searching…' : 'Find Events'}
+            {discoverState === 'searching' ? 'Searching…' : 'Find Events'}
           </button>
           <button
             onClick={() => { setShowForm(s => !s); if (showForm && editId) { setEditId(null); setForm(emptyForm) } }}
@@ -151,17 +119,6 @@ export default function EventsManager({ initialEvents }: Props) {
           </button>
         </div>
       </div>
-
-      {discoverMessage && (
-        <p style={{ color: 'var(--color-primary)', fontSize: '15px', marginBottom: '20px', padding: '10px 14px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '4px' }}>
-          {discoverMessage}
-        </p>
-      )}
-      {discoverError && (
-        <p role="alert" style={{ color: '#c05050', fontSize: '15px', marginBottom: '20px', padding: '10px 14px', background: 'var(--color-surface)', border: '1px solid #c05050', borderRadius: '4px' }}>
-          {discoverError}
-        </p>
-      )}
 
       {showForm && (
         <form onSubmit={editId ? handleUpdate : handleAdd} style={{ background: 'var(--color-surface)', padding: '24px', borderRadius: '8px', marginBottom: '24px', border: '1px solid var(--color-border)' }}>
