@@ -32,6 +32,7 @@ export async function GET(request: Request) {
 
   const url = new URL(`${baseUrl}/oauth2/authorize`)
   url.searchParams.set('client_id', appId as string)
+  url.searchParams.set('response_type', 'code')
   url.searchParams.set('scope', scope)
   url.searchParams.set('redirect_uri', redirectUri)
   url.searchParams.set('session', 'false')
