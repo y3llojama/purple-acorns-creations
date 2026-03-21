@@ -48,10 +48,11 @@ export async function pushCategory(category: Category): Promise<SyncResult> {
     const squareCategoryId = result.catalogObject?.id
     if (!squareCategoryId) throw new Error('Square upsert returned no catalog object ID')
 
-    await supabase
+    const { error: updateError } = await supabase
       .from('categories')
       .update({ square_category_id: squareCategoryId, updated_at: new Date().toISOString() })
       .eq('id', category.id)
+    if (updateError) throw new Error(`Failed to update category square_category_id: ${updateError.message}`)
 
     return { productId: category.id, channel: 'square', success: true }
   } catch (err) {
@@ -76,12 +77,12 @@ export async function deleteSquareCategory(squareCategoryId: string): Promise<vo
 export async function pushProduct(product: Product): Promise<SyncResult> {
   try {
     const { client, locationId } = await getSquareClient()
+    const supabase = createServiceRoleClient()
     const idempotencyKey = `product-${product.id}-${Date.now()}`
 
     // Look up the category's Square ID via the FK
     let squareCategoryId: string | undefined
     if (product.category_id) {
-      const supabase = createServiceRoleClient()
       const { data } = await supabase
         .from('categories')
         .select('square_category_id')
@@ -95,7 +96,13 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
 
     // Delete-then-recreate to avoid VERSION_MISMATCH
     if (product.square_catalog_id) {
-      await client.catalog.object.delete({ objectId: product.square_catalog_id }).catch(() => {})
+      try {
+        await client.catalog.object.delete({ objectId: product.square_catalog_id })
+      } catch (err) {
+        if (!String(err).includes('404')) {
+          console.error('Square product delete failed:', err)
+        }
+      }
     }
 
     const result = await client.catalog.object.upsert({
@@ -129,11 +136,11 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
     const variationId = (result.catalogObject as any)?.itemData?.variations?.[0]?.id
     if (!catalogObjectId) throw new Error('Square upsert returned no catalog object ID')
 
-    const supabase = createServiceRoleClient()
-    await supabase
+    const { error: updateError } = await supabase
       .from('products')
       .update({ square_catalog_id: catalogObjectId, square_variation_id: variationId ?? null })
       .eq('id', product.id)
+    if (updateError) throw new Error(`Failed to update product square_catalog_id: ${updateError.message}`)
 
     if (variationId) {
       await client.inventory.batchCreateChanges({
