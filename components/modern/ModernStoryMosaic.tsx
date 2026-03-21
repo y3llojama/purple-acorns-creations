@@ -92,7 +92,7 @@ export default function ModernStoryMosaic({ photos, watermark }: { photos: Galle
             className="mss-item"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={watermark ? `/api/gallery/image?url=${encodeURIComponent(img.url)}` : img.url} alt={img.alt_text ?? ''} />
+            <img src={watermark && img.url.startsWith('https') ? `/api/gallery/image?url=${encodeURIComponent(img.url)}` : img.url} alt={img.alt_text ?? ''} />
           </div>
         ))}
       </div>
