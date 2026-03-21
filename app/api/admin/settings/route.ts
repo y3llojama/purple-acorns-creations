@@ -91,6 +91,10 @@ export async function POST(request: Request) {
     const val = String(body.ai_provider ?? '')
     update.ai_provider = ['claude', 'openai', 'groq'].includes(val) ? val : null
   }
+  if (body.ai_api_key !== undefined) {
+    const key = String(body.ai_api_key ?? '').trim()
+    if (key) update.ai_api_key = encryptValue(key)
+  }
 
   update.updated_at = new Date().toISOString()
   const supabase = createServiceRoleClient()
