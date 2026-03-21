@@ -66,7 +66,7 @@ export default async function HomePage() {
         })()}
         watermark={settings.gallery_watermark ? interpolate(settings.gallery_watermark, vars) : null}
       />
-      <GalleryScroller prefetchedFeatured={featured as Product[]} maxItems={settings.gallery_max_items ?? 8} />
+      <GalleryScroller prefetchedFeatured={featured as Product[]} maxItems={settings.gallery_max_items ?? 8} watermark={settings.gallery_watermark ? interpolate(settings.gallery_watermark, vars) : null} />
       <ModernStorySection
         teaser={sanitizeText(interpolate(content.story_teaser ?? '', vars))}
         images={gallery.length > 0

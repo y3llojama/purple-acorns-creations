@@ -7,9 +7,10 @@ import type { Product } from '@/lib/supabase/types'
 interface Props {
   prefetchedFeatured?: Product[]
   maxItems?: number
+  watermark?: string | null
 }
 
-export default async function GalleryScroller({ prefetchedFeatured, maxItems: maxItemsProp }: Props = {}) {
+export default async function GalleryScroller({ prefetchedFeatured, maxItems: maxItemsProp, watermark }: Props = {}) {
   const supabase = createServiceRoleClient()
 
   let maxItems = maxItemsProp ?? 8
@@ -58,7 +59,10 @@ export default async function GalleryScroller({ prefetchedFeatured, maxItems: ma
               <figure style={{ margin: 0, background: 'var(--color-bg)', borderRadius: '8px', overflow: 'hidden' }}>
                 <div style={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
                   {product.images[0] && isValidHttpsUrl(product.images[0]) ? (
-                    <Image src={product.images[0]} alt={product.name} fill style={{ objectFit: 'cover' }} sizes="(max-width: 640px) 50vw, 200px" />
+                    <Image
+                      src={watermark ? `/api/gallery/image?url=${encodeURIComponent(product.images[0])}` : product.images[0]}
+                      alt={product.name} fill style={{ objectFit: 'cover' }} sizes="(max-width: 640px) 50vw, 200px"
+                    />
                   ) : (
                     <div style={{ width: '100%', height: '100%', background: 'var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', fontSize: '12px' }}>No image</div>
                   )}
