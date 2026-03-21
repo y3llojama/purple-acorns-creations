@@ -7,26 +7,34 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
     const { client, locationId } = await getSquareClient()
     const idempotencyKey = `product-${product.id}-${Date.now()}`
 
-    // When updating an existing Square object, fetch its current version first.
-    // Square rejects upserts on existing objects that omit the version field.
-    let currentVersion: bigint | undefined
+    // When updating an existing Square object, fetch its current versions first.
+    // Square rejects upserts that omit the version on any object being updated,
+    // including nested ITEM_VARIATIONs which are independently versioned.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let existingItem: any | undefined
     if (product.square_catalog_id) {
       const existing = await client.catalog.object.get({ objectId: product.square_catalog_id })
-      currentVersion = existing.object?.version
+      existingItem = existing.object
     }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const existingVariation = existingItem?.itemData?.variations?.find((v: any) =>
+      v.id === product.square_variation_id
+    )
 
     const result = await client.catalog.object.upsert({
       idempotencyKey,
       object: {
         type: 'ITEM',
         id: product.square_catalog_id ?? `#NEW-${product.id}`,
-        ...(currentVersion !== undefined ? { version: currentVersion } : {}),
+        ...(existingItem?.version !== undefined ? { version: existingItem.version } : {}),
         itemData: {
           name: product.name,
           description: product.description ?? undefined,
           variations: [{
             type: 'ITEM_VARIATION',
             id: product.square_variation_id ?? `#VAR-${product.id}`,
+            ...(existingVariation?.version !== undefined ? { version: existingVariation.version } : {}),
             itemVariationData: {
               name: 'Regular',
               pricingType: 'FIXED_PRICING',
