@@ -15,14 +15,14 @@ export function buildProductSchema(product: Product, url: string): Record<string
       '@type': 'Offer',
       price: product.price,
       priceCurrency: 'USD',
-      availability: product.is_active
+      availability: product.is_active && product.stock_count > 0
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',
       url,
     },
   }
   if (product.description) schema.description = product.description
-  if (product.images.length > 0) schema.image = product.images.slice(0, 1)
+  if (product.images.length > 0) schema.image = product.images[0]
   return schema
 }
 

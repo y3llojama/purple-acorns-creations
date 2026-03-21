@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import ProductDetail from '@/components/shop/ProductDetail'
@@ -5,15 +6,22 @@ import type { Metadata } from 'next'
 import type { Product } from '@/lib/supabase/types'
 import { JsonLd, buildProductSchema, buildBreadcrumbSchema } from '@/lib/seo'
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  const { id } = await params
+// cache() deduplicates this query across generateMetadata and the page component
+// within the same render pass — only one DB round-trip per request
+const getProduct = cache(async (id: string) => {
   const supabase = createServiceRoleClient()
   const { data } = await supabase
     .from('products')
-    .select('name,description,images,price')
+    .select('*')
     .eq('id', id)
     .eq('is_active', true)
     .single()
+  return data
+})
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params
+  const data = await getProduct(id)
   if (!data) return { title: 'Product Not Found' }
 
   const description = `$${data.price}${data.description ? ` — ${data.description}` : ''}`
@@ -39,8 +47,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const supabase = createServiceRoleClient()
-  const { data: product } = await supabase.from('products').select('*').eq('id', id).eq('is_active', true).single()
+  const product = await getProduct(id)
   if (!product) notFound()
 
   const productUrl = `https://www.purpleacornz.com/shop/${id}`

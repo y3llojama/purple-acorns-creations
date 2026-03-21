@@ -32,7 +32,7 @@ describe('buildProductSchema', () => {
     const schema = buildProductSchema(baseProduct, url)
     expect(schema['name']).toBe('Moonlit Lace Earrings')
     expect(schema['description']).toBe('Handcrafted crochet earrings')
-    expect(schema['image']).toEqual(['https://example.com/image.jpg'])
+    expect(schema['image']).toBe('https://example.com/image.jpg')
   })
 
   it('sets availability InStock when is_active is true', () => {
@@ -59,6 +59,11 @@ describe('buildProductSchema', () => {
   it('omits image from schema when images array is empty', () => {
     const schema = buildProductSchema({ ...baseProduct, images: [] }, url)
     expect('image' in schema).toBe(false)
+  })
+
+  it('sets availability OutOfStock when stock_count is 0', () => {
+    const schema = buildProductSchema({ ...baseProduct, stock_count: 0 }, url)
+    expect(schema['offers']['availability']).toBe('https://schema.org/OutOfStock')
   })
 })
 
