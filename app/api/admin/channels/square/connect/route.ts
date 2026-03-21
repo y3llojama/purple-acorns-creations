@@ -26,8 +26,6 @@ export async function GET(request: Request) {
   const scope = [
     'MERCHANT_PROFILE_READ', 'ITEMS_READ', 'ITEMS_WRITE',
     'INVENTORY_READ', 'INVENTORY_WRITE',
-    'ORDERS_READ', 'ORDERS_WRITE',
-    'PAYMENTS_READ', 'PAYMENTS_WRITE',
   ].join(' ')
 
   const url = new URL(`${baseUrl}/oauth2/authorize`)
