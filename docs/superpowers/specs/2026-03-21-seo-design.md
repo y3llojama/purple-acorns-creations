@@ -69,27 +69,29 @@ twitter: {
 
 **File:** `app/(public)/shop/[id]/page.tsx` — `generateMetadata`
 
-Extend the existing metadata return to include OpenGraph image and richer description. Reuse the same DB query already made for title/description.
+Extend the existing metadata return to include OpenGraph image and price-enriched description.
+
+**Important:** The current `generateMetadata` query selects only `name, description`. Expand it to `select('name,description,images,price')` — do not rely on the separate page-render query, which is not shared with `generateMetadata`.
+
+`price` is a non-nullable `number` field on all products — always format it as `$XX` and prepend to the description.
 
 ```ts
+// generateMetadata query: .select('name,description,images,price')
 openGraph: {
   title: data.name,
-  description: data.description ?? undefined,
+  description: `$${data.price} — ${data.description ?? ''}`.trim(),
   images: data.images[0] ? [{ url: data.images[0], alt: data.name }] : undefined,
   type: 'website',
 }
-```
-
-If price is available on the product row, prepend it to the description (e.g. `"$24 — Handcrafted crochet earrings..."`).
 
 ### 1d. Newsletter Slug Metadata
 
 **File:** `app/(public)/newsletter/[slug]/page.tsx`
 
 Add `generateMetadata` that queries the newsletter by slug and returns:
-- `title`: newsletter subject
-- `description`: first ~160 characters of the body (stripped of HTML/markdown)
-- `openGraph.images`: fall back to the global OG image
+- `title`: newsletter subject (`data.subject`)
+- `description`: `data.teaser_text` — this is the purpose-built preview field already on the `newsletters` table; do not strip the body
+- `openGraph.images`: fall back to the global OG image (`/og-image.jpg`)
 
 ---
 
@@ -131,15 +133,19 @@ Fields sourced from the product DB row (already fetched for the page render):
     "@type": "Offer",
     "price": "[product.price]",
     "priceCurrency": "USD",
-    "availability": "https://schema.org/InStock",
+    "availability": "https://schema.org/[InStock if product.is_active, else OutOfStock]",
     "url": "https://www.purpleacornz.com/shop/[id]"
   }
 }
 ```
 
+Note: `availability` must be set dynamically from `product.is_active` per the `buildProductSchema` rule in Section 2a — not hardcoded to `InStock`.
+
 ### 2c. Organization Schema — Homepage
 
 Associates the website with the Google Business Profile and Instagram. `businessName` sourced from `settings.business_name` (already fetched by the page).
+
+> **ACTION REQUIRED before shipping:** The GBP URL must be retrieved from the Google Business Profile dashboard and hardcoded in `lib/seo.ts` (or stored as `NEXT_PUBLIC_GBP_URL` env var). It cannot be derived from the codebase. Leaving it as a placeholder will silently emit an invalid `sameAs` value that Googlebot will index.
 
 ```json
 {
@@ -150,7 +156,7 @@ Associates the website with the Google Business Profile and Instagram. `business
   "logo": "https://www.purpleacornz.com/og-image.jpg",
   "sameAs": [
     "https://www.instagram.com/purpleacornz/",
-    "[google-business-profile-url]"
+    "ACTION REQUIRED: replace with actual GBP URL from dashboard"
   ]
 }
 ```
