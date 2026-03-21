@@ -7,11 +7,20 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
     const { client, locationId } = await getSquareClient()
     const idempotencyKey = `product-${product.id}-${Date.now()}`
 
+    // When updating an existing Square object, fetch its current version first.
+    // Square rejects upserts on existing objects that omit the version field.
+    let currentVersion: bigint | undefined
+    if (product.square_catalog_id) {
+      const existing = await client.catalog.object.get({ objectId: product.square_catalog_id })
+      currentVersion = existing.object?.version
+    }
+
     const result = await client.catalog.object.upsert({
       idempotencyKey,
       object: {
         type: 'ITEM',
         id: product.square_catalog_id ?? `#NEW-${product.id}`,
+        ...(currentVersion !== undefined ? { version: currentVersion } : {}),
         itemData: {
           name: product.name,
           description: product.description ?? undefined,
