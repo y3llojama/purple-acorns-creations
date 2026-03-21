@@ -335,3 +335,102 @@ export async function pullCategoriesFromSquare(): Promise<{ upserted: number; er
 
   return { upserted, errors }
 }
+
+// ─── Products pull (Square → Supabase) ───────────────────────────────────────
+
+/**
+ * Pull ITEM objects from the Square catalog and upsert them into Supabase products.
+ * Matches on `square_catalog_id`. Creates new rows for unknown Square items.
+ * Returns { upserted, errors }.
+ */
+export async function pullProductsFromSquare(): Promise<{ upserted: number; errors: string[] }> {
+  const { client } = await getSquareClient()
+  const supabase = createServiceRoleClient()
+
+  const listResult = await client.catalog.list({ types: 'ITEM' })
+  const objects = listResult.data ?? []
+
+  let upserted = 0
+  const errors: string[] = []
+
+  for (const obj of objects) {
+    if (obj.type !== 'ITEM' || !obj.id) continue
+    const itemData = obj.itemData
+    if (!itemData?.name) continue
+
+    const squareCatalogId = obj.id
+    const name = itemData.name.trim()
+    const description = itemData.description ?? null
+
+    // Price from first variation (cents BigInt → dollars float)
+    // variations[] is CatalogObject[] — cast to access itemVariationData
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const variation = itemData.variations?.[0] as any
+    const variationId: string | null = variation?.id ?? null
+    const priceCents = variation?.itemVariationData?.priceMoney?.amount
+    const price = priceCents != null ? Number(priceCents) / 100 : 0
+
+    // Category link via Square category ID
+    let categoryId: string | null = null
+    const squareCategoryId = itemData.categories?.[0]?.id
+    if (squareCategoryId) {
+      const { data: cat } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('square_category_id', squareCategoryId)
+        .single()
+      categoryId = cat?.id ?? null
+    }
+
+    const { data: existing } = await supabase
+      .from('products')
+      .select('id')
+      .eq('square_catalog_id', squareCatalogId)
+      .single()
+
+    if (existing) {
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({
+          name,
+          description,
+          price,
+          category_id: categoryId,
+          square_variation_id: variationId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existing.id)
+      if (updateError) {
+        errors.push(`Product ${squareCatalogId}: ${updateError.message}`)
+      } else {
+        upserted++
+      }
+    } else {
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      const { error: insertError } = await supabase
+        .from('products')
+        .insert({
+          name,
+          description,
+          price,
+          category_id: categoryId,
+          stock_count: 0,
+          images: [],
+          is_active: true,
+          gallery_featured: false,
+          square_catalog_id: squareCatalogId,
+          square_variation_id: variationId,
+          slug,
+        })
+      if (insertError) {
+        if (!insertError.message.includes('duplicate') && !insertError.message.includes('unique')) {
+          errors.push(`Product ${squareCatalogId}: ${insertError.message}`)
+        }
+      } else {
+        upserted++
+      }
+    }
+  }
+
+  return { upserted, errors }
+}
