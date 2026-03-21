@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getSquareClient } from '@/lib/channels/square/client'
+import { pushInventoryToSquare } from '@/lib/channels/square/catalog'
 
 const rateMap = new Map<string, { count: number; reset: number }>()
 function checkRate(ip: string): boolean {
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
 
   // Step 1: Validate stock
   const { data: products } = await supabase
-    .from('products').select('id,name,price,stock_count').in('id', cart.map(i => i.productId))
+    .from('products').select('id,name,price,stock_count,square_variation_id').in('id', cart.map(i => i.productId))
   if (!products) return NextResponse.json({ error: 'Failed to validate cart' }, { status: 500 })
   for (const item of cart) {
     const p = products.find(p => p.id === item.productId)
@@ -92,6 +93,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Item sold out — payment refunded', soldOut: item.productId }, { status: 409 })
     }
     decremented.push(item)
+  }
+
+  // Step 6: Fire-and-forget push to Square inventory (non-blocking)
+  const squareItems = decremented
+    .map(item => {
+      const p = products.find(p => p.id === item.productId)
+      return p?.square_variation_id
+        ? { squareVariationId: p.square_variation_id, quantity: item.quantity }
+        : null
+    })
+    .filter((x): x is { squareVariationId: string; quantity: number } => x !== null)
+  if (squareItems.length > 0) {
+    pushInventoryToSquare(squareItems).catch(err =>
+      console.error('Square inventory push failed (non-blocking):', err)
+    )
   }
 
   return NextResponse.json({ orderId, paymentId })

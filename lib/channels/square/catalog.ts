@@ -167,3 +167,171 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
 export async function fullSync(products: Product[]): Promise<SyncResult[]> {
   return Promise.all(products.map(pushProduct))
 }
+
+// ─── Inventory pull (Square → Supabase) ────────────────────────────────────
+
+/**
+ * Pull inventory counts from Square and update matching products in Supabase.
+ * Only products with a `square_variation_id` are touched.
+ * Returns { updated, skipped, errors }.
+ */
+export async function pullInventoryFromSquare(): Promise<{ updated: number; skipped: number; errors: string[] }> {
+  const { client, locationId } = await getSquareClient()
+  const supabase = createServiceRoleClient()
+
+  // Fetch all products that have a Square variation ID
+  const { data: products, error: fetchError } = await supabase
+    .from('products')
+    .select('id, square_variation_id, stock_count')
+  if (fetchError) throw new Error(`Failed to fetch products: ${fetchError.message}`)
+
+  const linked = (products ?? []).filter(p => p.square_variation_id)
+  if (linked.length === 0) return { updated: 0, skipped: 0, errors: [] }
+
+  const catalogObjectIds = linked.map(p => p.square_variation_id as string)
+
+  // SDK v44: batchGetCounts (not batchRetrieveCounts)
+  const countsResult = await client.inventory.batchGetCounts({
+    catalogObjectIds,
+    locationIds: [locationId],
+  })
+
+  // Page<InventoryCount, BatchGetInventoryCountsResponse> — data is in .data
+  const counts = countsResult.data ?? []
+
+  let updated = 0
+  let skipped = 0
+  const errors: string[] = []
+
+  for (const product of linked) {
+    const count = counts.find(
+      c => c.catalogObjectId === product.square_variation_id && c.state === 'IN_STOCK'
+    )
+    if (!count) {
+      skipped++
+      continue
+    }
+
+    const newQty = Math.max(0, parseInt(count.quantity ?? '0', 10))
+    if (newQty === product.stock_count) {
+      skipped++
+      continue
+    }
+
+    const { error: updateError } = await supabase
+      .from('products')
+      .update({ stock_count: newQty, updated_at: new Date().toISOString() })
+      .eq('id', product.id)
+
+    if (updateError) {
+      errors.push(`Product ${product.id}: ${updateError.message}`)
+    } else {
+      updated++
+    }
+  }
+
+  return { updated, skipped, errors }
+}
+
+// ─── Inventory push (Supabase → Square) ─────────────────────────────────────
+
+/**
+ * Push a sold quantity to Square as an ADJUSTMENT (IN_STOCK → SOLD).
+ * Call this after a successful checkout to keep Square counts in sync.
+ */
+export async function pushInventoryToSquare(
+  items: Array<{ squareVariationId: string; quantity: number }>
+): Promise<void> {
+  if (items.length === 0) return
+
+  const { client, locationId } = await getSquareClient()
+  const occurredAt = new Date().toISOString()
+
+  await client.inventory.batchCreateChanges({
+    idempotencyKey: `checkout-push-${Date.now()}-${crypto.randomUUID()}`,
+    changes: items.map(item => ({
+      type: 'ADJUSTMENT' as const,
+      adjustment: {
+        catalogObjectId: item.squareVariationId,
+        quantity: String(item.quantity),
+        occurredAt,
+        fromState: 'IN_STOCK' as const,
+        toState: 'SOLD' as const,
+        locationId,
+      },
+    })),
+  })
+}
+
+// ─── Categories pull (Square → Supabase) ─────────────────────────────────────
+
+/**
+ * Pull categories from the Square catalog and upsert them into Supabase.
+ * Matches on `square_category_id`. Creates new rows for unknown Square categories.
+ * Returns { upserted, errors }.
+ */
+export async function pullCategoriesFromSquare(): Promise<{ upserted: number; errors: string[] }> {
+  const { client } = await getSquareClient()
+  const supabase = createServiceRoleClient()
+
+  // List all CATEGORY objects from Square catalog
+  // Page<CatalogObject, ListCatalogResponse> — data is in .data
+  const listResult = await client.catalog.list({ types: 'CATEGORY' })
+  const objects = listResult.data ?? []
+
+  let upserted = 0
+  const errors: string[] = []
+
+  for (const obj of objects) {
+    if (obj.type !== 'CATEGORY' || !obj.id) continue
+    const catData = obj.categoryData
+    if (!catData?.name) continue
+
+    const squareCategoryId = obj.id
+    const name = catData.name.trim()
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+
+    // Check if we already have this category
+    const { data: existing } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('square_category_id', squareCategoryId)
+      .single()
+
+    if (existing) {
+      // Update name and slug if changed
+      const { error: updateError } = await supabase
+        .from('categories')
+        .update({ name, slug, updated_at: new Date().toISOString() })
+        .eq('id', existing.id)
+      if (updateError) {
+        errors.push(`Category ${squareCategoryId}: ${updateError.message}`)
+      } else {
+        upserted++
+      }
+    } else {
+      // Insert new category
+      const { error: insertError } = await supabase
+        .from('categories')
+        .insert({
+          name,
+          slug,
+          square_category_id: squareCategoryId,
+          parent_id: null,
+          sort_order: 0,
+          category_type: 'REGULAR_CATEGORY',
+          online_visibility: catData.onlineVisibility ?? true,
+        })
+      if (insertError) {
+        // Slug collision — skip gracefully
+        if (!insertError.message.includes('duplicate') && !insertError.message.includes('unique')) {
+          errors.push(`Category ${squareCategoryId}: ${insertError.message}`)
+        }
+      } else {
+        upserted++
+      }
+    }
+  }
+
+  return { upserted, errors }
+}

@@ -39,6 +39,8 @@ export default function InventoryManager({ initialProducts, categories, squareSy
   const [showForm, setShowForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined)
   const [loading, setLoading] = useState(false)
+  const [syncingStock, setSyncingStock] = useState(false)
+  const [syncStockResult, setSyncStockResult] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'products' | 'categories'>(initialTab ?? 'products')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -95,6 +97,25 @@ export default function InventoryManager({ initialProducts, categories, squareSy
   function handleFormCancel() {
     setShowForm(false)
     setEditingProduct(undefined)
+  }
+
+  async function handleSyncStockFromSquare() {
+    setSyncingStock(true)
+    setSyncStockResult(null)
+    try {
+      const res = await fetch('/api/admin/inventory/sync-from-square', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setSyncStockResult(`Error: ${data.error ?? 'Sync failed'}`)
+      } else {
+        setSyncStockResult(`Done — ${data.updated} updated, ${data.skipped} skipped${data.errors?.length ? `, ${data.errors.length} error(s)` : ''}`)
+        fetchProducts(search, categoryFilter)
+      }
+    } catch (err) {
+      setSyncStockResult(`Error: ${String(err)}`)
+    } finally {
+      setSyncingStock(false)
+    }
   }
 
   // Look up category name from the flat categories list
@@ -186,10 +207,42 @@ export default function InventoryManager({ initialProducts, categories, squareSy
               ))}
             </div>
 
-            <button style={{ ...btnStyle, marginLeft: 'auto' }} onClick={handleAddNew}>
-              + Add Product
-            </button>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              {squareSyncEnabled && (
+                <button
+                  onClick={handleSyncStockFromSquare}
+                  disabled={syncingStock}
+                  style={{
+                    ...btnStyle,
+                    background: syncingStock ? 'var(--color-text-muted)' : 'var(--color-surface)',
+                    color: 'var(--color-primary)',
+                    border: '1px solid var(--color-border)',
+                    cursor: syncingStock ? 'not-allowed' : 'pointer',
+                  }}
+                  aria-busy={syncingStock}
+                >
+                  {syncingStock ? 'Syncing…' : 'Sync Stock from Square'}
+                </button>
+              )}
+              <button style={{ ...btnStyle }} onClick={handleAddNew}>
+                + Add Product
+              </button>
+            </div>
           </div>
+
+          {/* Sync result message */}
+          {syncStockResult && (
+            <p
+              role="status"
+              style={{
+                marginBottom: '12px',
+                fontSize: '14px',
+                color: syncStockResult.startsWith('Error') ? 'var(--color-error)' : 'var(--color-success-text)',
+              }}
+            >
+              {syncStockResult}
+            </p>
+          )}
 
           {/* Loading indicator */}
           {loading && (
