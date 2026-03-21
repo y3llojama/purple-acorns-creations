@@ -10,6 +10,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings()
   const name = settings.business_name
   return {
+    metadataBase: new URL('https://www.purpleacornz.com'),
     title: {
       default: name,
       template: `%s — ${name}`,
@@ -18,6 +19,9 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       siteName: name,
       images: ['/og-image.jpg'],
+    },
+    twitter: {
+      card: 'summary_large_image',
     },
   }
 }

@@ -7,9 +7,33 @@ import type { Product } from '@/lib/supabase/types'
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
   const supabase = createServiceRoleClient()
-  const { data } = await supabase.from('products').select('name,description').eq('id', id).eq('is_active', true).single()
+  const { data } = await supabase
+    .from('products')
+    .select('name,description,images,price')
+    .eq('id', id)
+    .eq('is_active', true)
+    .single()
   if (!data) return { title: 'Product Not Found' }
-  return { title: data.name, description: data.description ?? undefined }
+
+  const description = `$${data.price}${data.description ? ` — ${data.description}` : ''}`
+  const firstImage = data.images[0] as string | undefined
+
+  return {
+    title: data.name,
+    description,
+    openGraph: {
+      title: data.name,
+      description,
+      images: firstImage ? [{ url: firstImage, alt: data.name }] : undefined,
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: data.name,
+      description,
+      images: firstImage ? [firstImage] : undefined,
+    },
+  }
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
