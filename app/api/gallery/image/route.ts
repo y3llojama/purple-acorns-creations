@@ -68,15 +68,29 @@ export async function GET(request: NextRequest) {
     const width = metadata.width || 800
     const height = metadata.height || 800
 
+    // Images are displayed in square (1:1) cards with objectFit:cover.
+    // For portrait images (height > width), cover crops equally from top and bottom —
+    // the visible region is the center `width × width` slice.
+    // For landscape images (width > height), cover crops equally from left and right —
+    // the visible region is the center `height × height` slice.
+    // We must place the watermark inside this "always-visible square" to guarantee visibility.
+    const squareSide = Math.min(width, height)
+    const safeRight = Math.round((width + squareSide) / 2)   // right edge of safe square
+    const safeBottom = Math.round((height + squareSide) / 2) // bottom edge of safe square
+    const pad = Math.round(squareSide * 0.015)               // ~1.5% inset from safe edges
+    const wmX = safeRight - pad
+    const wmY = safeBottom - pad
+
+    // Font size relative to the visible square, not the full image dimension.
     // Single bottom-right watermark — white bold text with black stroke for legibility on any background.
     // paint-order="stroke fill" draws the stroke behind the fill, creating a visible outline even on white backgrounds.
     // stroke="black" stroke-opacity="0.85" (NOT stroke="rgba(...)") — librsvg ignores rgba() in presentation attributes.
-    const fontSize = Math.max(14, Math.round(width / 30))
+    const fontSize = Math.max(14, Math.round(squareSide / 30))
     const svg = `
       <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
         <text
-          x="${width - 12}"
-          y="${height - 10}"
+          x="${wmX}"
+          y="${wmY}"
           text-anchor="end"
           font-family="Arial, Helvetica, sans-serif"
           font-size="${fontSize}"
