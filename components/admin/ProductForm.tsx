@@ -1,10 +1,11 @@
 'use client'
 import { useState } from 'react'
 import ImageUploader from './ImageUploader'
-import type { Product, ProductCategory } from '@/lib/supabase/types'
+import type { Product, Category } from '@/lib/supabase/types'
 
 interface Props {
   product?: Product
+  categories: Category[]
   onSave: () => void
   onCancel: () => void
 }
@@ -41,13 +42,11 @@ const btnSecondaryStyle: React.CSSProperties = {
   minHeight: '48px',
 }
 
-const CATEGORIES: ProductCategory[] = ['rings', 'necklaces', 'earrings', 'bracelets', 'crochet', 'other']
-
-export default function ProductForm({ product, onSave, onCancel }: Props) {
+export default function ProductForm({ product, categories, onSave, onCancel }: Props) {
   const [name, setName] = useState(product?.name ?? '')
   const [description, setDescription] = useState(product?.description ?? '')
   const [price, setPrice] = useState(product ? String(product.price) : '')
-  const [category, setCategory] = useState<ProductCategory>(product?.category ?? 'other')
+  const [categoryId, setCategoryId] = useState<string>(product?.category_id ?? '')
   const [stockCount, setStockCount] = useState(product ? String(product.stock_count) : '0')
   const [images, setImages] = useState<string[]>(product?.images ?? [])
   const [isActive, setIsActive] = useState(product?.is_active ?? true)
@@ -76,7 +75,7 @@ export default function ProductForm({ product, onSave, onCancel }: Props) {
         name: name.trim(),
         description: description.trim() || null,
         price: Number(price),
-        category,
+        category_id: categoryId || null,
         stock_count: Number(stockCount) || 0,
         images,
         is_active: isActive,
@@ -152,12 +151,19 @@ export default function ProductForm({ product, onSave, onCancel }: Props) {
         <label htmlFor="pf-category" style={labelStyle}>Category</label>
         <select
           id="pf-category"
-          value={category}
-          onChange={e => setCategory(e.target.value as ProductCategory)}
+          value={categoryId}
+          onChange={e => setCategoryId(e.target.value)}
           style={inputStyle}
         >
-          {CATEGORIES.map(c => (
-            <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+          <option value="">— Uncategorized —</option>
+          {/* Top-level categories without a parent */}
+          {categories.filter(c => !c.parent_id).map(parent => (
+            <optgroup key={parent.id} label={parent.name}>
+              <option value={parent.id}>{parent.name}</option>
+              {categories.filter(c => c.parent_id === parent.id).map(child => (
+                <option key={child.id} value={child.id}>&nbsp;&nbsp;{child.name}</option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </div>
