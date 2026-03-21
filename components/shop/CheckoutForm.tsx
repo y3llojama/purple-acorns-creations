@@ -75,7 +75,7 @@ export default function CheckoutForm() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) { setError(data.error ?? 'Payment failed'); return }
+      if (!res.ok) { setError(`${data.error ?? 'Payment failed'}${data.detail ? ` — ${data.detail}` : ''}`); return }
       clearCart()
       router.push(`/shop/confirmation/${data.orderId}`)
     } catch (err) {
