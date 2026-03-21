@@ -51,6 +51,7 @@ export async function GET(request: Request) {
   }
 
   const tokens = await tokenRes.json()
+  console.log('[square/callback] token exchange ok, hasAccessToken:', !!tokens.access_token)
 
   const client = new SquareClient({
     token: tokens.access_token,
@@ -63,15 +64,18 @@ export async function GET(request: Request) {
   try {
     const locResult = await client.locations.list()
     locationId = locResult.locations?.[0]?.id ?? ''
-  } catch {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/admin/channels?error=square_location`)
+    console.log('[square/callback] location fetch ok, locationId:', locationId)
+  } catch (e) {
+    console.error('[square/callback] location fetch failed:', e)
+    return NextResponse.redirect(`${(process.env.NEXT_PUBLIC_APP_URL ?? '').trim()}/admin/channels?error=square_location`)
   }
 
-  await supabase.from('settings').update({
+  const { error: dbError } = await supabase.from('settings').update({
     square_access_token: encryptToken(tokens.access_token),
     square_refresh_token: tokens.refresh_token ? encryptToken(tokens.refresh_token) : null,
     square_location_id: locationId,
   })
+  console.log('[square/callback] db update error:', dbError?.message ?? 'none')
 
-  return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/admin/channels?connected=square`)
+  return NextResponse.redirect(`${(process.env.NEXT_PUBLIC_APP_URL ?? '').trim()}/admin/channels?connected=square`)
 }
