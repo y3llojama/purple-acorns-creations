@@ -67,23 +67,25 @@ export async function GET(request: NextRequest) {
   const width = metadata.width || 800
   const height = metadata.height || 800
 
-  // Single bottom-right watermark using system fonts + SVG stroke for legibility on any background
+  // Single bottom-right watermark — style matches CSS overlay: white bold text, drop shadow
   const fontSize = Math.max(14, Math.round(width / 30))
   const svg = `
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="black" flood-opacity="0.85"/>
+        </filter>
+      </defs>
       <text
         x="${width - 12}"
         y="${height - 10}"
         text-anchor="end"
         font-family="Arial, Helvetica, sans-serif"
         font-size="${fontSize}"
-        font-weight="bold"
+        font-weight="700"
         fill="white"
-        stroke="black"
-        stroke-opacity="0.85"
-        stroke-width="3"
-        paint-order="stroke fill"
-        letter-spacing="0.04em"
+        filter="url(#shadow)"
+        letter-spacing="0.06em"
       >${escapeXml(watermark)}</text>
     </svg>
   `
