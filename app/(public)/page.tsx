@@ -3,6 +3,7 @@ import { getAllContent } from '@/lib/content'
 import { getSettings } from '@/lib/theme'
 import { sanitizeText } from '@/lib/sanitize'
 import { interpolate, buildVars } from '@/lib/variables'
+import { JsonLd, buildOrganizationSchema } from '@/lib/seo'
 import InstagramFeed from '@/components/home/InstagramFeed'
 import NewsletterSignup from '@/components/home/NewsletterSignup'
 import GalleryScroller from '@/components/home/GalleryScroller'
@@ -41,6 +42,7 @@ export default async function HomePage() {
   }
 
   const vars = buildVars(settings.business_name)
+  const orgSchema = buildOrganizationSchema(settings.business_name)
   const event = eventResult.data ? {
     ...eventResult.data,
     name: interpolate(eventResult.data.name, vars),
@@ -50,6 +52,7 @@ export default async function HomePage() {
 
   return (
     <>
+      <JsonLd schema={orgSchema} />
       <ModernHero
         tagline={sanitizeText(interpolate(content.hero_tagline ?? '', vars))}
         subtext={sanitizeText(interpolate(content.hero_subtext ?? '', vars))}
