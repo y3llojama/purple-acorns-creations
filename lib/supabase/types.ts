@@ -1,5 +1,4 @@
 export type Theme = 'warm-artisan' | 'soft-botanical' | 'custom' | 'modern'
-export type Category = 'rings' | 'necklaces' | 'earrings' | 'bracelets' | 'crochet' | 'other'
 export type AiProvider = 'claude' | 'openai' | 'groq'
 
 export interface Settings {
@@ -41,13 +40,32 @@ export interface Settings {
   ai_api_key: string | null
 }
 
+export interface Category {
+  id: string
+  name: string
+  slug: string
+  parent_id: string | null
+  sort_order: number
+  category_type: 'REGULAR_CATEGORY' | 'MENU_CATEGORY'
+  online_visibility: boolean
+  seo_title: string | null
+  seo_description: string | null
+  seo_permalink: string | null
+  square_category_id: string | null
+  created_at: string
+  updated_at: string
+  // Runtime-joined fields (not DB columns)
+  product_count?: number
+  children?: Category[]
+}
+
 export interface Event {
   id: string; name: string; date: string; time: string | null; location: string
   description: string | null; link_url: string | null; link_label: string | null; created_at: string
 }
 
 export interface GalleryItem {
-  id: string; url: string; alt_text: string; category: Category | null; sort_order: number; is_featured: boolean; square_url: string | null; product_id: string | null; created_at: string
+  id: string; url: string; alt_text: string; category_id: string | null; sort_order: number; is_featured: boolean; square_url: string | null; product_id: string | null; created_at: string
 }
 
 export interface FollowAlongPhoto {
@@ -100,7 +118,7 @@ export interface Product {
   name: string
   description: string | null
   price: number
-  category: ProductCategory
+  category_id: string | null
   stock_count: number
   images: string[]
   is_active: boolean
