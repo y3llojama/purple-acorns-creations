@@ -39,12 +39,10 @@ export default function InventoryManager({ initialProducts, categories, squareSy
   const [showForm, setShowForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined)
   const [loading, setLoading] = useState(false)
-  const [syncingStock, setSyncingStock] = useState(false)
-  const [syncStockResult, setSyncStockResult] = useState<string | null>(null)
-  const [syncingItems, setSyncingItems] = useState(false)
-  const [syncItemsResult, setSyncItemsResult] = useState<string | null>(null)
-  const [pushingUnsynced, setPushingUnsynced] = useState(false)
-  const [pushUnsyncedResult, setPushUnsyncedResult] = useState<string | null>(null)
+  const [syncingFromSquare, setSyncingFromSquare] = useState(false)
+  const [syncFromSquareResult, setSyncFromSquareResult] = useState<string | null>(null)
+  const [pushingToSquare, setPushingToSquare] = useState(false)
+  const [pushToSquareResult, setPushToSquareResult] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'products' | 'categories'>(initialTab ?? 'products')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -103,62 +101,44 @@ export default function InventoryManager({ initialProducts, categories, squareSy
     setEditingProduct(undefined)
   }
 
-  async function handleSyncStockFromSquare() {
-    setSyncingStock(true)
-    setSyncStockResult(null)
+  async function handleSyncFromSquare() {
+    setSyncingFromSquare(true)
+    setSyncFromSquareResult(null)
     try {
       const res = await fetch('/api/admin/inventory/sync-from-square', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) {
-        setSyncStockResult(`Error: ${data.error ?? 'Sync failed'}`)
+        setSyncFromSquareResult(`Error: ${data.error ?? 'Sync failed'}`)
       } else {
-        setSyncStockResult(`Done — ${data.updated} updated, ${data.skipped} skipped${data.errors?.length ? `, ${data.errors.length} error(s)` : ''}`)
+        const { catalog, stock } = data
+        setSyncFromSquareResult(`${catalog.upserted} items, ${stock.updated} stock updates`)
         fetchProducts(search, categoryFilter)
       }
     } catch (err) {
-      setSyncStockResult(`Error: ${String(err)}`)
+      setSyncFromSquareResult(`Error: ${String(err)}`)
     } finally {
-      setSyncingStock(false)
+      setSyncingFromSquare(false)
     }
   }
 
-  async function handlePushUnsyncedToSquare() {
-    setPushingUnsynced(true)
-    setPushUnsyncedResult(null)
+  async function handlePushToSquare() {
+    setPushingToSquare(true)
+    setPushToSquareResult(null)
     try {
       const res = await fetch('/api/admin/inventory/push-unsynced', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) {
-        setPushUnsyncedResult(`Error: ${data.error ?? 'Push failed'}`)
+        setPushToSquareResult(`Error: ${data.error ?? 'Push failed'}`)
       } else if (data.pushed === 0) {
-        setPushUnsyncedResult('All products already synced.')
+        setPushToSquareResult('All products already in Square.')
       } else {
-        setPushUnsyncedResult(`Pushed ${data.pushed}${data.errors?.length ? `, ${data.errors.length} error(s)` : ''}`)
+        setPushToSquareResult(`Pushed ${data.pushed}${data.errors?.length ? `, ${data.errors.length} error(s)` : ''}`)
         fetchProducts(search, categoryFilter)
       }
     } catch (err) {
-      setPushUnsyncedResult(`Error: ${String(err)}`)
+      setPushToSquareResult(`Error: ${String(err)}`)
     } finally {
-      setPushingUnsynced(false)
-    }
-  }
-
-  async function handleSyncItemsFromSquare() {
-    setSyncingItems(true)
-    setSyncItemsResult(null)
-    try {
-      const res = await fetch('/api/admin/inventory/sync-items-from-square', { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) {
-        setSyncItemsResult(`Error: ${data.error ?? 'Sync failed'}`)
-      } else {
-        setSyncItemsResult(`Done — ${data.upserted} synced${data.errors?.length ? `, ${data.errors.length} error(s)` : ''}`)
-        fetchProducts(search, categoryFilter)
-      }
-    } catch (err) {
-      setSyncItemsResult(`Error: ${String(err)}`)
-    } finally {
-      setSyncingItems(false)
+      setPushingToSquare(false)
     }
   }
 
@@ -255,49 +235,34 @@ export default function InventoryManager({ initialProducts, categories, squareSy
               {squareSyncEnabled && (
                 <>
                   <button
-                    onClick={handlePushUnsyncedToSquare}
-                    disabled={pushingUnsynced}
+                    onClick={handlePushToSquare}
+                    disabled={pushingToSquare}
                     style={{
                       ...btnStyle,
                       background: 'var(--color-surface)',
                       color: 'var(--color-primary)',
                       border: '1px solid var(--color-border)',
-                      cursor: pushingUnsynced ? 'not-allowed' : 'pointer',
-                      opacity: pushingUnsynced ? 0.7 : 1,
+                      cursor: pushingToSquare ? 'not-allowed' : 'pointer',
+                      opacity: pushingToSquare ? 0.7 : 1,
                     }}
-                    aria-busy={pushingUnsynced}
+                    aria-busy={pushingToSquare}
                   >
-                    {pushingUnsynced ? 'Pushing…' : 'Push Unsynced to Square'}
+                    {pushingToSquare ? 'Pushing…' : 'Push to Square'}
                   </button>
                   <button
-                    onClick={handleSyncItemsFromSquare}
-                    disabled={syncingItems}
+                    onClick={handleSyncFromSquare}
+                    disabled={syncingFromSquare}
                     style={{
                       ...btnStyle,
                       background: 'var(--color-surface)',
                       color: 'var(--color-primary)',
                       border: '1px solid var(--color-border)',
-                      cursor: syncingItems ? 'not-allowed' : 'pointer',
-                      opacity: syncingItems ? 0.7 : 1,
+                      cursor: syncingFromSquare ? 'not-allowed' : 'pointer',
+                      opacity: syncingFromSquare ? 0.7 : 1,
                     }}
-                    aria-busy={syncingItems}
+                    aria-busy={syncingFromSquare}
                   >
-                    {syncingItems ? 'Syncing…' : 'Sync Items from Square'}
-                  </button>
-                  <button
-                    onClick={handleSyncStockFromSquare}
-                    disabled={syncingStock}
-                    style={{
-                      ...btnStyle,
-                      background: 'var(--color-surface)',
-                      color: 'var(--color-primary)',
-                      border: '1px solid var(--color-border)',
-                      cursor: syncingStock ? 'not-allowed' : 'pointer',
-                      opacity: syncingStock ? 0.7 : 1,
-                    }}
-                    aria-busy={syncingStock}
-                  >
-                    {syncingStock ? 'Syncing…' : 'Sync Stock from Square'}
+                    {syncingFromSquare ? 'Syncing…' : 'Sync from Square'}
                   </button>
                 </>
               )}
@@ -307,41 +272,14 @@ export default function InventoryManager({ initialProducts, categories, squareSy
             </div>
           </div>
 
-          {/* Sync result messages */}
-          {pushUnsyncedResult && (
-            <p
-              role="status"
-              style={{
-                marginBottom: '8px',
-                fontSize: '14px',
-                color: pushUnsyncedResult.startsWith('Error') ? 'var(--color-error)' : 'var(--color-success-text)',
-              }}
-            >
-              Push: {pushUnsyncedResult}
+          {pushToSquareResult && (
+            <p role="status" style={{ marginBottom: '8px', fontSize: '14px', color: pushToSquareResult.startsWith('Error') ? 'var(--color-error)' : 'var(--color-success-text)' }}>
+              {pushToSquareResult}
             </p>
           )}
-          {syncItemsResult && (
-            <p
-              role="status"
-              style={{
-                marginBottom: '8px',
-                fontSize: '14px',
-                color: syncItemsResult.startsWith('Error') ? 'var(--color-error)' : 'var(--color-success-text)',
-              }}
-            >
-              Items: {syncItemsResult}
-            </p>
-          )}
-          {syncStockResult && (
-            <p
-              role="status"
-              style={{
-                marginBottom: '12px',
-                fontSize: '14px',
-                color: syncStockResult.startsWith('Error') ? 'var(--color-error)' : 'var(--color-success-text)',
-              }}
-            >
-              Stock: {syncStockResult}
+          {syncFromSquareResult && (
+            <p role="status" style={{ marginBottom: '12px', fontSize: '14px', color: syncFromSquareResult.startsWith('Error') ? 'var(--color-error)' : 'var(--color-success-text)' }}>
+              {syncFromSquareResult}
             </p>
           )}
 

@@ -315,7 +315,7 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
                 style={{ ...btnStyle, background: 'var(--color-surface)', color: 'var(--color-primary)', border: '1px solid var(--color-border)', cursor: pushingUnsynced ? 'not-allowed' : 'pointer', opacity: pushingUnsynced ? 0.7 : 1 }}
                 aria-busy={pushingUnsynced}
               >
-                {pushingUnsynced ? 'Pushing…' : 'Push Unsynced to Square'}
+                {pushingUnsynced ? 'Pushing…' : 'Push to Square'}
               </button>
               <button
                 onClick={syncFromSquare}
