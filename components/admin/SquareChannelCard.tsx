@@ -236,7 +236,7 @@ export default function SquareChannelCard({ status, conflicts, recentErrors, onR
 
       {!status.connected && (
         <div style={{ marginBottom: '16px' }}>
-          <
+          <a
             href="/api/admin/channels/square/connect"
             style={{
               ...btnStyle,
