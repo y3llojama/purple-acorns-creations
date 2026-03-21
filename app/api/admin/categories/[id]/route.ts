@@ -52,7 +52,11 @@ export async function PATCH(request: Request, { params }: Params) {
     update.parent_id = parentId
   }
 
-  if (body.sort_order !== undefined) update.sort_order = Number(body.sort_order)
+  if (body.sort_order !== undefined) {
+    const so = Number(body.sort_order)
+    if (!Number.isFinite(so)) return NextResponse.json({ error: 'invalid sort_order' }, { status: 400 })
+    update.sort_order = Math.floor(so)
+  }
   if (body.category_type !== undefined) {
     if (!VALID_CATEGORY_TYPES.includes(body.category_type)) {
       return NextResponse.json({ error: 'invalid category_type' }, { status: 400 })

@@ -25,11 +25,15 @@ export async function PATCH(request: Request) {
   const supabase = createServiceRoleClient()
   const now = new Date().toISOString()
 
-  await Promise.all(
+  const results = await Promise.all(
     (items as Array<{ id: string; sort_order: number }>).map(({ id, sort_order }) =>
       supabase.from('categories').update({ sort_order, updated_at: now }).eq('id', id)
     )
   )
+
+  if (results.some(r => r.error)) {
+    return NextResponse.json({ error: 'One or more updates failed' }, { status: 500 })
+  }
 
   return NextResponse.json({ success: true })
 }

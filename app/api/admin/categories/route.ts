@@ -68,12 +68,14 @@ export async function POST(request: Request) {
   }
 
   // Compute sort_order: max among siblings + 1
-  const { data: siblings } = await supabase
+  const siblingsQuery = supabase
     .from('categories')
     .select('sort_order')
-    .is('parent_id', parentId)
     .order('sort_order', { ascending: false })
     .limit(1)
+  const { data: siblings } = parentId
+    ? await siblingsQuery.eq('parent_id', parentId)
+    : await siblingsQuery.is('parent_id', null)
   const sortOrder = siblings?.[0] ? (siblings[0] as { sort_order: number }).sort_order + 1 : 0
 
   const { data, error: dbError } = await supabase
