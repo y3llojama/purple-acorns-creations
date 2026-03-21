@@ -9,6 +9,7 @@ export interface SavedItem {
 }
 
 const STORAGE_KEY = 'pa-saved-items'
+const SYNC_EVENT = 'pa-saved-items-changed'
 
 function readFromStorage(): SavedItem[] {
   if (typeof window === 'undefined') return []
@@ -23,6 +24,7 @@ function readFromStorage(): SavedItem[] {
 function writeToStorage(items: SavedItem[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+    window.dispatchEvent(new CustomEvent(SYNC_EVENT))
   } catch {
     // quota exceeded or private mode — fail silently
   }
@@ -34,6 +36,10 @@ export function useSavedItems() {
   // Read on mount (avoids SSR hydration mismatch)
   useEffect(() => {
     setItems(readFromStorage())
+
+    const onSync = () => setItems(readFromStorage())
+    window.addEventListener(SYNC_EVENT, onSync)
+    return () => window.removeEventListener(SYNC_EVENT, onSync)
   }, [])
 
   const toggle = useCallback((item: SavedItem) => {

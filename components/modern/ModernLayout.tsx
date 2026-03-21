@@ -5,6 +5,8 @@ import ModernHeader from './ModernHeader'
 import ModernFooter from './ModernFooter'
 import ModernFAB from './ModernFAB'
 import PageLoadOverlay from './PageLoadOverlay'
+import { CartProvider } from '@/components/shop/CartContext'
+import CartDrawer from '@/components/shop/CartDrawer'
 
 interface Props {
   children: React.ReactNode
@@ -24,7 +26,7 @@ export default function ModernLayout({
   announcementEnabled,
 }: Props) {
   return (
-    <>
+    <CartProvider>
       {announcementEnabled && announcementText && (
         <AnnouncementBanner
           text={announcementText}
@@ -44,8 +46,9 @@ export default function ModernLayout({
       </main>
       <ModernFooter settings={settings} />
       <ModernFAB />
+      <CartDrawer />
       <AnalyticsTracker />
       <PageLoadOverlay />
-    </>
+    </CartProvider>
   )
 }

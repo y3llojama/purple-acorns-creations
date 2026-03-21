@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useSavedItems } from '@/lib/saved-items'
+import CartButton from '@/components/shop/CartButton'
 
 interface SearchItem {
   id: string
@@ -857,9 +858,7 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: 
               <BagIcon />
             </a>
           ) : (
-            <Link href="/shop" aria-label="Shop" className="mh-icon-btn">
-              <BagIcon />
-            </Link>
+            <CartButton className="mh-icon-btn" />
           )}
         </div>
       </div>

@@ -2,13 +2,14 @@
 import { ShoppingBag } from 'lucide-react'
 import { useCart } from './CartContext'
 
-export default function CartButton() {
+export default function CartButton({ className }: { className?: string }) {
   const { count, setIsOpen } = useCart()
 
   return (
     <button
       onClick={() => setIsOpen(true)}
       aria-label={count > 0 ? `Shopping cart, ${count} item${count === 1 ? '' : 's'}` : 'Shopping cart'}
+      className={className}
       style={{
         position: 'relative',
         minWidth: '48px',
