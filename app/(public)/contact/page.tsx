@@ -1,6 +1,9 @@
 import ContactForm from '@/components/layout/ContactForm'
 
-export const metadata = { title: 'Contact Us' }
+export const metadata = {
+  title: 'Contact Us',
+  description: 'Get in touch with Purple Acornz Creations for questions, custom orders, or just to say hello.',
+}
 
 export default function ContactPage() {
   return (

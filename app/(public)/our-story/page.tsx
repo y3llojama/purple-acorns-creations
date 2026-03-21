@@ -7,7 +7,10 @@ import { sanitizeContent, markdownToHtml } from '@/lib/sanitize'
 import { getSettings } from '@/lib/theme'
 import { interpolate, buildVars } from '@/lib/variables'
 
-export const metadata = { title: 'Our Story' }
+export const metadata = {
+  title: 'Our Story',
+  description: 'Meet the mother-daughter duo behind Purple Acornz Creations — handcrafted jewelry made with heart, creativity, and a love of artisan craft.',
+}
 
 export default async function OurStoryPage() {
   const [{ value, format }, settings] = await Promise.all([
