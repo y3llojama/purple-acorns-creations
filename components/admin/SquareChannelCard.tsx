@@ -18,6 +18,7 @@ interface Props {
   conflicts: Conflict[]
   recentErrors: RecentError[]
   onRefresh: () => void
+  oauthError?: string | null
 }
 
 const cardStyle: React.CSSProperties = {
@@ -50,7 +51,7 @@ const btnSecondaryStyle: React.CSSProperties = {
   minHeight: '48px',
 }
 
-export default function SquareChannelCard({ status, conflicts, recentErrors, onRefresh }: Props) {
+export default function SquareChannelCard({ status, conflicts, recentErrors, onRefresh, oauthError }: Props) {
   const [syncing, setSyncing] = useState(false)
   const [toggling, setToggling] = useState(false)
   const [syncError, setSyncError] = useState('')
@@ -227,9 +228,15 @@ export default function SquareChannelCard({ status, conflicts, recentErrors, onR
         </div>
       </div>
 
+      {oauthError && (
+        <p role="alert" style={{ color: 'var(--color-error)', fontSize: '13px', marginBottom: '12px' }}>
+          Connection failed: {oauthError}
+        </p>
+      )}
+
       {!status.connected && (
         <div style={{ marginBottom: '16px' }}>
-          <a
+          <
             href="/api/admin/channels/square/connect"
             style={{
               ...btnStyle,

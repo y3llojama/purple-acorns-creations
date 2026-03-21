@@ -22,12 +22,9 @@ export default function ChannelsManager() {
   const [error, setError] = useState('')
   const hasLoaded = useRef(false)
 
-  const oauthError = typeof window !== 'undefined'
-    ? new URLSearchParams(window.location.search).get('error')
-    : null
-  const oauthDetail = typeof window !== 'undefined'
-    ? new URLSearchParams(window.location.search).get('detail')
-    : null
+  const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+  const oauthError = params?.get('error') ?? null
+  const oauthDetail = params?.get('detail') ?? null
 
   const fetchData = useCallback(async () => {
     if (!hasLoaded.current) setLoading(true)
@@ -82,18 +79,13 @@ export default function ChannelsManager() {
   if (!data) return null
 
   return (
-    <>
-    {oauthError && (
-      <p role="alert" style={{ color: 'var(--color-error)', marginBottom: '16px', fontSize: '14px' }}>
-        Square connection failed: {oauthError}{oauthDetail ? ` — ${oauthDetail}` : ''}
-      </p>
-    )}
     <div>
       <SquareChannelCard
         status={data.square.status}
         conflicts={data.square.conflicts}
         recentErrors={data.square.recentErrors}
         onRefresh={fetchData}
+        oauthError={oauthError === 'square_token' || oauthError === 'square_denied' || oauthError === 'square_location' ? (oauthDetail ?? oauthError) : null}
       />
       <PinterestChannelCard
         status={data.pinterest.status}
@@ -102,6 +94,5 @@ export default function ChannelsManager() {
         onRefresh={fetchData}
       />
     </div>
-    </>
   )
 }
