@@ -46,7 +46,8 @@ export async function GET(request: Request) {
   if (!tokenRes.ok) {
     const tokenErr = await tokenRes.json().catch(() => ({}))
     console.error('[square/callback] token exchange failed:', tokenRes.status, JSON.stringify(tokenErr))
-    return NextResponse.redirect(`${(process.env.NEXT_PUBLIC_APP_URL ?? '').trim()}/admin/channels?error=square_token`)
+    const detail = encodeURIComponent(tokenErr?.message ?? tokenErr?.error ?? String(tokenRes.status))
+    return NextResponse.redirect(`${(process.env.NEXT_PUBLIC_APP_URL ?? '').trim()}/admin/channels?error=square_token&detail=${detail}`)
   }
 
   const tokens = await tokenRes.json()

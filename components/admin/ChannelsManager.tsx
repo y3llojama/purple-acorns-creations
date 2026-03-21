@@ -22,6 +22,13 @@ export default function ChannelsManager() {
   const [error, setError] = useState('')
   const hasLoaded = useRef(false)
 
+  const oauthError = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('error')
+    : null
+  const oauthDetail = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('detail')
+    : null
+
   const fetchData = useCallback(async () => {
     if (!hasLoaded.current) setLoading(true)
     setError('')
@@ -75,6 +82,12 @@ export default function ChannelsManager() {
   if (!data) return null
 
   return (
+    <>
+    {oauthError && (
+      <p role="alert" style={{ color: 'var(--color-error)', marginBottom: '16px', fontSize: '14px' }}>
+        Square connection failed: {oauthError}{oauthDetail ? ` — ${oauthDetail}` : ''}
+      </p>
+    )}
     <div>
       <SquareChannelCard
         status={data.square.status}
@@ -89,5 +102,6 @@ export default function ChannelsManager() {
         onRefresh={fetchData}
       />
     </div>
+    </>
   )
 }
