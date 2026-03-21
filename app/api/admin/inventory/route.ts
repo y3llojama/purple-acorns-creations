@@ -4,18 +4,15 @@ import { requireAdminSession } from '@/lib/auth'
 import { sanitizeText, sanitizeContent } from '@/lib/sanitize'
 import { syncProduct } from '@/lib/channels'
 
-const VALID_CATEGORIES = ['rings','necklaces','earrings','bracelets','crochet','other'] as const
-type ValidCategory = typeof VALID_CATEGORIES[number]
-
 export async function GET(request: Request) {
   const { error } = await requireAdminSession()
   if (error) return error
   const { searchParams } = new URL(request.url)
-  const category = searchParams.get('category')
+  const categoryId = searchParams.get('category_id')
   const search = searchParams.get('search')
   const supabase = createServiceRoleClient()
   let query = supabase.from('products').select('*').order('created_at', { ascending: false })
-  if (category && VALID_CATEGORIES.includes(category as ValidCategory)) query = query.eq('category', category)
+  if (categoryId) query = query.eq('category_id', categoryId)
   if (search) query = query.ilike('name', `%${search}%`)
   const { data, error: dbError } = await query
   if (dbError) return NextResponse.json({ error: 'Failed to fetch' }, { status: 500 })
@@ -29,16 +26,13 @@ export async function POST(request: Request) {
   const name = sanitizeText(String(body.name ?? '').trim())
   const description = body.description ? sanitizeContent(String(body.description)) : null
   const price = parseFloat(String(body.price ?? ''))
-  const category = String(body.category ?? '')
   if (!name) return NextResponse.json({ error: 'name required' }, { status: 400 })
   if (isNaN(price) || price < 0) return NextResponse.json({ error: 'valid price required' }, { status: 400 })
-  if (!VALID_CATEGORIES.includes(category as ValidCategory)) {
-    return NextResponse.json({ error: `category must be one of: ${VALID_CATEGORIES.join(', ')}` }, { status: 400 })
-  }
   const images = Array.isArray(body.images) ? body.images.slice(0, 10).map(String) : []
   const supabase = createServiceRoleClient()
   const { data, error: dbError } = await supabase.from('products').insert({
-    name, description, price, category, images,
+    name, description, price, images,
+    category_id: body.category_id ?? null,
     stock_count: Number(body.stock_count) || 0,
     is_active: body.is_active !== false,
     gallery_featured: Boolean(body.gallery_featured),

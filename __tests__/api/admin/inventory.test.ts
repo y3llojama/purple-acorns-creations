@@ -9,7 +9,7 @@ jest.mock('@/lib/supabase/server', () => ({
       update: jest.fn().mockReturnThis(), delete: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(), order: jest.fn().mockReturnThis(),
       ilike: jest.fn().mockReturnThis(),
-      single: jest.fn().mockResolvedValue({ data: { id: 'p1', name: 'Test Ring', price: 45, category: 'rings', stock_count: 3, images: [], is_active: true, gallery_featured: false }, error: null }),
+      single: jest.fn().mockResolvedValue({ data: { id: 'p1', name: 'Test Ring', price: 45, category_id: 'cat-uuid-1', stock_count: 3, images: [], is_active: true, gallery_featured: false }, error: null }),
     })),
   })),
 }))
@@ -25,12 +25,13 @@ describe('POST /api/admin/inventory', () => {
     expect((await POST(req)).status).toBe(400)
   })
 
-  it('rejects invalid category', async () => {
+  it('accepts product without category_id', async () => {
     const { POST } = await import('@/app/api/admin/inventory/route')
     const req = new Request('http://localhost/api/admin/inventory', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Ring', price: 45, category: 'invalid' }),
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Ring', price: 45 }),
     })
-    expect((await POST(req)).status).toBe(400)
+    expect((await POST(req)).status).toBe(201)
   })
 })

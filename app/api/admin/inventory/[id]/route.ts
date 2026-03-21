@@ -4,9 +4,6 @@ import { requireAdminSession } from '@/lib/auth'
 import { sanitizeText, sanitizeContent } from '@/lib/sanitize'
 import { syncProduct } from '@/lib/channels'
 
-const VALID_CATEGORIES = ['rings','necklaces','earrings','bracelets','crochet','other'] as const
-type ValidCategory = typeof VALID_CATEGORIES[number]
-
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await requireAdminSession()
   if (error) return error
@@ -34,10 +31,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (isNaN(price) || price < 0) return NextResponse.json({ error: 'valid price required' }, { status: 400 })
     update.price = price
   }
-  if (body.category !== undefined) {
-    if (!VALID_CATEGORIES.includes(body.category as ValidCategory)) return NextResponse.json({ error: 'invalid category' }, { status: 400 })
-    update.category = body.category
-  }
+  if (body.category_id !== undefined) update.category_id = body.category_id ?? null
   if (body.images !== undefined) update.images = Array.isArray(body.images) ? body.images.slice(0, 10).map(String) : []
   if (body.stock_count !== undefined) update.stock_count = Number(body.stock_count)
   if (body.is_active !== undefined) update.is_active = Boolean(body.is_active)
