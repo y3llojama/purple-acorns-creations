@@ -189,44 +189,41 @@ export default function SquareChannelCard({ status, conflicts, recentErrors, onR
               }}
             />
           </label>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', flexWrap: 'wrap' }}>
-            <label style={{ fontSize: '14px', fontWeight: '500', flex: 1, minWidth: '140px' }}>
-              Environment
-              <select
-                value={credEnv}
-                onChange={e => setCredEnv(e.target.value)}
-                style={{
-                  display: 'block', width: '100%', marginTop: '4px',
-                  padding: '8px 10px', fontSize: '14px',
-                  border: '1px solid var(--color-border)', borderRadius: '4px',
-                  background: 'var(--color-bg)', color: 'var(--color-primary)',
-                  boxSizing: 'border-box',
-                }}
-              >
-                <option value="sandbox">Sandbox</option>
-                <option value="production">Production</option>
-              </select>
-            </label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              {(() => {
-                const hasChanges = credAppId.trim() !== '' || credSecret.trim() !== '' || credEnv !== status.environment || !status.hasAppCredentials
-                return (
-                  <button
-                    style={{ ...btnStyle, opacity: hasChanges ? 1 : 0.4, cursor: hasChanges ? 'pointer' : 'default' }}
-                    onClick={saveCredentials}
-                    disabled={savingCreds || !hasChanges}
-                  >
-                    {savingCreds ? 'Saving…' : 'Save Credentials'}
-                  </button>
-                )
-              })()}
-              {credsMsg && (
-                <span style={{ fontSize: '14px', color: credsMsg === 'Saved.' ? 'var(--color-success-text)' : 'var(--color-error)' }}>
-                  {credsMsg}
-                </span>
-              )}
-            </div>
-          </div>
+          <label style={{ fontSize: '14px', fontWeight: '500' }}>
+            Environment
+            <select
+              value={credEnv}
+              onChange={e => setCredEnv(e.target.value)}
+              style={{
+                display: 'block', width: '100%', marginTop: '4px',
+                padding: '8px 10px', fontSize: '14px',
+                border: '1px solid var(--color-border)', borderRadius: '4px',
+                background: 'var(--color-bg)', color: 'var(--color-primary)',
+                boxSizing: 'border-box',
+              }}
+            >
+              <option value="sandbox">Sandbox</option>
+              <option value="production">Production</option>
+            </select>
+          </label>
+          {(() => {
+            const hasChanges = credAppId.trim() !== '' || credSecret.trim() !== '' || credEnv !== status.environment || !status.hasAppCredentials
+            if (!hasChanges) return credsMsg ? (
+              <span style={{ fontSize: '14px', color: 'var(--color-success-text)' }}>{credsMsg}</span>
+            ) : null
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button style={btnStyle} onClick={saveCredentials} disabled={savingCreds}>
+                  {savingCreds ? 'Saving…' : 'Save Credentials'}
+                </button>
+                {credsMsg && (
+                  <span style={{ fontSize: '14px', color: credsMsg === 'Saved.' ? 'var(--color-success-text)' : 'var(--color-error)' }}>
+                    {credsMsg}
+                  </span>
+                )}
+              </div>
+            )
+          })()}
         </div>
       </div>
 

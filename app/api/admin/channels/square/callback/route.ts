@@ -25,6 +25,7 @@ export async function GET(request: Request) {
   const rawSecret = settings?.square_application_secret
   const appSecret = rawSecret ? decryptValue(rawSecret) : (process.env.SQUARE_APPLICATION_SECRET ?? '')
   const environment = settings?.square_environment ?? process.env.SQUARE_ENVIRONMENT
+  console.log('[square/callback] appId:', !!appId, 'secretDecrypted:', !!appSecret && !appSecret.startsWith('enc:'), 'env:', environment)
 
   const baseUrl = environment === 'production'
     ? 'https://connect.squareup.com'
@@ -43,7 +44,9 @@ export async function GET(request: Request) {
   })
 
   if (!tokenRes.ok) {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/admin/channels?error=square_token`)
+    const tokenErr = await tokenRes.json().catch(() => ({}))
+    console.error('[square/callback] token exchange failed:', tokenRes.status, JSON.stringify(tokenErr))
+    return NextResponse.redirect(`${(process.env.NEXT_PUBLIC_APP_URL ?? '').trim()}/admin/channels?error=square_token`)
   }
 
   const tokens = await tokenRes.json()
