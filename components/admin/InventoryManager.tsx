@@ -5,6 +5,8 @@ import ProductForm from './ProductForm'
 
 interface Props {
   initialProducts: Product[]
+  squareSyncEnabled: boolean
+  squareCategoryIds: Record<string, string>
 }
 
 const CATEGORIES: ProductCategory[] = ['rings', 'necklaces', 'earrings', 'bracelets', 'crochet', 'other']
@@ -30,13 +32,16 @@ const btnSmallStyle: React.CSSProperties = {
   minWidth: '48px',
 }
 
-export default function InventoryManager({ initialProducts }: Props) {
+export default function InventoryManager({ initialProducts, squareSyncEnabled, squareCategoryIds: initialCategoryIds }: Props) {
   const [products, setProducts] = useState<Product[]>(initialProducts)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<ProductCategory | ''>('')
   const [showForm, setShowForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined)
   const [loading, setLoading] = useState(false)
+  const [categoryIds, setCategoryIds] = useState<Record<string, string>>(initialCategoryIds)
+  const [syncingCategories, setSyncingCategories] = useState(false)
+  const [categorySyncMsg, setCategorySyncMsg] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const fetchProducts = useCallback(async (q: string, cat: string) => {
@@ -94,8 +99,74 @@ export default function InventoryManager({ initialProducts }: Props) {
     setEditingProduct(undefined)
   }
 
+  async function syncCategories() {
+    setSyncingCategories(true)
+    setCategorySyncMsg('')
+    try {
+      const res = await fetch('/api/admin/inventory/sync-categories', { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setCategorySyncMsg(data.error ?? 'Sync failed.')
+      } else {
+        setCategoryIds(data.categoryIds ?? {})
+        setCategorySyncMsg('All categories synced.')
+      }
+    } catch {
+      setCategorySyncMsg('Network error.')
+    } finally {
+      setSyncingCategories(false)
+    }
+  }
+
   return (
     <div>
+      {/* Square category sync panel */}
+      {squareSyncEnabled && (
+        <div style={{
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: '8px',
+          padding: '16px 20px',
+          marginBottom: '24px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: '600', margin: 0, color: 'var(--color-primary)' }}>Square Categories</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {categorySyncMsg && (
+                <span style={{ fontSize: '13px', color: categorySyncMsg.includes('failed') || categorySyncMsg.includes('error') ? 'var(--color-error)' : 'var(--color-success-text)' }}>
+                  {categorySyncMsg}
+                </span>
+              )}
+              <button style={{ ...btnSmallStyle, background: 'var(--color-primary)', color: 'var(--color-accent)' }} onClick={syncCategories} disabled={syncingCategories}>
+                {syncingCategories ? 'Syncing…' : 'Sync Categories'}
+              </button>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {CATEGORIES.map(cat => {
+              const synced = !!categoryIds[cat]
+              return (
+                <div key={cat} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '4px 10px',
+                  borderRadius: '12px',
+                  fontSize: '13px',
+                  background: synced ? 'var(--color-success-bg)' : 'var(--color-surface)',
+                  border: '1px solid var(--color-border)',
+                  color: synced ? 'var(--color-success-text)' : 'var(--color-text-muted)',
+                  textTransform: 'capitalize',
+                }}>
+                  <span style={{ fontSize: '10px' }}>{synced ? '●' : '○'}</span>
+                  {cat}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
         <input

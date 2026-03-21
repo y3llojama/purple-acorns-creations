@@ -9,11 +9,18 @@ export default async function InventoryPage() {
   const { error } = await requireAdminSession()
   if (error) redirect('/admin/login')
   const supabase = createServiceRoleClient()
-  const { data: products } = await supabase.from('products').select('*').order('created_at', { ascending: false })
+  const [{ data: products }, { data: settings }] = await Promise.all([
+    supabase.from('products').select('*').order('created_at', { ascending: false }),
+    supabase.from('settings').select('square_sync_enabled, square_category_ids').single(),
+  ])
   return (
     <div>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', color: 'var(--color-primary)', marginBottom: '32px' }}>Inventory</h1>
-      <InventoryManager initialProducts={products ?? []} />
+      <InventoryManager
+        initialProducts={products ?? []}
+        squareSyncEnabled={settings?.square_sync_enabled ?? false}
+        squareCategoryIds={(settings?.square_category_ids as Record<string, string>) ?? {}}
+      />
     </div>
   )
 }
