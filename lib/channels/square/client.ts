@@ -6,7 +6,7 @@ export async function getSquareClient(): Promise<{ client: SquareClient; locatio
   const supabase = createServiceRoleClient()
   const { data } = await supabase
     .from('settings')
-    .select('square_access_token, square_location_id')
+    .select('id, square_access_token, square_location_id')
     .single()
 
   if (!data?.square_access_token) throw new Error('Square not connected')
@@ -18,5 +18,16 @@ export async function getSquareClient(): Promise<{ client: SquareClient; locatio
       ? SquareEnvironment.Production
       : SquareEnvironment.Sandbox,
   })
-  return { client, locationId: data.square_location_id ?? '' }
+
+  // Auto-discover and persist location ID if missing
+  let locationId = data.square_location_id ?? ''
+  if (!locationId) {
+    const locResult = await client.locations.list()
+    locationId = locResult.locations?.[0]?.id ?? ''
+    if (locationId) {
+      await supabase.from('settings').update({ square_location_id: locationId }).eq('id', data.id)
+    }
+  }
+
+  return { client, locationId }
 }
