@@ -44,7 +44,10 @@ export async function PATCH(request: Request) {
   if (typeof body.square_sync_enabled === 'boolean') update.square_sync_enabled = body.square_sync_enabled
   if (typeof body.pinterest_sync_enabled === 'boolean') update.pinterest_sync_enabled = body.pinterest_sync_enabled
   if (body.pinterest_catalog_id !== undefined) update.pinterest_catalog_id = String(body.pinterest_catalog_id)
-  if (Object.keys(update).length > 0) await supabase.from('settings').update(update)
+  if (Object.keys(update).length > 0) {
+    const { data: row } = await supabase.from('settings').select('id').limit(1).maybeSingle()
+    if (row) await supabase.from('settings').update(update).eq('id', row.id)
+  }
   if (body.dismiss_conflict_product_id && body.dismiss_conflict_channel) {
     await supabase.from('channel_sync_log')
       .update({ status: 'synced', error: null })

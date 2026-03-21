@@ -28,9 +28,12 @@ export async function GET(request: Request) {
 
   const tokens = await tokenRes.json()
   const supabase = createServiceRoleClient()
-  await supabase.from('settings').update({
-    pinterest_access_token: encryptToken(tokens.access_token),
-    pinterest_refresh_token: tokens.refresh_token ? encryptToken(tokens.refresh_token) : null,
-  })
+  const { data: row } = await supabase.from('settings').select('id').limit(1).maybeSingle()
+  if (row) {
+    await supabase.from('settings').update({
+      pinterest_access_token: encryptToken(tokens.access_token),
+      pinterest_refresh_token: tokens.refresh_token ? encryptToken(tokens.refresh_token) : null,
+    }).eq('id', row.id)
+  }
   return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/admin/channels?connected=pinterest`)
 }
