@@ -15,9 +15,6 @@ interface Props {
 
 export default function ProductCard({ product, showPrice = true, watermark }: Props) {
   const firstImage = product.images && product.images.length > 0 ? product.images[0] : null
-  const imageSrc = firstImage && watermark
-    ? `/api/gallery/image?url=${encodeURIComponent(firstImage)}`
-    : firstImage
   const fullUrl = typeof window !== 'undefined' ? window.location.origin + '/shop/' + product.id : ''
 
   return (
@@ -25,9 +22,9 @@ export default function ProductCard({ product, showPrice = true, watermark }: Pr
       <Link href={`/shop/${product.id}`} style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', flex: 1 }}>
         {/* Image area */}
         <div style={{ position: 'relative', aspectRatio: '1', background: 'var(--color-border)', overflow: 'hidden' }}>
-          {imageSrc ? (
+          {firstImage ? (
             <Image
-              src={imageSrc}
+              src={firstImage}
               alt={product.name}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -37,6 +34,11 @@ export default function ProductCard({ product, showPrice = true, watermark }: Pr
             <div style={{ width: '100%', height: '100%', background: 'var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span style={{ color: 'var(--color-text-muted)', fontSize: '14px' }}>No image</span>
             </div>
+          )}
+          {watermark && firstImage && (
+            <span aria-hidden="true" style={{ position: 'absolute', bottom: '8px', right: '10px', color: 'white', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textShadow: '0 1px 4px rgba(0,0,0,0.85)', pointerEvents: 'none', userSelect: 'none', whiteSpace: 'nowrap', zIndex: 2 }}>
+              {watermark}
+            </span>
           )}
           {product.stock_count === 0 && (
             <div style={{ position: 'absolute', top: '8px', left: '8px', background: 'var(--color-text-muted)', color: 'var(--color-surface)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>

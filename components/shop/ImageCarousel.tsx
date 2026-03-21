@@ -10,9 +10,6 @@ interface ImageCarouselProps {
 }
 
 export default function ImageCarousel({ images, alt, watermark }: ImageCarouselProps) {
-  const displayImages = watermark
-    ? images.map((url) => `/api/gallery/image?url=${encodeURIComponent(url)}`)
-    : images
   const [current, setCurrent] = useState(0)
 
   const prev = useCallback(() => {
@@ -69,13 +66,19 @@ export default function ImageCarousel({ images, alt, watermark }: ImageCarouselP
         }}
       >
         <Image
-          src={displayImages[current]}
+          src={images[current]}
           alt={`${alt} — image ${current + 1} of ${images.length}`}
           fill
           style={{ objectFit: 'cover' }}
           sizes="(max-width: 768px) 100vw, 500px"
           priority={current === 0}
         />
+
+        {watermark && (
+          <span aria-hidden="true" style={{ position: 'absolute', bottom: '8px', right: '10px', color: 'white', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textShadow: '0 1px 4px rgba(0,0,0,0.85)', pointerEvents: 'none', userSelect: 'none', whiteSpace: 'nowrap', zIndex: 2 }}>
+            {watermark}
+          </span>
+        )}
 
         {/* Prev / Next arrows — only when more than 1 image */}
         {images.length > 1 && (

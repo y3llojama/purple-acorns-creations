@@ -135,7 +135,7 @@ export default function ModernFeaturedGrid({ items, watermark }: Props) {
                     {item.image_url && isValidHttpsUrl(item.image_url) ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={watermark ? `/api/gallery/image?url=${encodeURIComponent(item.image_url)}` : item.image_url}
+                        src={item.image_url}
                         alt={item.title ?? ''}
                         style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                       />
@@ -147,6 +147,11 @@ export default function ModernFeaturedGrid({ items, watermark }: Props) {
                           background: 'linear-gradient(135deg, var(--color-border) 0%, var(--color-surface) 100%)',
                         }}
                       />
+                    )}
+                    {watermark && item.image_url && (
+                      <span aria-hidden="true" style={{ position: 'absolute', bottom: '8px', right: '10px', color: 'white', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textShadow: '0 1px 4px rgba(0,0,0,0.85)', pointerEvents: 'none', userSelect: 'none', whiteSpace: 'nowrap', zIndex: 2 }}>
+                        {watermark}
+                      </span>
                     )}
                     {/* Heart save button */}
                     <HeartButton itemId={item.id} itemTitle={item.title} imageUrl={item.image_url} />
