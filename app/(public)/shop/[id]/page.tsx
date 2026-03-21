@@ -5,6 +5,7 @@ import ProductDetail from '@/components/shop/ProductDetail'
 import type { Metadata } from 'next'
 import type { Product } from '@/lib/supabase/types'
 import { JsonLd, buildProductSchema, buildBreadcrumbSchema } from '@/lib/seo'
+import { interpolate, buildVars } from '@/lib/variables'
 
 // cache() deduplicates this query across generateMetadata and the page component
 // within the same render pass — only one DB round-trip per request
@@ -51,8 +52,10 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   if (!product) notFound()
 
   const supabase = createServiceRoleClient()
-  const { data: settings } = await supabase.from('settings').select('gallery_watermark').single()
-  const watermark = settings?.gallery_watermark ?? null
+  const { data: settings } = await supabase.from('settings').select('gallery_watermark, business_name').single()
+  const watermark = settings?.gallery_watermark
+    ? interpolate(settings.gallery_watermark, buildVars(settings.business_name))
+    : null
 
   const productUrl = `https://www.purpleacornz.com/shop/${id}`
 

@@ -72,6 +72,7 @@ export default async function HomePage() {
         images={gallery.length > 0
           ? gallery.map(g => ({ url: g.url, alt_text: g.alt_text }))
           : FALLBACK_FEATURED.map(f => ({ url: f.image_url, alt_text: f.title ?? '' }))}
+        watermark={settings.gallery_watermark ? interpolate(settings.gallery_watermark, vars) : null}
       />
       <ModernEventSection event={event} />
       <InstagramFeed

@@ -9,9 +9,10 @@ interface GalleryImage {
 interface Props {
   teaser: string
   images?: GalleryImage[]
+  watermark?: string | null
 }
 
-export default function ModernStorySection({ teaser, images = [] }: Props) {
+export default function ModernStorySection({ teaser, images = [], watermark }: Props) {
   const photos = images
 
   return (
@@ -86,7 +87,7 @@ export default function ModernStorySection({ teaser, images = [] }: Props) {
         {/* Right: animated photo mosaic */}
         <div className="modern-story-right-panel">
           {photos.length > 0 ? (
-            <ModernStoryMosaic photos={photos} />
+            <ModernStoryMosaic photos={photos} watermark={watermark} />
           ) : (
             <div
               style={{
