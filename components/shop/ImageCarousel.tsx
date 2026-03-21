@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import Image from 'next/image'
 
 interface ImageCarouselProps {
   images: string[]
@@ -65,20 +64,12 @@ export default function ImageCarousel({ images, alt, watermark }: ImageCarouselP
           background: 'var(--color-surface)',
         }}
       >
-        <Image
-          src={images[current]}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={watermark ? `/api/gallery/image?url=${encodeURIComponent(images[current])}` : images[current]}
           alt={`${alt} — image ${current + 1} of ${images.length}`}
-          fill
-          style={{ objectFit: 'cover' }}
-          sizes="(max-width: 768px) 100vw, 500px"
-          priority={current === 0}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />
-
-        {watermark && (
-          <span aria-hidden="true" style={{ position: 'absolute', bottom: '8px', right: '10px', color: 'white', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textShadow: '0 1px 4px rgba(0,0,0,0.85)', pointerEvents: 'none', userSelect: 'none', whiteSpace: 'nowrap', zIndex: 2 }}>
-            {watermark}
-          </span>
-        )}
 
         {/* Prev / Next arrows — only when more than 1 image */}
         {images.length > 1 && (

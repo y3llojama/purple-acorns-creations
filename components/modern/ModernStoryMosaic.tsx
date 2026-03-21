@@ -66,9 +66,8 @@ export default function ModernStoryMosaic({ photos, watermark }: { photos: Galle
         .mss-item img {
           width: 100%;
           height: 100%;
-          object-fit: contain;
+          object-fit: cover;
           display: block;
-          padding: 12px;
           box-sizing: border-box;
           transition: transform 0.4s ease;
         }
@@ -93,12 +92,7 @@ export default function ModernStoryMosaic({ photos, watermark }: { photos: Galle
             className="mss-item"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={img.url} alt={img.alt_text ?? ''} />
-            {watermark && (
-              <span aria-hidden="true" style={{ position: 'absolute', bottom: '8px', right: '10px', color: 'white', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textShadow: '0 1px 4px rgba(0,0,0,0.85)', pointerEvents: 'none', userSelect: 'none', whiteSpace: 'nowrap', zIndex: 2 }}>
-                {watermark}
-              </span>
-            )}
+            <img src={watermark ? `/api/gallery/image?url=${encodeURIComponent(img.url)}` : img.url} alt={img.alt_text ?? ''} />
           </div>
         ))}
       </div>

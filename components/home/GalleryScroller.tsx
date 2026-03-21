@@ -1,7 +1,6 @@
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { isValidHttpsUrl } from '@/lib/validate'
 import Link from 'next/link'
-import Image from 'next/image'
 import type { Product } from '@/lib/supabase/types'
 
 interface Props {
@@ -59,17 +58,14 @@ export default async function GalleryScroller({ prefetchedFeatured, maxItems: ma
               <figure style={{ margin: 0, background: 'var(--color-bg)', borderRadius: '8px', overflow: 'hidden' }}>
                 <div style={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
                   {product.images[0] && isValidHttpsUrl(product.images[0]) ? (
-                    <Image
-                      src={product.images[0]}
-                      alt={product.name} fill style={{ objectFit: 'cover' }} sizes="(max-width: 640px) 50vw, 200px"
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={watermark ? `/api/gallery/image?url=${encodeURIComponent(product.images[0])}` : product.images[0]}
+                      alt={product.name}
+                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                     />
                   ) : (
                     <div style={{ width: '100%', height: '100%', background: 'var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', fontSize: '12px' }}>No image</div>
-                  )}
-                  {watermark && product.images[0] && (
-                    <span aria-hidden="true" style={{ position: 'absolute', bottom: '8px', right: '10px', color: 'white', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textShadow: '0 1px 4px rgba(0,0,0,0.85)', pointerEvents: 'none', userSelect: 'none', whiteSpace: 'nowrap', zIndex: 2 }}>
-                      {watermark}
-                    </span>
                   )}
                 </div>
                 <figcaption style={{ padding: '12px' }}>

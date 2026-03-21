@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
-import fs from 'node:fs'
-import path from 'node:path'
 import { isValidHttpsUrl } from '@/lib/validate'
 import { getSettings } from '@/lib/theme'
 import { interpolate, buildVars } from '@/lib/variables'
 
-// Rate limiter: 30 requests per IP per 60 seconds
+// Rate limiter: 200 requests per IP per 60 seconds
 const rateLimitMap = new Map<string, { count: number; windowStart: number }>()
 const RATE_WINDOW = 60_000
-const RATE_LIMIT = 30
+const RATE_LIMIT = 200
 const PRUNE_INTERVAL = 5 * 60_000
 let lastPrune = Date.now()
 
@@ -69,26 +67,23 @@ export async function GET(request: NextRequest) {
   const width = metadata.width || 800
   const height = metadata.height || 800
 
-  // Load embedded font so librsvg can render script text reliably
-  const fontPath = path.join(process.cwd(), 'public', 'fonts', 'DancingScript-Regular.ttf')
-  const fontB64 = fs.readFileSync(fontPath).toString('base64')
-
-  // Create diagonal watermark SVG overlay tiled across the image
-  const fontSize = Math.max(18, Math.round(width / 18))
+  // Single bottom-right watermark using system fonts + SVG stroke for legibility on any background
+  const fontSize = Math.max(14, Math.round(width / 30))
   const svg = `
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <style>
-          @font-face {
-            font-family: 'DancingScript';
-            src: url('data:font/truetype;base64,${fontB64}') format('truetype');
-          }
-        </style>
-        <pattern id="wm" x="0" y="0" width="${fontSize * watermark.length * 0.65}" height="${fontSize * 4}" patternUnits="userSpaceOnUse" patternTransform="rotate(-30)">
-          <text x="0" y="${fontSize}" font-family="DancingScript, sans-serif" font-size="${fontSize}" fill="white" opacity="0.3">${escapeXml(watermark)}</text>
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#wm)" />
+      <text
+        x="${width - 12}"
+        y="${height - 10}"
+        text-anchor="end"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="${fontSize}"
+        font-weight="bold"
+        fill="white"
+        stroke="rgba(0,0,0,0.85)"
+        stroke-width="3"
+        paint-order="stroke fill"
+        letter-spacing="0.04em"
+      >${escapeXml(watermark)}</text>
     </svg>
   `
 
