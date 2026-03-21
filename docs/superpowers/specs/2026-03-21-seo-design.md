@@ -83,6 +83,7 @@ openGraph: {
   images: data.images[0] ? [{ url: data.images[0], alt: data.name }] : undefined,
   type: 'website',
 }
+```
 
 ### 1d. Newsletter Slug Metadata
 
