@@ -4,7 +4,7 @@ export const metadata = { title: 'Contact Us' }
 
 export default function ContactPage() {
   return (
-    <section style={{ background: 'var(--color-primary)', color: 'var(--color-bg)', padding: '80px 24px', marginTop: 'calc(-1 * var(--logo-overflow, clamp(60px, 7vw, 90px)))' }}>
+    <section style={{ background: 'var(--color-primary)', color: 'var(--color-bg)', padding: '80px 24px', paddingTop: 'calc(var(--logo-overflow, clamp(60px, 7vw, 90px)) + 40px)', marginTop: 'calc(-1 * var(--logo-overflow, clamp(60px, 7vw, 90px)))' }}>
       <div style={{ maxWidth: '640px', margin: '0 auto' }}>
         <h1 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-accent)', marginBottom: '8px', fontSize: '36px', textAlign: 'center' }}>
           Say Hello
