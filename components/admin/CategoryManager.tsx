@@ -31,6 +31,8 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
   const [deleteErrors, setDeleteErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [syncingCategories, setSyncingCategories] = useState(false)
+  const [syncCategoryMsg, setSyncCategoryMsg] = useState<string | null>(null)
   const dragItem = useRef<string | null>(null)
 
   // Form state
@@ -46,6 +48,26 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
   async function reload() {
     const res = await fetch('/api/admin/categories')
     if (res.ok) setCategories(await res.json())
+  }
+
+  async function syncFromSquare() {
+    setSyncingCategories(true)
+    setSyncCategoryMsg(null)
+    try {
+      const res = await fetch('/api/admin/categories/square-sync', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setSyncCategoryMsg(`Error: ${data.error ?? 'Sync failed'}`)
+      } else {
+        setSyncCategoryMsg(`Done — ${data.upserted} synced${data.errors?.length ? `, ${data.errors.length} error(s)` : ''}`)
+        const refreshed = await fetch('/api/admin/categories').then(r => r.json()).catch(() => null)
+        if (Array.isArray(refreshed)) setCategories(refreshed)
+      }
+    } catch (err) {
+      setSyncCategoryMsg(`Error: ${String(err)}`)
+    } finally {
+      setSyncingCategories(false)
+    }
   }
 
   function openNew() {
@@ -250,7 +272,24 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
         <span style={{ fontWeight: 600 }}>{categories.length} categories</span>
-        <button style={btnStyle} onClick={openNew}>+ Add Category</button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {syncCategoryMsg && (
+            <span style={{ fontSize: '13px', color: syncCategoryMsg.startsWith('Error') ? 'var(--color-error)' : 'var(--color-text-muted)' }}>
+              {syncCategoryMsg}
+            </span>
+          )}
+          {squareSyncEnabled && (
+            <button
+              onClick={syncFromSquare}
+              disabled={syncingCategories}
+              style={{ ...btnStyle, background: 'var(--color-surface)', color: 'var(--color-primary)', border: '1px solid var(--color-border)', cursor: syncingCategories ? 'not-allowed' : 'pointer', opacity: syncingCategories ? 0.7 : 1 }}
+              aria-busy={syncingCategories}
+            >
+              {syncingCategories ? 'Syncing…' : 'Sync from Square'}
+            </button>
+          )}
+          <button style={btnStyle} onClick={openNew}>+ Add Category</button>
+        </div>
       </div>
 
       {/* flex row: list + inline form panel (form becomes position:fixed on mobile via CSS) */}
