@@ -50,6 +50,10 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   const product = await getProduct(id)
   if (!product) notFound()
 
+  const supabase = createServiceRoleClient()
+  const { data: settings } = await supabase.from('settings').select('gallery_watermark').single()
+  const watermark = settings?.gallery_watermark ?? null
+
   const productUrl = `https://www.purpleacornz.com/shop/${id}`
 
   return (
@@ -60,7 +64,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
         { name: 'Shop', url: 'https://www.purpleacornz.com/shop' },
         { name: (product as Product).name, url: productUrl },
       ])} />
-      <ProductDetail product={product as Product} />
+      <ProductDetail product={product as Product} watermark={watermark} />
     </div>
   )
 }

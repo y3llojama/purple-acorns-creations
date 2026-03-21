@@ -1,3 +1,4 @@
+import { createServiceRoleClient } from '@/lib/supabase/server'
 import { JsonLd, buildBreadcrumbSchema } from '@/lib/seo'
 import ProductGrid from '@/components/shop/ProductGrid'
 
@@ -11,12 +12,16 @@ const breadcrumbSchema = buildBreadcrumbSchema([
   { name: 'Shop', url: 'https://www.purpleacornz.com/shop' },
 ])
 
-export default function ShopPage() {
+export default async function ShopPage() {
+  const supabase = createServiceRoleClient()
+  const { data: settings } = await supabase.from('settings').select('gallery_watermark').single()
+  const watermark = settings?.gallery_watermark ?? null
+
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 24px 60px' }}>
       <JsonLd schema={breadcrumbSchema} />
       <h1 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary)', marginBottom: '40px', textAlign: 'center' }}>Shop</h1>
-      <ProductGrid />
+      <ProductGrid watermark={watermark} />
     </div>
   )
 }

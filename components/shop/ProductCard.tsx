@@ -10,10 +10,14 @@ const HeartButton = dynamic(() => import('./HeartButton'), { ssr: false })
 interface Props {
   product: Product
   showPrice?: boolean
+  watermark?: string | null
 }
 
-export default function ProductCard({ product, showPrice = true }: Props) {
+export default function ProductCard({ product, showPrice = true, watermark }: Props) {
   const firstImage = product.images && product.images.length > 0 ? product.images[0] : null
+  const imageSrc = firstImage && watermark
+    ? `/api/gallery/image?url=${encodeURIComponent(firstImage)}`
+    : firstImage
   const fullUrl = typeof window !== 'undefined' ? window.location.origin + '/shop/' + product.id : ''
 
   return (
@@ -21,9 +25,9 @@ export default function ProductCard({ product, showPrice = true }: Props) {
       <Link href={`/shop/${product.id}`} style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', flex: 1 }}>
         {/* Image area */}
         <div style={{ position: 'relative', aspectRatio: '1', background: 'var(--color-border)', overflow: 'hidden' }}>
-          {firstImage ? (
+          {imageSrc ? (
             <Image
-              src={firstImage}
+              src={imageSrc}
               alt={product.name}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

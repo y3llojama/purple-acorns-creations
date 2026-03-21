@@ -6,9 +6,13 @@ import Image from 'next/image'
 interface ImageCarouselProps {
   images: string[]
   alt: string
+  watermark?: string | null
 }
 
-export default function ImageCarousel({ images, alt }: ImageCarouselProps) {
+export default function ImageCarousel({ images, alt, watermark }: ImageCarouselProps) {
+  const displayImages = watermark
+    ? images.map((url) => `/api/gallery/image?url=${encodeURIComponent(url)}`)
+    : images
   const [current, setCurrent] = useState(0)
 
   const prev = useCallback(() => {
@@ -65,7 +69,7 @@ export default function ImageCarousel({ images, alt }: ImageCarouselProps) {
         }}
       >
         <Image
-          src={images[current]}
+          src={displayImages[current]}
           alt={`${alt} — image ${current + 1} of ${images.length}`}
           fill
           style={{ objectFit: 'cover' }}

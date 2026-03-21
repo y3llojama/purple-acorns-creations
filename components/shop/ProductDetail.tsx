@@ -12,9 +12,10 @@ const HeartButton = dynamic(() => import('@/components/shop/HeartButton'), { ssr
 
 interface Props {
   product: Product
+  watermark?: string | null
 }
 
-export default function ProductDetail({ product }: Props) {
+export default function ProductDetail({ product, watermark }: Props) {
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
   const { addToCart } = useCart()
 
@@ -72,7 +73,7 @@ export default function ProductDetail({ product }: Props) {
       >
         {/* Image carousel */}
         <div>
-          <ImageCarousel images={product.images ?? []} alt={product.name} />
+          <ImageCarousel images={product.images ?? []} alt={product.name} watermark={watermark} />
         </div>
 
         {/* Product info */}
@@ -179,7 +180,7 @@ export default function ProductDetail({ product }: Props) {
             }}
           >
             {relatedProducts.map((p) => (
-              <ProductCard key={p.id} product={p} />
+              <ProductCard key={p.id} product={p} watermark={watermark} />
             ))}
           </div>
         </div>

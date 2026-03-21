@@ -14,9 +14,13 @@ interface ApiResponse {
   pageSize: number
 }
 
+interface Props {
+  watermark?: string | null
+}
+
 const PAGE_SIZE = 24
 
-export default function ProductGrid() {
+export default function ProductGrid({ watermark }: Props) {
   const [categoryId, setCategoryId] = useState('')
   const [categories, setCategories] = useState<CategoryOption[]>([])
   const [sort, setSort] = useState<SortOption>('new')
@@ -109,7 +113,7 @@ export default function ProductGrid() {
       {!loading && !error && data && data.products.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '24px' }}>
           {data.products.map(product => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard key={product.id} product={product} watermark={watermark} />
           ))}
         </div>
       )}
