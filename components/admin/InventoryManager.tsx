@@ -43,6 +43,8 @@ export default function InventoryManager({ initialProducts, categories, squareSy
   const [syncStockResult, setSyncStockResult] = useState<string | null>(null)
   const [syncingItems, setSyncingItems] = useState(false)
   const [syncItemsResult, setSyncItemsResult] = useState<string | null>(null)
+  const [pushingUnsynced, setPushingUnsynced] = useState(false)
+  const [pushUnsyncedResult, setPushUnsyncedResult] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'products' | 'categories'>(initialTab ?? 'products')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -117,6 +119,27 @@ export default function InventoryManager({ initialProducts, categories, squareSy
       setSyncStockResult(`Error: ${String(err)}`)
     } finally {
       setSyncingStock(false)
+    }
+  }
+
+  async function handlePushUnsyncedToSquare() {
+    setPushingUnsynced(true)
+    setPushUnsyncedResult(null)
+    try {
+      const res = await fetch('/api/admin/inventory/push-unsynced', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setPushUnsyncedResult(`Error: ${data.error ?? 'Push failed'}`)
+      } else if (data.pushed === 0) {
+        setPushUnsyncedResult('All products already synced.')
+      } else {
+        setPushUnsyncedResult(`Pushed ${data.pushed}${data.errors?.length ? `, ${data.errors.length} error(s)` : ''}`)
+        fetchProducts(search, categoryFilter)
+      }
+    } catch (err) {
+      setPushUnsyncedResult(`Error: ${String(err)}`)
+    } finally {
+      setPushingUnsynced(false)
     }
   }
 
@@ -232,6 +255,21 @@ export default function InventoryManager({ initialProducts, categories, squareSy
               {squareSyncEnabled && (
                 <>
                   <button
+                    onClick={handlePushUnsyncedToSquare}
+                    disabled={pushingUnsynced}
+                    style={{
+                      ...btnStyle,
+                      background: 'var(--color-surface)',
+                      color: 'var(--color-primary)',
+                      border: '1px solid var(--color-border)',
+                      cursor: pushingUnsynced ? 'not-allowed' : 'pointer',
+                      opacity: pushingUnsynced ? 0.7 : 1,
+                    }}
+                    aria-busy={pushingUnsynced}
+                  >
+                    {pushingUnsynced ? 'Pushing…' : 'Push Unsynced to Square'}
+                  </button>
+                  <button
                     onClick={handleSyncItemsFromSquare}
                     disabled={syncingItems}
                     style={{
@@ -270,6 +308,18 @@ export default function InventoryManager({ initialProducts, categories, squareSy
           </div>
 
           {/* Sync result messages */}
+          {pushUnsyncedResult && (
+            <p
+              role="status"
+              style={{
+                marginBottom: '8px',
+                fontSize: '14px',
+                color: pushUnsyncedResult.startsWith('Error') ? 'var(--color-error)' : 'var(--color-success-text)',
+              }}
+            >
+              Push: {pushUnsyncedResult}
+            </p>
+          )}
           {syncItemsResult && (
             <p
               role="status"

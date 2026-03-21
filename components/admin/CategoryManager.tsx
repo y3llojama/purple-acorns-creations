@@ -33,6 +33,8 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
   const [saveError, setSaveError] = useState('')
   const [syncingCategories, setSyncingCategories] = useState(false)
   const [syncCategoryMsg, setSyncCategoryMsg] = useState<string | null>(null)
+  const [pushingUnsynced, setPushingUnsynced] = useState(false)
+  const [pushUnsyncedMsg, setPushUnsyncedMsg] = useState<string | null>(null)
   const dragItem = useRef<string | null>(null)
 
   // Form state
@@ -67,6 +69,28 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
       setSyncCategoryMsg(`Error: ${String(err)}`)
     } finally {
       setSyncingCategories(false)
+    }
+  }
+
+  async function pushUnsyncedToSquare() {
+    setPushingUnsynced(true)
+    setPushUnsyncedMsg(null)
+    try {
+      const res = await fetch('/api/admin/categories/push-unsynced', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setPushUnsyncedMsg(`Error: ${data.error ?? 'Push failed'}`)
+      } else if (data.pushed === 0) {
+        setPushUnsyncedMsg('All categories are already synced.')
+      } else {
+        setPushUnsyncedMsg(`Pushed ${data.pushed}${data.errors?.length ? `, ${data.errors.length} error(s)` : ''}`)
+        const refreshed = await fetch('/api/admin/categories').then(r => r.json()).catch(() => null)
+        if (Array.isArray(refreshed)) setCategories(refreshed)
+      }
+    } catch (err) {
+      setPushUnsyncedMsg(`Error: ${String(err)}`)
+    } finally {
+      setPushingUnsynced(false)
     }
   }
 
@@ -273,20 +297,35 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
         <span style={{ fontWeight: 600 }}>{categories.length} categories</span>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {pushUnsyncedMsg && (
+            <span style={{ fontSize: '13px', color: pushUnsyncedMsg.startsWith('Error') ? 'var(--color-error)' : 'var(--color-text-muted)' }}>
+              {pushUnsyncedMsg}
+            </span>
+          )}
           {syncCategoryMsg && (
             <span style={{ fontSize: '13px', color: syncCategoryMsg.startsWith('Error') ? 'var(--color-error)' : 'var(--color-text-muted)' }}>
               {syncCategoryMsg}
             </span>
           )}
           {squareSyncEnabled && (
-            <button
-              onClick={syncFromSquare}
-              disabled={syncingCategories}
-              style={{ ...btnStyle, background: 'var(--color-surface)', color: 'var(--color-primary)', border: '1px solid var(--color-border)', cursor: syncingCategories ? 'not-allowed' : 'pointer', opacity: syncingCategories ? 0.7 : 1 }}
-              aria-busy={syncingCategories}
-            >
-              {syncingCategories ? 'Syncing…' : 'Sync from Square'}
-            </button>
+            <>
+              <button
+                onClick={pushUnsyncedToSquare}
+                disabled={pushingUnsynced}
+                style={{ ...btnStyle, background: 'var(--color-surface)', color: 'var(--color-primary)', border: '1px solid var(--color-border)', cursor: pushingUnsynced ? 'not-allowed' : 'pointer', opacity: pushingUnsynced ? 0.7 : 1 }}
+                aria-busy={pushingUnsynced}
+              >
+                {pushingUnsynced ? 'Pushing…' : 'Push Unsynced to Square'}
+              </button>
+              <button
+                onClick={syncFromSquare}
+                disabled={syncingCategories}
+                style={{ ...btnStyle, background: 'var(--color-surface)', color: 'var(--color-primary)', border: '1px solid var(--color-border)', cursor: syncingCategories ? 'not-allowed' : 'pointer', opacity: syncingCategories ? 0.7 : 1 }}
+                aria-busy={syncingCategories}
+              >
+                {syncingCategories ? 'Syncing…' : 'Sync from Square'}
+              </button>
+            </>
           )}
           <button style={btnStyle} onClick={openNew}>+ Add Category</button>
         </div>
