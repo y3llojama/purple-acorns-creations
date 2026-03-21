@@ -162,6 +162,15 @@ export default function PinterestChannelCard({ status, conflicts, recentErrors, 
         {status.connected && (
           <>
             <div style={{ marginBottom: '16px' }}>
+              <a href="/api/admin/channels/pinterest/connect" style={{ display: 'inline-block', textDecoration: 'none', fontSize: '14px', padding: '10px 20px', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-primary)', background: 'transparent', minHeight: '48px', lineHeight: '28px' }}>
+                Re-authorize Pinterest
+              </a>
+              <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+                Use this to grant new permissions to an existing connection.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', minHeight: '48px' }}>
                 <input
                   type="checkbox"
