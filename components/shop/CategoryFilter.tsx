@@ -1,5 +1,7 @@
 'use client'
 
+import { sanitizeText } from '@/lib/sanitize'
+
 export interface CategoryOption { id: string; name: string; slug: string }
 
 interface Props {
@@ -36,7 +38,7 @@ export default function CategoryFilter({ categories, active, onChange }: Props) 
             cursor: 'pointer', fontSize: '14px', minHeight: '48px', textTransform: 'capitalize',
           }}
         >
-          {cat.name}
+          {sanitizeText(cat.name)}
         </button>
       ))}
     </div>

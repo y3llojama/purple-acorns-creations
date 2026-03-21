@@ -40,7 +40,6 @@ export default function ProductGrid() {
       if (categoryId) params.set('category_id', categoryId)
       params.set('sort', sort)
       params.set('page', String(page))
-      params.set('pageSize', String(PAGE_SIZE))
 
       const res = await fetch(`/api/shop/products?${params.toString()}`)
       if (!res.ok) throw new Error(`Failed to load products (${res.status})`)
