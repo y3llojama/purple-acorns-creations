@@ -16,7 +16,7 @@ declare global {
   }
 }
 
-export default function CheckoutForm() {
+export default function CheckoutForm({ onSuccess }: { onSuccess?: () => void }) {
   const { items, total, clearCart } = useCart()
   const router = useRouter()
   const cardRef = useRef<SquareCard | null>(null)
@@ -76,6 +76,7 @@ export default function CheckoutForm() {
       })
       const data = await res.json()
       if (!res.ok) { setError(`${data.error ?? 'Payment failed'}${data.detail ? ` — ${data.detail}` : ''}`); return }
+      onSuccess?.()
       router.push(`/shop/confirmation/${data.orderId}`)
       clearCart()
     } catch (err) {
