@@ -4,7 +4,7 @@ import { useCart } from './CartContext'
 import { useRouter } from 'next/navigation'
 
 interface SquareCard {
-  attach: (selector: string) => Promise<void>
+  attach: (container: HTMLElement) => Promise<void>
   tokenize: () => Promise<{ status: string; token?: string; errors?: Array<{ message: string }> }>
 }
 interface SquarePayments {
@@ -20,17 +20,25 @@ export default function CheckoutForm() {
   const { items, total, clearCart } = useCart()
   const router = useRouter()
   const cardRef = useRef<SquareCard | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sdkReady, setSdkReady] = useState(false)
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null
+    let cancelled = false
     let attempts = 0
     const MAX_ATTEMPTS = 20 // 10 seconds at 500ms intervals
 
     async function init() {
+      if (cancelled) return
       if (!window.Square) {
+        if (++attempts >= MAX_ATTEMPTS) { setError('Payment form failed to load. Please refresh and try again.'); return }
+        timeoutId = setTimeout(init, 500)
+        return
+      }
+      if (!containerRef.current) {
         if (++attempts >= MAX_ATTEMPTS) { setError('Payment form failed to load. Please refresh and try again.'); return }
         timeoutId = setTimeout(init, 500)
         return
@@ -38,13 +46,16 @@ export default function CheckoutForm() {
       const appId = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID ?? ''
       const locationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID ?? ''
       const payments = await window.Square.payments(appId, locationId)
+      if (cancelled) return
       const card = await payments.card()
-      await card.attach('#square-card-container')
+      if (cancelled) return
+      await card.attach(containerRef.current)
+      if (cancelled) return
       cardRef.current = card
       setSdkReady(true)
     }
     init()
-    return () => { if (timeoutId) clearTimeout(timeoutId) }
+    return () => { cancelled = true; if (timeoutId) clearTimeout(timeoutId) }
   }, [])
 
   async function handlePay() {
@@ -88,7 +99,7 @@ export default function CheckoutForm() {
           <span>Total</span><span>${total.toFixed(2)}</span>
         </div>
       </div>
-      <div id="square-card-container" style={{ marginBottom: '24px', minHeight: '89px' }} />
+      <div ref={containerRef} id="square-card-container" style={{ marginBottom: '24px', minHeight: '89px' }} />
       {error && <p role="alert" style={{ color: 'var(--color-error)', marginBottom: '16px', fontSize: '14px' }}>{error}</p>}
       <button
         onClick={handlePay}
