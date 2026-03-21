@@ -197,7 +197,8 @@ export default function InventoryManager({ initialProducts, categories, squareSy
                 borderRadius: '4px',
                 border: '1px solid var(--color-border)',
                 minHeight: '48px',
-                width: '240px',
+                width: '100%',
+                maxWidth: '240px',
                 background: 'var(--color-bg)',
                 color: 'inherit',
               }}

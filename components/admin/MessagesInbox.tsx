@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
 import type { Message, MessageReply } from '@/lib/supabase/types'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 
 interface Props { initialMessages: Message[] }
 
@@ -25,6 +26,7 @@ export default function MessagesInbox({ initialMessages }: Props) {
   const [sendError, setSendError] = useState<string | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
+  const isMobile = useIsMobile()
   const selectedMsg = messages.find(m => m.id === selected)
   const unreadCount = messages.filter(m => !m.is_read).length
 
@@ -88,9 +90,9 @@ export default function MessagesInbox({ initialMessages }: Props) {
         Messages {unreadCount > 0 && <span style={{ fontSize: '16px', color: 'var(--color-accent)' }}>({unreadCount} unread)</span>}
       </h1>
 
-      <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 2fr' : '1fr', gap: '24px' }}>
-        {/* Message list */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: !isMobile && selected ? '1fr 2fr' : '1fr', gap: '24px' }}>
+        {/* Message list — hidden on mobile when a message is open */}
+        <div style={{ display: isMobile && selected ? 'none' : 'flex', flexDirection: 'column', gap: '8px' }}>
           {messages.length === 0 && (
             <p style={{ color: 'var(--color-text-muted)', fontSize: '16px' }}>No messages yet.</p>
           )}
@@ -129,6 +131,14 @@ export default function MessagesInbox({ initialMessages }: Props) {
         {/* Selected message detail */}
         {selectedMsg && (
           <div style={{ background: 'var(--color-surface)', borderRadius: '8px', border: '1px solid var(--color-border)', padding: '24px' }}>
+            {isMobile && (
+              <button
+                onClick={() => { setSelected(null); setReplies([]) }}
+                style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontSize: '15px', cursor: 'pointer', padding: '0 0 16px', display: 'flex', alignItems: 'center', gap: '6px', minHeight: '48px' }}
+              >
+                ← Back
+              </button>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
               <div>
                 <h2 style={{ fontSize: '20px', marginBottom: '4px' }}>{selectedMsg.name}</h2>

@@ -1,0 +1,12 @@
+.main {
+  flex: 1;
+  padding: 40px;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .main {
+    padding: 16px;
+  }
+}

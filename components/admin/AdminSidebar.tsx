@@ -35,7 +35,12 @@ export default function AdminSidebar({ businessName }: Props) {
 
   useEffect(() => {
     setMounted(true)
-    if (localStorage.getItem('admin-sidebar-collapsed') === 'true') setCollapsed(true)
+    const saved = localStorage.getItem('admin-sidebar-collapsed')
+    if (saved === 'true') {
+      setCollapsed(true)
+    } else if (saved !== 'false' && window.innerWidth < 768) {
+      setCollapsed(true)
+    }
   }, [])
 
   function toggleCollapsed() {
