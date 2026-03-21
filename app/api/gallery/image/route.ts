@@ -44,8 +44,8 @@ export async function GET(request: NextRequest) {
     ? interpolate(settings.gallery_watermark, buildVars(settings.business_name))
     : null
 
-  // Fetch the original image
-  const imageRes = await fetch(url)
+  // Fetch the original image — no-store so Next.js data cache doesn't serve stale bytes
+  const imageRes = await fetch(url, { cache: 'no-store' })
   if (!imageRes.ok) {
     return NextResponse.json({ error: 'Failed to fetch image' }, { status: 502 })
   }
@@ -62,45 +62,56 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  // Get image dimensions for scaling watermark
-  const metadata = await sharp(buffer).metadata()
-  const width = metadata.width || 800
-  const height = metadata.height || 800
+  try {
+    // Get image dimensions for scaling watermark
+    const metadata = await sharp(buffer).metadata()
+    const width = metadata.width || 800
+    const height = metadata.height || 800
 
-  // Single bottom-right watermark — white bold text with black stroke for legibility on any background.
-  // paint-order="stroke fill" draws the stroke behind the fill, creating a visible outline even on white backgrounds.
-  // stroke="black" stroke-opacity="0.85" (NOT stroke="rgba(...)") — librsvg ignores rgba() in presentation attributes.
-  const fontSize = Math.max(14, Math.round(width / 30))
-  const svg = `
-    <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-      <text
-        x="${width - 12}"
-        y="${height - 10}"
-        text-anchor="end"
-        font-family="Arial, Helvetica, sans-serif"
-        font-size="${fontSize}"
-        font-weight="bold"
-        fill="white"
-        stroke="black"
-        stroke-opacity="0.85"
-        stroke-width="3"
-        paint-order="stroke fill"
-        letter-spacing="0.04em"
-      >${escapeXml(watermark)}</text>
-    </svg>
-  `
+    // Single bottom-right watermark — white bold text with black stroke for legibility on any background.
+    // paint-order="stroke fill" draws the stroke behind the fill, creating a visible outline even on white backgrounds.
+    // stroke="black" stroke-opacity="0.85" (NOT stroke="rgba(...)") — librsvg ignores rgba() in presentation attributes.
+    const fontSize = Math.max(14, Math.round(width / 30))
+    const svg = `
+      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+        <text
+          x="${width - 12}"
+          y="${height - 10}"
+          text-anchor="end"
+          font-family="Arial, Helvetica, sans-serif"
+          font-size="${fontSize}"
+          font-weight="bold"
+          fill="white"
+          stroke="black"
+          stroke-opacity="0.85"
+          stroke-width="3"
+          paint-order="stroke fill"
+          letter-spacing="0.04em"
+        >${escapeXml(watermark)}</text>
+      </svg>
+    `
 
-  const watermarked = await sharp(buffer)
-    .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
-    .jpeg({ quality: 85 })
-    .toBuffer()
+    const watermarked = await sharp(buffer)
+      .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
+      .jpeg({ quality: 85 })
+      .toBuffer()
 
-  return new NextResponse(new Uint8Array(watermarked), {
-    headers: {
-      'Content-Type': 'image/jpeg',
-      'Cache-Control': 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400',
-    },
-  })
+    return new NextResponse(new Uint8Array(watermarked), {
+      headers: {
+        'Content-Type': 'image/jpeg',
+        'Cache-Control': 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400',
+      },
+    })
+  } catch (err) {
+    console.error('[watermark] Sharp processing failed, passing through original:', err)
+    // Fall back to original image rather than returning a broken 500
+    return new NextResponse(new Uint8Array(buffer), {
+      headers: {
+        'Content-Type': imageRes.headers.get('content-type') || 'image/jpeg',
+        'Cache-Control': 'public, max-age=60',
+      },
+    })
+  }
 }
 
 function escapeXml(str: string): string {
