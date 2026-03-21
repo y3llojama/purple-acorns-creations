@@ -55,6 +55,7 @@ export default function SquareChannelCard({ status, conflicts, recentErrors, onR
   const [syncing, setSyncing] = useState(false)
   const [toggling, setToggling] = useState(false)
   const [syncError, setSyncError] = useState('')
+  const [syncResult, setSyncResult] = useState<{ synced: number; errors: number; details: unknown[] } | null>(null)
   const [credAppId, setCredAppId] = useState('')
   const [credSecret, setCredSecret] = useState('')
   const [credEnv, setCredEnv] = useState(status.environment ?? 'sandbox')
@@ -105,12 +106,14 @@ export default function SquareChannelCard({ status, conflicts, recentErrors, onR
   async function syncNow() {
     setSyncing(true)
     setSyncError('')
+    setSyncResult(null)
     try {
       const res = await fetch('/api/admin/sync', { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
         setSyncError(data.error ?? 'Sync failed.')
       } else {
+        setSyncResult(data)
         onRefresh()
       }
     } catch {
@@ -284,6 +287,26 @@ export default function SquareChannelCard({ status, conflicts, recentErrors, onR
 
           {syncError && (
             <p role="alert" style={{ color: 'var(--color-error)', fontSize: '14px', marginBottom: '12px' }}>{syncError}</p>
+          )}
+
+          {syncResult && (
+            <details style={{ marginBottom: '16px' }}>
+              <summary style={{ fontSize: '14px', cursor: 'pointer', color: 'var(--color-text-muted)', userSelect: 'none' }}>
+                Sync complete — {syncResult.synced} synced, {syncResult.errors} error{syncResult.errors !== 1 ? 's' : ''}
+              </summary>
+              <textarea
+                readOnly
+                value={JSON.stringify(syncResult.details, null, 2)}
+                style={{
+                  display: 'block', width: '100%', marginTop: '8px',
+                  height: '180px', fontSize: '12px', fontFamily: 'monospace',
+                  padding: '8px', boxSizing: 'border-box',
+                  border: '1px solid var(--color-border)', borderRadius: '4px',
+                  background: 'var(--color-bg)', color: 'var(--color-text-muted)',
+                  resize: 'vertical',
+                }}
+              />
+            </details>
           )}
 
           {conflicts.length > 0 && (
