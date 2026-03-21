@@ -1,8 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
+import { Resvg } from '@resvg/resvg-js'
+import fs from 'node:fs'
+import path from 'node:path'
 import { isValidHttpsUrl } from '@/lib/validate'
 import { getSettings } from '@/lib/theme'
 import { interpolate, buildVars } from '@/lib/variables'
+
+// Loaded once per Lambda instance — fs.readFileSync works because
+// next.config.js outputFileTracingIncludes bundles this file with the function.
+let _fontBuffer: Buffer | null = null
+function getFontBuffer(): Buffer | null {
+  if (_fontBuffer) return _fontBuffer
+  try {
+    _fontBuffer = fs.readFileSync(
+      path.join(process.cwd(), 'public', 'fonts', 'DancingScript-Regular.ttf')
+    )
+    return _fontBuffer
+  } catch {
+    return null
+  }
+}
 
 // Rate limiter: 200 requests per IP per 60 seconds
 const rateLimitMap = new Map<string, { count: number; windowStart: number }>()
@@ -82,31 +100,41 @@ export async function GET(request: NextRequest) {
     const wmY = safeBottom - pad
 
     // Font size relative to the visible square, not the full image dimension.
-    // Single bottom-right watermark — white bold text with black stroke for legibility on any background.
-    // paint-order="stroke fill" draws the stroke behind the fill, creating a visible outline even on white backgrounds.
-    // stroke="black" stroke-opacity="0.85" (NOT stroke="rgba(...)") — librsvg ignores rgba() in presentation attributes.
+    // Single bottom-right watermark — white text with black stroke for legibility on any background.
+    // paint-order="stroke fill" draws the stroke behind the fill.
     const fontSize = Math.max(14, Math.round(squareSide / 30))
-    const svg = `
-      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-        <text
-          x="${wmX}"
-          y="${wmY}"
-          text-anchor="end"
-          font-family="Arial, Helvetica, sans-serif"
-          font-size="${fontSize}"
-          font-weight="bold"
-          fill="white"
-          stroke="black"
-          stroke-opacity="0.85"
-          stroke-width="3"
-          paint-order="stroke fill"
-          letter-spacing="0.04em"
-        >${escapeXml(watermark)}</text>
-      </svg>
-    `
+
+    // We use resvg-js (Rust SVG renderer) instead of Sharp's SVG composite (which uses librsvg).
+    // librsvg requires fontconfig to initialize Pango — fontconfig is unavailable on Vercel Lambda,
+    // causing every glyph to render as a replacement box. resvg-js loads fonts directly from a
+    // memory buffer via font.loadFontData, with no fontconfig dependency.
+    const fontBuffer = getFontBuffer()
+
+    const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+  <text
+    x="${wmX}"
+    y="${wmY}"
+    text-anchor="end"
+    font-family="Dancing Script, sans-serif"
+    font-size="${fontSize}"
+    fill="white"
+    stroke="black"
+    stroke-opacity="0.85"
+    stroke-width="3"
+    paint-order="stroke fill"
+  >${escapeXml(watermark)}</text>
+</svg>`
+
+    const resvg = new Resvg(svg, {
+      font: {
+        loadFontData: fontBuffer ? [new Uint8Array(fontBuffer)] : [],
+        defaultFontFamily: 'Dancing Script',
+      },
+    })
+    const overlayPng = resvg.render().asPng()
 
     const watermarked = await sharp(buffer)
-      .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
+      .composite([{ input: overlayPng, top: 0, left: 0 }])
       .jpeg({ quality: 85 })
       .toBuffer()
 
@@ -117,7 +145,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (err) {
-    console.error('[watermark] Sharp processing failed, passing through original:', err)
+    console.error('[watermark] processing failed, passing through original:', err)
     // Fall back to original image rather than returning a broken 500
     return new NextResponse(new Uint8Array(buffer), {
       headers: {

@@ -30,6 +30,13 @@ const nextConfig = {
       },
     ]
   },
+  experimental: {
+    // Bundle the watermark font with the /api/gallery/image serverless function.
+    // Without this, fs.readFileSync cannot find files in public/ on Vercel Lambda.
+    outputFileTracingIncludes: {
+      '/api/gallery/image': ['./public/fonts/**'],
+    },
+  },
   images: {
     localPatterns: [
       { pathname: '/gallery/**' },
