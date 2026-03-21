@@ -5,21 +5,38 @@ import { redirect } from 'next/navigation'
 
 export const metadata = { title: 'Inventory' }
 
-export default async function InventoryPage() {
+export default async function InventoryPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { error } = await requireAdminSession()
   if (error) redirect('/admin/login')
+  const { tab } = await searchParams
+  const initialTab = tab === 'categories' ? 'categories' : 'products'
   const supabase = createServiceRoleClient()
-  const [{ data: products }, { data: settings }] = await Promise.all([
+  const [{ data: products }, { data: settings }, { data: categories }] = await Promise.all([
     supabase.from('products').select('*').order('created_at', { ascending: false }),
-    supabase.from('settings').select('square_sync_enabled, square_category_ids').single(),
+    supabase.from('settings').select('square_sync_enabled').single(),
+    supabase.from('categories').select(`*, product_count:products(count)`).order('sort_order', { ascending: true }),
   ])
+
+  // Normalize product_count and nest children
+  const flatCats = (categories ?? []).map((c: Record<string, unknown>) => ({
+    ...c,
+    product_count: Array.isArray(c.product_count) ? (c.product_count[0] as { count: number })?.count ?? 0 : 0,
+  }))
+  const nestedCats = flatCats
+    .filter((c: Record<string, unknown>) => !c.parent_id)
+    .map((parent: Record<string, unknown>) => ({
+      ...parent,
+      children: flatCats.filter((c: Record<string, unknown>) => c.parent_id === parent.id),
+    }))
+
   return (
     <div>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', color: 'var(--color-primary)', marginBottom: '32px' }}>Inventory</h1>
       <InventoryManager
         initialProducts={products ?? []}
+        categories={nestedCats as import('@/lib/supabase/types').Category[]}
         squareSyncEnabled={settings?.square_sync_enabled ?? false}
-        squareCategoryIds={(settings?.square_category_ids as Record<string, string>) ?? {}}
+        initialTab={initialTab}
       />
     </div>
   )

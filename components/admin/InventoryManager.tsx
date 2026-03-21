@@ -1,15 +1,15 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import type { Product, ProductCategory } from '@/lib/supabase/types'
+import type { Product, Category } from '@/lib/supabase/types'
 import ProductForm from './ProductForm'
+import CategoryManager from './CategoryManager'
 
 interface Props {
   initialProducts: Product[]
+  categories: Category[]
   squareSyncEnabled: boolean
-  squareCategoryIds: Record<string, string>
+  initialTab?: 'products' | 'categories'
 }
-
-const CATEGORIES: ProductCategory[] = ['rings', 'necklaces', 'earrings', 'bracelets', 'crochet', 'other']
 
 const btnStyle: React.CSSProperties = {
   background: 'var(--color-primary)',
@@ -32,24 +32,22 @@ const btnSmallStyle: React.CSSProperties = {
   minWidth: '48px',
 }
 
-export default function InventoryManager({ initialProducts, squareSyncEnabled, squareCategoryIds: initialCategoryIds }: Props) {
+export default function InventoryManager({ initialProducts, categories, squareSyncEnabled, initialTab }: Props) {
   const [products, setProducts] = useState<Product[]>(initialProducts)
   const [search, setSearch] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState<ProductCategory | ''>('')
+  const [categoryFilter, setCategoryFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined)
   const [loading, setLoading] = useState(false)
-  const [categoryIds, setCategoryIds] = useState<Record<string, string>>(initialCategoryIds)
-  const [syncingCategories, setSyncingCategories] = useState(false)
-  const [categorySyncMsg, setCategorySyncMsg] = useState('')
+  const [activeTab, setActiveTab] = useState<'products' | 'categories'>(initialTab ?? 'products')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const fetchProducts = useCallback(async (q: string, cat: string) => {
+  const fetchProducts = useCallback(async (q: string, catId: string) => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
       if (q) params.set('search', q)
-      if (cat) params.set('category', cat)
+      if (catId) params.set('category_id', catId)
       const res = await fetch(`/api/admin/inventory?${params.toString()}`)
       if (res.ok) {
         const data = await res.json()
@@ -99,243 +97,213 @@ export default function InventoryManager({ initialProducts, squareSyncEnabled, s
     setEditingProduct(undefined)
   }
 
-  async function syncCategories() {
-    setSyncingCategories(true)
-    setCategorySyncMsg('')
-    try {
-      const res = await fetch('/api/admin/inventory/sync-categories', { method: 'POST' })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setCategorySyncMsg(data.error ?? 'Sync failed.')
-      } else {
-        setCategoryIds(data.categoryIds ?? {})
-        setCategorySyncMsg('All categories synced.')
-      }
-    } catch {
-      setCategorySyncMsg('Network error.')
-    } finally {
-      setSyncingCategories(false)
-    }
+  // Look up category name from the flat categories list
+  const topLevelCategories = categories.filter(c => !c.parent_id)
+
+  function getCategoryName(categoryId: string | null): string {
+    if (!categoryId) return '—'
+    const cat = categories.find(c => c.id === categoryId)
+    return cat?.name ?? '—'
   }
 
   return (
     <div>
-      {/* Square category sync panel */}
-      {squareSyncEnabled && (
-        <div style={{
-          background: 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '8px',
-          padding: '16px 20px',
-          marginBottom: '24px',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
-            <h3 style={{ fontSize: '15px', fontWeight: '600', margin: 0, color: 'var(--color-primary)' }}>Square Categories</h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              {categorySyncMsg && (
-                <span style={{ fontSize: '13px', color: categorySyncMsg.includes('failed') || categorySyncMsg.includes('error') ? 'var(--color-error)' : 'var(--color-success-text)' }}>
-                  {categorySyncMsg}
-                </span>
-              )}
-              <button style={{ ...btnSmallStyle, background: 'var(--color-primary)', color: 'var(--color-accent)' }} onClick={syncCategories} disabled={syncingCategories}>
-                {syncingCategories ? 'Syncing…' : 'Sync Categories'}
-              </button>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {CATEGORIES.map(cat => {
-              const synced = !!categoryIds[cat]
-              return (
-                <div key={cat} style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '4px 10px',
-                  borderRadius: '12px',
-                  fontSize: '13px',
-                  background: synced ? 'var(--color-success-bg)' : 'var(--color-surface)',
-                  border: '1px solid var(--color-border)',
-                  color: synced ? 'var(--color-success-text)' : 'var(--color-text-muted)',
-                  textTransform: 'capitalize',
-                }}>
-                  <span style={{ fontSize: '10px' }}>{synced ? '●' : '○'}</span>
-                  {cat}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Toolbar */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <input
-          type="search"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search products…"
-          aria-label="Search products"
-          style={{
-            padding: '10px',
-            fontSize: '16px',
-            borderRadius: '4px',
-            border: '1px solid var(--color-border)',
-            minHeight: '48px',
-            width: '240px',
-            background: 'var(--color-bg)',
-            color: 'inherit',
-          }}
-        />
-
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+      {/* Tab bar */}
+      <div style={{ display: 'flex', gap: '0', marginBottom: '24px', borderBottom: '2px solid var(--color-border)' }}>
+        {(['products', 'categories'] as const).map(tab => (
           <button
-            onClick={() => setCategoryFilter('')}
+            key={tab}
+            onClick={() => setActiveTab(tab)}
             style={{
-              ...btnSmallStyle,
-              background: categoryFilter === '' ? 'var(--color-primary)' : 'transparent',
-              color: categoryFilter === '' ? 'var(--color-accent)' : 'var(--color-primary)',
-              border: '1px solid var(--color-border)',
+              padding: '8px 20px', fontSize: '15px', fontWeight: activeTab === tab ? 600 : 400,
+              background: 'none', border: 'none', cursor: 'pointer', textTransform: 'capitalize',
+              borderBottom: activeTab === tab ? '2px solid var(--color-primary)' : '2px solid transparent',
+              marginBottom: '-2px', color: activeTab === tab ? 'var(--color-primary)' : 'var(--color-text-muted)',
+              minHeight: '48px',
             }}
           >
-            All
+            {tab}
           </button>
-          {CATEGORIES.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setCategoryFilter(cat)}
-              style={{
-                ...btnSmallStyle,
-                background: categoryFilter === cat ? 'var(--color-primary)' : 'transparent',
-                color: categoryFilter === cat ? 'var(--color-accent)' : 'var(--color-primary)',
-                border: '1px solid var(--color-border)',
-                textTransform: 'capitalize',
-              }}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
-        <button style={{ ...btnStyle, marginLeft: 'auto' }} onClick={handleAddNew}>
-          + Add Product
-        </button>
+        ))}
       </div>
 
-      {/* Loading indicator */}
-      {loading && (
-        <p style={{ color: 'var(--color-text-muted)', marginBottom: '16px' }}>Loading…</p>
+      {activeTab === 'categories' && (
+        <CategoryManager initialCategories={categories} squareSyncEnabled={squareSyncEnabled} />
       )}
 
-      {/* Products table */}
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '15px' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
-              <th style={{ padding: '8px 12px', fontWeight: '600' }}>Image</th>
-              <th style={{ padding: '8px 12px', fontWeight: '600' }}>Name</th>
-              <th style={{ padding: '8px 12px', fontWeight: '600' }}>Category</th>
-              <th style={{ padding: '8px 12px', fontWeight: '600' }}>Price</th>
-              <th style={{ padding: '8px 12px', fontWeight: '600' }}>Stock</th>
-              <th style={{ padding: '8px 12px', fontWeight: '600' }}>Active</th>
-              <th style={{ padding: '8px 12px', fontWeight: '600' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.length === 0 && (
-              <tr>
-                <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                  No products found.
-                </td>
-              </tr>
-            )}
-            {products.map(product => (
-              <tr key={product.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                <td style={{ padding: '8px 12px' }}>
-                  {product.images[0] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={product.images[0]}
-                      alt={product.name}
-                      style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--color-border)' }}
-                    />
-                  ) : (
-                    <div style={{ width: '40px', height: '40px', borderRadius: '4px', background: 'var(--color-surface)', border: '1px solid var(--color-border)' }} aria-label="No image" />
-                  )}
-                </td>
-                <td style={{ padding: '8px 12px' }}>{product.name}</td>
-                <td style={{ padding: '8px 12px', textTransform: 'capitalize' }}>{product.category}</td>
-                <td style={{ padding: '8px 12px' }}>${product.price.toFixed(2)}</td>
-                <td style={{ padding: '8px 12px' }}>{product.stock_count}</td>
-                <td style={{ padding: '8px 12px' }}>
-                  <span style={{
-                    display: 'inline-block',
-                    padding: '2px 8px',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    background: product.is_active ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
-                    color: product.is_active ? 'var(--color-success-text)' : 'var(--color-danger-text)',
-                  }}>
-                    {product.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td style={{ padding: '8px 12px' }}>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      onClick={() => handleEdit(product)}
-                      style={{ ...btnSmallStyle, background: 'var(--color-primary)', color: 'var(--color-accent)' }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(product.id)}
-                      style={{ ...btnSmallStyle, background: 'var(--color-error)', color: 'var(--color-error-text)' }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Modal overlay for product form */}
-      {showForm && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={editingProduct ? 'Edit product' : 'Add product'}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'center',
-            zIndex: 1000,
-            overflowY: 'auto',
-            padding: '40px 16px',
-          }}
-          onClick={e => { if (e.target === e.currentTarget) handleFormCancel() }}
-        >
-          <div style={{
-            background: 'var(--color-bg)',
-            borderRadius: '8px',
-            padding: '32px',
-            width: '100%',
-            maxWidth: '600px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-          }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '22px', color: 'var(--color-primary)', marginBottom: '24px' }}>
-              {editingProduct ? 'Edit Product' : 'Add Product'}
-            </h2>
-            <ProductForm
-              product={editingProduct}
-              onSave={handleFormSave}
-              onCancel={handleFormCancel}
+      {activeTab === 'products' && (
+        <div>
+          {/* Toolbar */}
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              type="search"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search products…"
+              aria-label="Search products"
+              style={{
+                padding: '10px',
+                fontSize: '16px',
+                borderRadius: '4px',
+                border: '1px solid var(--color-border)',
+                minHeight: '48px',
+                width: '240px',
+                background: 'var(--color-bg)',
+                color: 'inherit',
+              }}
             />
+
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setCategoryFilter('')}
+                style={{
+                  ...btnSmallStyle,
+                  background: categoryFilter === '' ? 'var(--color-primary)' : 'transparent',
+                  color: categoryFilter === '' ? 'var(--color-accent)' : 'var(--color-primary)',
+                  border: '1px solid var(--color-border)',
+                }}
+              >
+                All
+              </button>
+              {topLevelCategories.map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => setCategoryFilter(cat.id)}
+                  style={{
+                    ...btnSmallStyle,
+                    background: categoryFilter === cat.id ? 'var(--color-primary)' : 'transparent',
+                    color: categoryFilter === cat.id ? 'var(--color-accent)' : 'var(--color-primary)',
+                    border: '1px solid var(--color-border)',
+                  }}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+
+            <button style={{ ...btnStyle, marginLeft: 'auto' }} onClick={handleAddNew}>
+              + Add Product
+            </button>
           </div>
+
+          {/* Loading indicator */}
+          {loading && (
+            <p style={{ color: 'var(--color-text-muted)', marginBottom: '16px' }}>Loading…</p>
+          )}
+
+          {/* Products table */}
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '15px' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
+                  <th style={{ padding: '8px 12px', fontWeight: '600' }}>Image</th>
+                  <th style={{ padding: '8px 12px', fontWeight: '600' }}>Name</th>
+                  <th style={{ padding: '8px 12px', fontWeight: '600' }}>Category</th>
+                  <th style={{ padding: '8px 12px', fontWeight: '600' }}>Price</th>
+                  <th style={{ padding: '8px 12px', fontWeight: '600' }}>Stock</th>
+                  <th style={{ padding: '8px 12px', fontWeight: '600' }}>Active</th>
+                  <th style={{ padding: '8px 12px', fontWeight: '600' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.length === 0 && (
+                  <tr>
+                    <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                      No products found.
+                    </td>
+                  </tr>
+                )}
+                {products.map(product => (
+                  <tr key={product.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                    <td style={{ padding: '8px 12px' }}>
+                      {product.images[0] ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={product.images[0]}
+                          alt={product.name}
+                          style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--color-border)' }}
+                        />
+                      ) : (
+                        <div style={{ width: '40px', height: '40px', borderRadius: '4px', background: 'var(--color-surface)', border: '1px solid var(--color-border)' }} aria-label="No image" />
+                      )}
+                    </td>
+                    <td style={{ padding: '8px 12px' }}>{product.name}</td>
+                    <td style={{ padding: '8px 12px' }}>{getCategoryName(product.category_id)}</td>
+                    <td style={{ padding: '8px 12px' }}>${product.price.toFixed(2)}</td>
+                    <td style={{ padding: '8px 12px' }}>{product.stock_count}</td>
+                    <td style={{ padding: '8px 12px' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        background: product.is_active ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
+                        color: product.is_active ? 'var(--color-success-text)' : 'var(--color-danger-text)',
+                      }}>
+                        {product.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '8px 12px' }}>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => handleEdit(product)}
+                          style={{ ...btnSmallStyle, background: 'var(--color-primary)', color: 'var(--color-accent)' }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(product.id)}
+                          style={{ ...btnSmallStyle, background: 'var(--color-error)', color: 'var(--color-error-text)' }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Modal overlay for product form */}
+          {showForm && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={editingProduct ? 'Edit product' : 'Add product'}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.5)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'center',
+                zIndex: 1000,
+                overflowY: 'auto',
+                padding: '40px 16px',
+              }}
+              onClick={e => { if (e.target === e.currentTarget) handleFormCancel() }}
+            >
+              <div style={{
+                background: 'var(--color-bg)',
+                borderRadius: '8px',
+                padding: '32px',
+                width: '100%',
+                maxWidth: '600px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+              }}>
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '22px', color: 'var(--color-primary)', marginBottom: '24px' }}>
+                  {editingProduct ? 'Edit Product' : 'Add Product'}
+                </h2>
+                <ProductForm
+                  product={editingProduct}
+                  categories={categories}
+                  onSave={handleFormSave}
+                  onCancel={handleFormCancel}
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
