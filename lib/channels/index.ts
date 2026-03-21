@@ -43,6 +43,22 @@ export async function syncProduct(product: Product): Promise<SyncResult[]> {
   return results
 }
 
+export async function syncCategory(category: import('@/lib/supabase/types').Category): Promise<void> {
+  const config = await getChannelConfig()
+  if (!config.squareEnabled) return
+  try {
+    const { pushCategory } = await import('./square/catalog')
+    const result = await pushCategory(category)
+    // Note: do NOT pass category.id to logSyncResults — channel_sync_log.product_id is a FK
+    // to products. Log sync errors to console only for categories.
+    if (!result.success) {
+      console.error('syncCategory Square error:', result.error)
+    }
+  } catch (err) {
+    console.error('syncCategory error:', err)
+  }
+}
+
 /** Sync all active products to all enabled channels. */
 export async function syncAllProducts(): Promise<SyncResult[]> {
   const supabase = createServiceRoleClient()

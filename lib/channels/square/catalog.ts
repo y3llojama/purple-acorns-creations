@@ -1,64 +1,101 @@
 import { getSquareClient } from './client'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import type { Product, SyncResult } from '@/lib/channels/types'
+import type { Category } from '@/lib/supabase/types'
 
-const PRODUCT_CATEGORIES = ['rings', 'necklaces', 'earrings', 'bracelets', 'crochet', 'other'] as const
-type ProductCategory = typeof PRODUCT_CATEGORIES[number]
+// ─── Category sync ─────────────────────────────────────────────────────────
 
-/**
- * Ensures all product categories exist as Square CATEGORY objects.
- * IDs are cached in settings.square_category_ids so Square is only called
- * when a category is missing. Returns the full category → Square ID map.
- */
-export async function ensureSquareCategories(): Promise<Record<string, string>> {
-  const supabase = createServiceRoleClient()
-  const { data: settings } = await supabase.from('settings').select('square_category_ids').single()
-  const cached: Record<string, string> = (settings?.square_category_ids as Record<string, string>) ?? {}
+export async function pushCategory(category: Category): Promise<SyncResult> {
+  try {
+    const { client } = await getSquareClient()
+    const supabase = createServiceRoleClient()
 
-  const missing = PRODUCT_CATEGORIES.filter(cat => !cached[cat])
-  if (missing.length === 0) return cached
+    // Delete-then-recreate to avoid VERSION_MISMATCH
+    if (category.square_category_id) {
+      await deleteSquareCategory(category.square_category_id)
+    }
 
-  const { client } = await getSquareClient()
-  const result = await client.catalog.batchUpsert({
-    idempotencyKey: `categories-${missing.join('-')}-${Date.now()}`,
-    batches: [{
-      objects: missing.map(cat => ({
-        type: 'CATEGORY' as const,
-        id: `#CAT-${cat}`,
-        categoryData: { name: cat.charAt(0).toUpperCase() + cat.slice(1) },
-      })),
-    }],
-  })
+    // Look up parent's Square ID if this is a sub-category
+    let parentSquareCategoryId: string | undefined
+    if (category.parent_id) {
+      const { data: parent } = await supabase
+        .from('categories')
+        .select('square_category_id')
+        .eq('id', category.parent_id)
+        .single()
+      parentSquareCategoryId = parent?.square_category_id ?? undefined
+    }
 
-  const updated = { ...cached }
-  for (const mapping of result.idMappings ?? []) {
-    if (!mapping.clientObjectId || !mapping.objectId) continue
-    const catName = mapping.clientObjectId.replace('#CAT-', '') as ProductCategory
-    if (PRODUCT_CATEGORIES.includes(catName)) {
-      updated[catName] = mapping.objectId
+    const result = await client.catalog.object.upsert({
+      idempotencyKey: `category-${category.id}-${Date.now()}`,
+      object: {
+        type: 'CATEGORY',
+        id: `#CAT-${category.id}`,
+        categoryData: {
+          name: category.name,
+          categoryType: category.category_type as 'REGULAR_CATEGORY' | 'MENU_CATEGORY',
+          onlineVisibility: category.online_visibility,
+          parentCategory: parentSquareCategoryId ? { id: parentSquareCategoryId } : undefined,
+          ecomSeoData: (category.seo_title || category.seo_description || category.seo_permalink) ? {
+            pageTitle: category.seo_title ?? undefined,
+            pageDescription: category.seo_description ?? undefined,
+            permalink: category.seo_permalink ?? undefined,
+          } : undefined,
+        },
+      },
+    })
+
+    const squareCategoryId = result.catalogObject?.id
+    if (!squareCategoryId) throw new Error('Square upsert returned no catalog object ID')
+
+    await supabase
+      .from('categories')
+      .update({ square_category_id: squareCategoryId, updated_at: new Date().toISOString() })
+      .eq('id', category.id)
+
+    return { productId: category.id, channel: 'square', success: true }
+  } catch (err) {
+    return { productId: category.id, channel: 'square', success: false, error: String(err) }
+  }
+}
+
+export async function deleteSquareCategory(squareCategoryId: string): Promise<void> {
+  try {
+    const { client } = await getSquareClient()
+    await client.catalog.object.delete({ objectId: squareCategoryId })
+  } catch (err) {
+    // 404 = already deleted — safe to ignore
+    if (!String(err).includes('404')) {
+      console.error('Square category delete failed:', err)
     }
   }
-
-  await supabase.from('settings').update({ square_category_ids: updated })
-  return updated
 }
+
+// ─── Product sync ─────────────────────────────────────────────────────────────
 
 export async function pushProduct(product: Product): Promise<SyncResult> {
   try {
     const { client, locationId } = await getSquareClient()
     const idempotencyKey = `product-${product.id}-${Date.now()}`
 
-    const categoryMap = await ensureSquareCategories()
-    const squareCategoryId = categoryMap[product.category]
+    // Look up the category's Square ID via the FK
+    let squareCategoryId: string | undefined
+    if (product.category_id) {
+      const supabase = createServiceRoleClient()
+      const { data } = await supabase
+        .from('categories')
+        .select('square_category_id')
+        .eq('id', product.category_id)
+        .single()
+      if (data?.square_category_id) {
+        squareCategoryId = data.square_category_id
+      }
+      // If category exists but has no square_category_id, sync proceeds without category link
+    }
 
-    // If the product already exists in Square, delete it first.
-    // Upserting an existing object requires the current version from Square's DB,
-    // and that version can diverge in ways that are hard to track locally.
-    // Delete-then-recreate avoids version management entirely and is safe for this use case.
+    // Delete-then-recreate to avoid VERSION_MISMATCH
     if (product.square_catalog_id) {
-      await client.catalog.object.delete({ objectId: product.square_catalog_id }).catch(() => {
-        // Object may have already been deleted from Square — safe to continue.
-      })
+      await client.catalog.object.delete({ objectId: product.square_catalog_id }).catch(() => {})
     }
 
     const result = await client.catalog.object.upsert({
@@ -93,10 +130,10 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
     if (!catalogObjectId) throw new Error('Square upsert returned no catalog object ID')
 
     const supabase = createServiceRoleClient()
-    await supabase.from('products').update({
-      square_catalog_id: catalogObjectId,
-      square_variation_id: variationId ?? null,
-    }).eq('id', product.id)
+    await supabase
+      .from('products')
+      .update({ square_catalog_id: catalogObjectId, square_variation_id: variationId ?? null })
+      .eq('id', product.id)
 
     if (variationId) {
       await client.inventory.batchCreateChanges({
@@ -121,7 +158,5 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
 }
 
 export async function fullSync(products: Product[]): Promise<SyncResult[]> {
-  // Ensure categories exist once before syncing all products in parallel.
-  await ensureSquareCategories()
   return Promise.all(products.map(pushProduct))
 }
