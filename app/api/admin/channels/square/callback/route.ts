@@ -38,7 +38,7 @@ export async function GET(request: Request) {
       client_secret: appSecret,
       code,
       grant_type: 'authorization_code',
-      redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/admin/channels/square/callback`,
+      redirect_uri: `${(process.env.NEXT_PUBLIC_APP_URL ?? '').trim()}/api/admin/channels/square/callback`,
     }),
   })
 
