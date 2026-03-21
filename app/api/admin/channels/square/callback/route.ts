@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   const supabase = createServiceRoleClient()
   const { data: settings } = await supabase
     .from('settings')
-    .select('square_application_id, square_application_secret, square_environment')
+    .select('id, square_application_id, square_application_secret, square_environment')
     .limit(1)
     .maybeSingle()
 
@@ -74,7 +74,7 @@ export async function GET(request: Request) {
     square_access_token: encryptToken(tokens.access_token),
     square_refresh_token: tokens.refresh_token ? encryptToken(tokens.refresh_token) : null,
     square_location_id: locationId,
-  })
+  }).eq('id', settings!.id)
   console.log('[square/callback] db update error:', dbError?.message ?? 'none')
 
   return NextResponse.redirect(`${(process.env.NEXT_PUBLIC_APP_URL ?? '').trim()}/admin/channels?connected=square`)
