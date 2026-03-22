@@ -6,6 +6,7 @@ const NAV_LINKS = [
   { href: '/shop', label: 'Shop' },
   { href: '/our-story', label: 'Our Story' },
   { href: '/events', label: 'Events' },
+  { href: '/markets-and-fairs', label: 'Markets & Fairs' },
   { href: '/contact', label: 'Contact' },
 ]
 
