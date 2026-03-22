@@ -15,7 +15,7 @@ interface DiscoveredEvent {
   link_url?: string
 }
 
-const PROMPT = `Search your knowledge for craft fair, market, and pop-up shop events that a Brooklyn-based handmade jewelry and crochet accessories vendor called "Purple Acorns Creations" (also spelled "Purple Acornz") has appeared at or is scheduled to appear at. These events are typically in Brooklyn, NYC, and the surrounding area.
+const PROMPT = `Search your knowledge for craft fair, market, and pop-up shop events that a Massachusetts-based handmade jewelry and crochet accessories vendor called "Purple Acorns Creations" (also spelled "Purple Acornz") has appeared at or is scheduled to appear at. These events are typically in Massachusetts and the surrounding New England area.
 
 Return ONLY a valid JSON array with this exact shape — no prose, no markdown, no code fences:
 [{"name": "event name", "date": "YYYY-MM-DD", "location": "venue or neighborhood", "link_url": "https://..."}]
