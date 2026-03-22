@@ -386,13 +386,11 @@ function SummaryCard({ label, value, subtitle }: { label: string; value: string;
         {label}
       </div>
       <div style={{
-        fontSize: '24px',
+        fontSize: '18px',
         fontWeight: '600',
         color: 'var(--color-primary)',
         fontFamily: 'var(--font-display)',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
+        wordBreak: 'break-all',
       }}>
         {value}
       </div>
