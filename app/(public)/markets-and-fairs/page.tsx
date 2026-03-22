@@ -11,19 +11,14 @@ export default async function MarketsAndFairsPage() {
   const today = new Date().toISOString().slice(0, 10)
   const { data } = await supabase
     .from('events')
-    .select('name, location, date')
+    .select('name, date')
     .lt('date', today)
     .order('date', { ascending: false })
 
-  const events: Pick<Event, 'name' | 'location' | 'date'>[] = data ?? []
+  const events: Pick<Event, 'name' | 'date'>[] = data ?? []
 
-  // Deduplicate by name, keeping the most recent location
-  const seen = new Map<string, string>()
-  for (const e of events) {
-    if (!seen.has(e.name)) seen.set(e.name, e.location)
-  }
-  const markets = Array.from(seen.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
+  // Deduplicate by name, sorted alphabetically
+  const markets = [...new Set(events.map(e => e.name))].sort((a, b) => a.localeCompare(b))
 
   return (
     <>
@@ -54,29 +49,15 @@ export default async function MarketsAndFairsPage() {
           padding: 0;
         }
         .mf-list li {
-          display: flex;
-          align-items: baseline;
-          gap: 10px;
           padding: 14px 0;
           border-bottom: 1px solid var(--color-border);
           font-family: 'Jost', sans-serif;
-        }
-        .mf-list li:first-child {
-          border-top: 1px solid var(--color-border);
-        }
-        .mf-name {
           font-size: clamp(15px, 1.4vw, 17px);
           font-weight: 500;
           color: var(--color-text);
         }
-        .mf-sep {
-          color: var(--color-border);
-          font-size: 13px;
-          flex-shrink: 0;
-        }
-        .mf-location {
-          font-size: 14px;
-          color: var(--color-text-muted);
+        .mf-list li:first-child {
+          border-top: 1px solid var(--color-border);
         }
         .mf-empty {
           font-family: 'Jost', sans-serif;
@@ -98,12 +79,8 @@ export default async function MarketsAndFairsPage() {
           <p className="mf-empty">No past markets yet — check back soon!</p>
         ) : (
           <ul className="mf-list">
-            {markets.map(([name, location]) => (
-              <li key={name}>
-                <span className="mf-name">{name}</span>
-                <span className="mf-sep" aria-hidden="true">·</span>
-                <span className="mf-location">{location}</span>
-              </li>
+            {markets.map(name => (
+              <li key={name}>{name}</li>
             ))}
           </ul>
         )}
