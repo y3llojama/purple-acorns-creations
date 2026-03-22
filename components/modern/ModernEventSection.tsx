@@ -117,17 +117,22 @@ export default function ModernEventSection({ event }: Props) {
           )}
         </div>
 
-        {/* Right: CTA */}
-        {hasExternalLink && (
-          <Link
-            href={event.link_url!}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="modern-event-cta-btn"
-          >
-            {event.link_label ?? 'Learn More'}
+        {/* Right: CTAs */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end', flexShrink: 0 }}>
+          {hasExternalLink && (
+            <Link
+              href={event.link_url!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="modern-event-cta-btn"
+            >
+              {event.link_label ?? 'Learn More'}
+            </Link>
+          )}
+          <Link href="/events" className="modern-event-cta-btn">
+            View All Events
           </Link>
-        )}
+        </div>
       </div>
     </section>
   )
