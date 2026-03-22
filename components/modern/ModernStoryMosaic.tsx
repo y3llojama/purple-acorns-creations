@@ -88,7 +88,6 @@ export default function ModernStoryMosaic({ photos, watermark }: { photos: Galle
       <div className="mss-scroll-track">
         {photos.map((img, i) => {
           const href = img.square_url || '/shop'
-          const external = !!img.square_url
           const imgSrc = watermark && img.url.startsWith('https')
             ? `/api/gallery/image?url=${encodeURIComponent(img.url)}`
             : img.url
@@ -100,7 +99,6 @@ export default function ModernStoryMosaic({ photos, watermark }: { photos: Galle
             >
               <a
                 href={href}
-                {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                 style={{ display: 'block', width: '100%', height: '100%' }}
                 aria-label={img.alt_text ?? 'View product'}
               >
