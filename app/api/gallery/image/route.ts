@@ -68,43 +68,44 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get image dimensions for scaling watermark
+    // Read stored metadata. sharp().metadata() always returns stored (pre-rotation) dimensions.
+    // Phone cameras store landscape shots as portrait with EXIF orientation 6 (90° CW) or 8 (90° CCW).
+    // Without accounting for this, all coordinate math runs in the wrong space and the watermark
+    // ends up in a random corner after the browser applies EXIF rotation.
     const metadata = await sharp(buffer).metadata()
-    const width = metadata.width || 800
-    const height = metadata.height || 800
+    const orientation = metadata.orientation ?? 1
 
+    // Orientations 5–8 mean the image is rotated 90° or 270° — visual width/height are swapped.
+    const rotated90 = orientation >= 5
+    const width  = rotated90 ? (metadata.height ?? 800) : (metadata.width  ?? 800)
+    const height = rotated90 ? (metadata.width  ?? 800) : (metadata.height ?? 800)
+
+    // All position math is now in VISUAL (post-rotation) coordinate space.
     // Images are displayed in square (1:1) cards with objectFit:cover.
     // For portrait images (height > width), cover crops equally from top and bottom —
     // the visible region is the center `width × width` slice.
     // For landscape images (width > height), cover crops equally from left and right —
     // the visible region is the center `height × height` slice.
-    // We must place the watermark inside this "always-visible square" to guarantee visibility.
     const squareSide = Math.min(width, height)
     const safeBottom = Math.round((height + squareSide) / 2) // bottom edge of 1:1 safe square
     const pad = Math.round(squareSide * 0.015)               // ~1.5% inset from safe edges
 
-    // Generalised safe-right formula for multiple container aspect ratios.
+    // Generalised safe-right for multiple container aspect ratios.
     // The story mosaic uses a tall rectangle (~220×460px, AR≈0.478), while product cards are 1:1.
-    // A portrait image (1200×1674) in the mosaic gets its sides cropped: visible x ends at ~83%.
-    // The plain safe-square safeRight = width (100%) for portrait → watermark is always cropped.
-    // Replacing squareSide with min(squareSide, MOSAIC_AR*height) picks whichever constraint
-    // is tighter — 1:1 card or the mosaic — so the watermark stays visible in both.
-    const MOSAIC_AR = 220 / 460 // worst-case desktop mosaic item width:height
+    const MOSAIC_AR = 220 / 460
     const safeRight = Math.round((width + Math.min(squareSide, MOSAIC_AR * height)) / 2)
     const wmX = safeRight - pad
     const wmY = safeBottom - pad
 
     // Font size: squareSide/20 gives ~11px apparent at 220px mosaic width and ~15px in shop cards.
-    // Stroke width scaled proportionally so thin/thick looks the same across image sizes.
+    // Stroke width scaled proportionally so it looks consistent across image sizes.
     const fontSize = Math.max(14, Math.round(squareSide / 20))
     const strokeWidth = Math.max(2, Math.round(squareSide / 120))
-    // Letter spacing: 0.08em expressed as absolute pixels for SVG attribute
     const letterSpacing = Math.round(fontSize * 0.08)
 
+    // SVG overlay is in visual dimensions (post-rotation).
     // We use resvg-js (Rust SVG renderer) instead of Sharp's SVG composite (which uses librsvg).
-    // librsvg requires fontconfig to initialize Pango — fontconfig is unavailable on Vercel Lambda,
-    // causing every glyph to render as a replacement box. resvg-js loads fonts from a file path
-    // with its own font engine, no fontconfig dependency.
+    // librsvg requires fontconfig to initialize Pango — fontconfig is unavailable on Vercel Lambda.
     const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
   <text
     x="${wmX}"
@@ -132,7 +133,10 @@ export async function GET(request: NextRequest) {
     })
     const overlayPng = resvg.render().asPng()
 
+    // .rotate() with no argument applies EXIF orientation and strips the tag,
+    // so the composited overlay (in visual coordinates) lands in the right place.
     const watermarked = await sharp(buffer)
+      .rotate()
       .composite([{ input: overlayPng, top: 0, left: 0 }])
       .jpeg({ quality: 85 })
       .toBuffer()
