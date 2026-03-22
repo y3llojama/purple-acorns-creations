@@ -88,7 +88,7 @@ function buildNavItems(businessName: string): NavItem[] { return [
         heading: 'Community',
         links: [
           { label: 'Upcoming Events', href: '/events' },
-          { label: 'Markets & Fairs', href: '/events' },
+          { label: 'Markets & Fairs', href: '/markets-and-fairs' },
           { label: 'Newsletter', href: '/#newsletter' },
         ],
       },
