@@ -254,7 +254,6 @@ Return [] if nothing qualifies.`
       .select('id')
       .ilike('name', name)
       .eq('date', date)
-      .ilike('location', location)
       .single()
 
     if (existing) {
