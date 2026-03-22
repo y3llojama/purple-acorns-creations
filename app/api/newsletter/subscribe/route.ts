@@ -38,37 +38,38 @@ export async function POST(request: Request) {
   }
 
   const supabase = createServiceRoleClient()
-  const { data: settings } = await supabase
-    .from('settings')
-    .select('mailchimp_api_key, mailchimp_audience_id')
+
+  // Check if already subscribed
+  const { data: existing } = await supabase
+    .from('newsletter_subscribers')
+    .select('status')
+    .eq('email', email)
     .single()
 
-  if (!settings?.mailchimp_api_key || !settings?.mailchimp_audience_id) {
-    return NextResponse.json({ error: 'Newsletter not configured yet.' }, { status: 503 })
+  if (existing?.status === 'active') {
+    return NextResponse.json({ success: true })
   }
 
-  const dc = settings.mailchimp_api_key.split('-').pop()
-  const res = await fetch(
-    `https://${dc}.api.mailchimp.com/3.0/lists/${settings.mailchimp_audience_id}/members`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${settings.mailchimp_api_key}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email_address: email, status: 'pending' }),
-    }
-  ).catch(() => null)
-
-  if (!res) {
-    return NextResponse.json({ error: 'Could not subscribe. Please try again.' }, { status: 500 })
+  if (existing?.status === 'bounced') {
+    // Don't re-add bounced addresses
+    return NextResponse.json({ success: true })
   }
 
-  if (res.ok) return NextResponse.json({ success: true })
+  if (existing?.status === 'unsubscribed') {
+    // Reactivate
+    const { error } = await supabase
+      .from('newsletter_subscribers')
+      .update({ status: 'active', unsubscribed_at: null })
+      .eq('email', email)
+    if (error) return NextResponse.json({ error: 'Could not subscribe. Please try again.' }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
 
-  const data = await res.json().catch(() => ({}))
-  // Mailchimp returns "Member Exists" for already-subscribed emails — treat as success
-  if ((data as { title?: string }).title === 'Member Exists') return NextResponse.json({ success: true })
+  // New subscriber
+  const { error } = await supabase
+    .from('newsletter_subscribers')
+    .insert({ email, status: 'active', source: 'public_signup' })
+  if (error) return NextResponse.json({ error: 'Could not subscribe. Please try again.' }, { status: 500 })
 
-  return NextResponse.json({ error: 'Could not subscribe. Please try again.' }, { status: 500 })
+  return NextResponse.json({ success: true })
 }

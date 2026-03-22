@@ -21,6 +21,7 @@ export default async function IntegrationsPage() {
     <IntegrationsEditor
       initialMode={settings.follow_along_mode ?? 'widget'}
       initialPhotos={photosResult}
+      initialBeholdWidgetId={settings.behold_widget_id ?? ''}
       hasResendApiKey={!!settings.resend_api_key}
       initialNewsletterFromName={settings.newsletter_from_name ?? ''}
       initialNewsletterFromEmail={settings.newsletter_from_email ?? ''}

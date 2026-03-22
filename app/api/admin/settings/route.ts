@@ -72,8 +72,6 @@ export async function POST(request: Request) {
     const name = sanitizeText(String(body.business_name ?? '')).slice(0, 200).trim()
     if (name) update.business_name = name
   }
-  if (body.mailchimp_api_key !== undefined) update.mailchimp_api_key = sanitizeText(String(body.mailchimp_api_key ?? '')) || null
-  if (body.mailchimp_audience_id !== undefined) update.mailchimp_audience_id = sanitizeText(String(body.mailchimp_audience_id ?? '')) || null
   // Square app credentials — secret is encrypted at rest.
   // Omitting square_application_secret from the body preserves the existing encrypted value.
   if (body.square_application_id !== undefined) {

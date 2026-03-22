@@ -12,9 +12,10 @@ const MAX_PHOTOS = 10
 interface Props {
   initialMode: 'gallery' | 'widget'
   initialPhotos: FollowAlongPhoto[]
+  hasBehold: boolean
 }
 
-export default function FollowAlongManager({ initialMode, initialPhotos }: Props) {
+export default function FollowAlongManager({ initialMode, initialPhotos, hasBehold }: Props) {
   const [photos, setPhotos] = useState<FollowAlongPhoto[]>(initialPhotos)
   const [mode, setMode] = useState(initialMode)
   const [modeSaved, setModeSaved] = useState(false)
@@ -128,7 +129,9 @@ export default function FollowAlongManager({ initialMode, initialPhotos }: Props
         </button>
         <button type="button" onClick={() => saveMode('widget')} style={modeCardStyle(mode === 'widget')}>
           <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Instagram Widget</div>
-          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Behold.so automatic feed</div>
+          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+            {hasBehold ? 'Behold.so automatic feed' : 'Behold.so — not configured'}
+          </div>
         </button>
       </div>
       {modeSaved && <span role="status" style={{ color: 'green', fontSize: '14px' }}>Mode saved ✓</span>}

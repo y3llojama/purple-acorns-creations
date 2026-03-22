@@ -43,6 +43,7 @@ async function testIntegration(type: 'ai' | 'resend' | 'smtp') {
 interface Props {
   initialMode: 'gallery' | 'widget'
   initialPhotos: FollowAlongPhoto[]
+  initialBeholdWidgetId: string
   hasResendApiKey: boolean
   initialNewsletterFromName: string
   initialNewsletterFromEmail: string
@@ -53,13 +54,13 @@ interface Props {
 }
 
 export default function IntegrationsEditor({
-  initialMode, initialPhotos,
+  initialMode, initialPhotos, initialBeholdWidgetId,
   hasResendApiKey, initialNewsletterFromName, initialNewsletterFromEmail,
   initialNewsletterAdminEmails, initialNewsletterSendTime,
   initialAiProvider, hasAiApiKey,
 }: Props) {
 
-  const [behold, setBehold] = useState('')
+  const [behold, setBehold] = useState(initialBeholdWidgetId)
   const [beholdSaved, setBeholdSaved] = useState(false)
 
   const [socials, setSocials] = useState({ instagram: '', facebook: '', tiktok: '', pinterest: '', x: '' })
@@ -98,10 +99,18 @@ export default function IntegrationsEditor({
     <div>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', color: 'var(--color-primary)', marginBottom: '32px' }}>Integrations</h1>
 
-      <FollowAlongManager initialMode={initialMode} initialPhotos={initialPhotos} />
+      <FollowAlongManager initialMode={initialMode} initialPhotos={initialPhotos} hasBehold={!!initialBeholdWidgetId} />
 
       <Section title="Instagram Embed (Behold.so)">
-        <label htmlFor="behold-id" style={labelStyle}>Behold Widget ID</label>
+        {!behold && (
+          <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginBottom: '12px' }}>
+            Not configured. Add a widget ID below to enable the automatic Instagram feed.
+          </p>
+        )}
+        <label htmlFor="behold-id" style={labelStyle}>
+          Behold Widget ID{' '}
+          {behold && <span style={{ color: 'green', fontWeight: 400, fontSize: '13px' }}>✓ configured</span>}
+        </label>
         <input id="behold-id" value={behold} onChange={e => { setBehold(e.target.value); setBeholdSaved(false) }} placeholder="e.g. abc123" style={inputStyle} />
         <a href="https://behold.so" target="_blank" rel="noopener noreferrer" style={{ display: 'block', marginBottom: '12px', color: 'var(--color-primary)', fontSize: '14px' }}>Set up Behold.so →</a>
         <button style={btnStyle} onClick={async () => { const r = await save({ behold_widget_id: behold }); if (r.ok) setBeholdSaved(true) }}>Save</button>
