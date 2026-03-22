@@ -1,3 +1,4 @@
+import { headers } from 'next/headers'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getAllContent } from '@/lib/content'
 import { getSettings } from '@/lib/theme'
@@ -26,6 +27,13 @@ const FALLBACK_FEATURED = [
 export default async function HomePage() {
   const supabase = createServiceRoleClient()
   const today = new Date().toISOString().split('T')[0]
+
+  // Build absolute base URL so relative gallery paths (e.g. /gallery/owl.jpg)
+  // become valid https:// URLs that the watermark proxy can fetch.
+  const hdrs = await headers()
+  const host = hdrs.get('x-forwarded-host') ?? hdrs.get('host') ?? ''
+  const proto = hdrs.get('x-forwarded-proto') ?? 'https'
+  const siteBase = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_SITE_URL ?? '')
 
   const [content, settings, featured, gallery, eventResult, followAlongResult] = await Promise.all([
     getAllContent(),
@@ -70,7 +78,10 @@ export default async function HomePage() {
       <ModernStorySection
         teaser={sanitizeText(interpolate(content.story_teaser ?? '', vars))}
         images={gallery.length > 0
-          ? gallery.map(g => ({ url: g.url, alt_text: g.alt_text }))
+          ? gallery.map(g => ({
+              url: g.url.startsWith('http') ? g.url : `${siteBase}${g.url}`,
+              alt_text: g.alt_text,
+            }))
           : (featured as Product[])
               .filter(p => p.images?.[0]?.startsWith('https'))
               .slice(0, 5)
