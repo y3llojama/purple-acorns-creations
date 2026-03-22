@@ -6,8 +6,8 @@ import { isValidHttpsUrl } from '@/lib/validate'
 import { getSettings } from '@/lib/theme'
 import { interpolate, buildVars } from '@/lib/variables'
 
-// DM Sans Medium — same typeface used in the site nav, bundled via outputFileTracingIncludes.
-const FONT_PATH = path.join(process.cwd(), 'public', 'fonts', 'DMSans-Medium.ttf')
+// Inter Medium — clean sans-serif matching the site nav aesthetic, bundled via outputFileTracingIncludes.
+const FONT_PATH = path.join(process.cwd(), 'public', 'fonts', 'Inter-Medium.ttf')
 
 // Rate limiter: 200 requests per IP per 60 seconds
 const rateLimitMap = new Map<string, { count: number; windowStart: number }>()
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
     x="${wmX}"
     y="${wmY}"
     text-anchor="end"
-    font-family="DM Sans, sans-serif"
+    font-family="Inter, sans-serif"
     font-size="${fontSize}"
     font-weight="500"
     letter-spacing="${letterSpacing}"
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
       font: {
         fontFiles: [FONT_PATH],
         loadSystemFonts: false,
-        defaultFontFamily: 'DM Sans',
+        defaultFontFamily: 'Inter',
       },
     })
     const overlayPng = resvg.render().asPng()
