@@ -71,7 +71,10 @@ export default async function HomePage() {
         teaser={sanitizeText(interpolate(content.story_teaser ?? '', vars))}
         images={gallery.length > 0
           ? gallery.map(g => ({ url: g.url, alt_text: g.alt_text }))
-          : FALLBACK_FEATURED.map(f => ({ url: f.image_url, alt_text: f.title ?? '' }))}
+          : (featured as Product[])
+              .filter(p => p.images?.[0]?.startsWith('https'))
+              .slice(0, 5)
+              .map(p => ({ url: p.images[0], alt_text: p.name }))}
         watermark={settings.gallery_watermark ? interpolate(settings.gallery_watermark, vars) : null}
       />
       <ModernEventSection event={event} />
