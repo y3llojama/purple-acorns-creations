@@ -15,7 +15,7 @@ interface DiscoveredEvent {
   link_url?: string
 }
 
-interface BraveResult {
+interface SearchResult {
   title: string
   url: string
   description?: string
@@ -27,27 +27,30 @@ const SEARCH_QUERIES = [
   '"purple acornz creations" market vendor',
 ]
 
-async function braveSearch(apiKey: string, query: string): Promise<BraveResult[]> {
-  const url = new URL('https://api.search.brave.com/res/v1/web/search')
-  url.searchParams.set('q', query)
-  url.searchParams.set('count', '10')
-  url.searchParams.set('freshness', 'py')
-
-  const res = await fetch(url.toString(), {
-    headers: {
-      'Accept': 'application/json',
-      'Accept-Encoding': 'gzip',
-      'X-Subscription-Token': apiKey,
-    },
+async function tavilySearch(apiKey: string, query: string): Promise<SearchResult[]> {
+  const res = await fetch('https://api.tavily.com/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      api_key: apiKey,
+      query,
+      search_depth: 'basic',
+      max_results: 10,
+      days: 365,
+    }),
   })
 
   if (!res.ok) {
     const body = await res.text()
-    throw new Error(`Brave Search error ${res.status}: ${body.slice(0, 200)}`)
+    throw new Error(`Tavily Search error ${res.status}: ${body.slice(0, 200)}`)
   }
 
   const data = await res.json()
-  return (data?.web?.results ?? []) as BraveResult[]
+  return (data?.results ?? []).map((r: { title: string; url: string; content?: string }) => ({
+    title: r.title,
+    url: r.url,
+    description: r.content,
+  }))
 }
 
 async function callAiProvider(provider: string, apiKey: string, prompt: string): Promise<string> {
@@ -144,7 +147,7 @@ export async function POST() {
   let allResults: BraveResult[]
   try {
     const resultSets = await Promise.all(
-      SEARCH_QUERIES.map(q => braveSearch(searchApiKey, q))
+      SEARCH_QUERIES.map(q => tavilySearch(searchApiKey, q))
     )
     // Combine and dedup by URL
     const seen = new Set<string>()

@@ -226,20 +226,20 @@ export default function IntegrationsEditor({
         </div>
       </Section>
 
-      <Section title="Event Search (Brave)">
+      <Section title="Event Search (Tavily)">
         <p style={{ color: 'var(--color-text-muted)', fontSize: '14px', marginBottom: '16px' }}>
-          Used by "Find Events" to search the web for Purple Acornz events in MA / NH / RI. Get a free API key (2,000 searches/month) at{' '}
-          <a href="https://brave.com/search/api/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)' }}>brave.com/search/api</a>.
+          Used by "Find Events" to search the web for Purple Acornz events in MA / NH / RI. Get a free API key (1,000 searches/month) at{' '}
+          <a href="https://tavily.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)' }}>tavily.com</a>.
         </p>
         <label htmlFor="search-api-key" style={labelStyle}>
-          Brave Search API Key {hasSearchApiKey && <span style={{ color: 'green', fontWeight: 400, fontSize: '13px' }}>✓ saved</span>}
+          Tavily API Key {hasSearchApiKey && <span style={{ color: 'green', fontWeight: 400, fontSize: '13px' }}>✓ saved</span>}
         </label>
         <input
           id="search-api-key"
           type="password"
           value={searchApiKey}
           onChange={e => { setSearchApiKey(e.target.value); setSearchSaved(false) }}
-          placeholder={hasSearchApiKey ? '•••••••• (leave blank to keep current)' : 'BSA...'}
+          placeholder={hasSearchApiKey ? '•••••••• (leave blank to keep current)' : 'tvly-...'}
           style={inputStyle}
         />
         <button style={btnStyle} onClick={async () => {
