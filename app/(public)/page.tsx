@@ -81,11 +81,12 @@ export default async function HomePage() {
           ? gallery.map(g => ({
               url: g.url.startsWith('http') ? g.url : `${siteBase}${g.url}`,
               alt_text: g.alt_text,
+              square_url: g.square_url ?? null,
             }))
           : (featured as Product[])
               .filter(p => p.images?.[0]?.startsWith('https'))
               .slice(0, 5)
-              .map(p => ({ url: p.images[0], alt_text: p.name }))}
+              .map(p => ({ url: p.images[0], alt_text: p.name, square_url: null }))}
         watermark={settings.gallery_watermark ? interpolate(settings.gallery_watermark, vars) : null}
       />
       <ModernEventSection event={event} />

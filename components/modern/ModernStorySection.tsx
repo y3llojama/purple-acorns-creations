@@ -4,6 +4,7 @@ import ModernStoryMosaic from './ModernStoryMosaic'
 interface GalleryImage {
   url: string
   alt_text: string | null
+  square_url?: string | null
 }
 
 interface Props {

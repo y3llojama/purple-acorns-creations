@@ -5,6 +5,7 @@ import { useRef, useEffect } from 'react'
 interface GalleryImage {
   url: string
   alt_text: string | null
+  square_url?: string | null
 }
 
 export default function ModernStoryMosaic({ photos, watermark }: { photos: GalleryImage[]; watermark?: string | null }) {
@@ -85,16 +86,30 @@ export default function ModernStoryMosaic({ photos, watermark }: { photos: Galle
       `}</style>
 
       <div className="mss-scroll-track">
-        {photos.map((img, i) => (
-          <div
-            key={i}
-            ref={el => { itemRefs.current[i] = el }}
-            className="mss-item"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={watermark && img.url.startsWith('https') ? `/api/gallery/image?url=${encodeURIComponent(img.url)}` : img.url} alt={img.alt_text ?? ''} />
-          </div>
-        ))}
+        {photos.map((img, i) => {
+          const href = img.square_url || '/shop'
+          const external = !!img.square_url
+          const imgSrc = watermark && img.url.startsWith('https')
+            ? `/api/gallery/image?url=${encodeURIComponent(img.url)}`
+            : img.url
+          return (
+            <div
+              key={i}
+              ref={el => { itemRefs.current[i] = el }}
+              className="mss-item"
+            >
+              <a
+                href={href}
+                {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                style={{ display: 'block', width: '100%', height: '100%' }}
+                aria-label={img.alt_text ?? 'View product'}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={imgSrc} alt={img.alt_text ?? ''} />
+              </a>
+            </div>
+          )
+        })}
       </div>
     </>
   )
