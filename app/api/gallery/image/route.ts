@@ -94,10 +94,10 @@ export async function GET(request: NextRequest) {
     const wmX = safeRight - pad
     const wmY = safeBottom - pad
 
-    // Font size relative to the visible square, not the full image dimension.
-    // Single bottom-right watermark — white text with black stroke for legibility on any background.
-    // paint-order="stroke fill" draws the stroke behind the fill.
-    const fontSize = Math.max(14, Math.round(squareSide / 30))
+    // Font size relative to the visible square.
+    // squareSide/30 renders at ~7px in the 220px mosaic item (invisible).
+    // squareSide/20 renders at ~11px in the mosaic and ~15px in shop cards — both readable.
+    const fontSize = Math.max(14, Math.round(squareSide / 20))
 
     // We use resvg-js (Rust SVG renderer) instead of Sharp's SVG composite (which uses librsvg).
     // librsvg requires fontconfig to initialize Pango — fontconfig is unavailable on Vercel Lambda,
@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
     fill="white"
     stroke="black"
     stroke-opacity="0.85"
-    stroke-width="3"
+    stroke-width="4"
     paint-order="stroke fill"
   >${escapeXml(watermark)}</text>
 </svg>`
