@@ -196,7 +196,7 @@ export default function ModernFooter({ settings }: Props) {
             <Link href="/our-story" className="modern-footer-nav-link">
               Our Story
             </Link>
-            <Link href="/#events" className="modern-footer-nav-link">
+            <Link href="/events" className="modern-footer-nav-link">
               Events
             </Link>
             <Link href="/contact" className="modern-footer-nav-link">

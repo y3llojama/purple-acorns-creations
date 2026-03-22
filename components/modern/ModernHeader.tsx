@@ -87,8 +87,8 @@ function buildNavItems(businessName: string): NavItem[] { return [
       {
         heading: 'Community',
         links: [
-          { label: 'Upcoming Events', href: '/#events' },
-          { label: 'Markets & Fairs', href: '/#events' },
+          { label: 'Upcoming Events', href: '/events' },
+          { label: 'Markets & Fairs', href: '/events' },
           { label: 'Newsletter', href: '/#newsletter' },
         ],
       },
@@ -103,7 +103,7 @@ function buildNavItems(businessName: string): NavItem[] { return [
     mobile: [
       { label: 'Our Story', href: '/our-story' },
       { label: 'Behind the Craft', href: '/our-story' },
-      { label: 'Events', href: '/#events' },
+      { label: 'Events', href: '/events' },
     ],
   },
   {

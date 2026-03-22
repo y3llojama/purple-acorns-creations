@@ -35,7 +35,7 @@ const NAV_ITEMS: NavItem[] = [
     children: [
       { label: 'Our Story', href: '/our-story' },
       { label: 'Behind the Craft', href: '/our-story' },
-      { label: 'Events', href: '/#events' },
+      { label: 'Events', href: '/events' },
     ],
   },
   {
