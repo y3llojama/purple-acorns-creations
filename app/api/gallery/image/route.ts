@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': imageRes.headers.get('content-type') || 'image/jpeg',
-        'Cache-Control': 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400',
+        'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
       },
     })
   }
@@ -97,11 +97,11 @@ export async function GET(request: NextRequest) {
     const wmX = safeRight - pad
     const wmY = safeBottom - pad
 
-    // Font size: squareSide/20 gives ~11px apparent at 220px mosaic width and ~15px in shop cards.
-    // Stroke width scaled proportionally so it looks consistent across image sizes.
-    const fontSize = Math.max(14, Math.round(squareSide / 20))
-    const strokeWidth = Math.max(2, Math.round(squareSide / 120))
-    const letterSpacing = Math.round(fontSize * 0.08)
+    // squareSide/30 keeps the watermark small and proportional (the /20 version was too large
+    // and the added letter-spacing caused text to overflow the left edge).
+    // Stroke width scaled proportionally for consistent weight across image sizes.
+    const fontSize = Math.max(14, Math.round(squareSide / 30))
+    const strokeWidth = Math.max(2, Math.round(squareSide / 150))
 
     // SVG overlay is in visual dimensions (post-rotation).
     // We use resvg-js (Rust SVG renderer) instead of Sharp's SVG composite (which uses librsvg).
@@ -114,7 +114,6 @@ export async function GET(request: NextRequest) {
     font-family="Inter, sans-serif"
     font-size="${fontSize}"
     font-weight="500"
-    letter-spacing="${letterSpacing}"
     fill="white"
     fill-opacity="0.92"
     stroke="black"
@@ -144,7 +143,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse(new Uint8Array(watermarked), {
       headers: {
         'Content-Type': 'image/jpeg',
-        'Cache-Control': 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400',
+        'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
       },
     })
   } catch (err) {
