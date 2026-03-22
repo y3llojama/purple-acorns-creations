@@ -25,6 +25,8 @@ const SEARCH_QUERIES = [
   '"purple acornz creations" events Massachusetts',
   '"purple acornz" craft fair MA OR NH OR RI',
   '"purple acornz creations" market vendor',
+  '"purple acornz" pop-up Boston',
+  '"purple acornz" vendor market 2025 OR 2026',
 ]
 
 async function tavilySearch(apiKey: string, query: string): Promise<SearchResult[]> {
@@ -35,7 +37,7 @@ async function tavilySearch(apiKey: string, query: string): Promise<SearchResult
       api_key: apiKey,
       query,
       search_depth: 'basic',
-      max_results: 10,
+      max_results: 15,
       days: 365,
     }),
   })
