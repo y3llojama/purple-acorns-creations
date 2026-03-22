@@ -80,9 +80,17 @@ export async function GET(request: NextRequest) {
     // the visible region is the center `height × height` slice.
     // We must place the watermark inside this "always-visible square" to guarantee visibility.
     const squareSide = Math.min(width, height)
-    const safeRight = Math.round((width + squareSide) / 2)   // right edge of safe square
-    const safeBottom = Math.round((height + squareSide) / 2) // bottom edge of safe square
+    const safeBottom = Math.round((height + squareSide) / 2) // bottom edge of 1:1 safe square
     const pad = Math.round(squareSide * 0.015)               // ~1.5% inset from safe edges
+
+    // Generalised safe-right formula for multiple container aspect ratios.
+    // The story mosaic uses a tall rectangle (~220×460px, AR≈0.478), while product cards are 1:1.
+    // A portrait image (1200×1674) in the mosaic gets its sides cropped: visible x ends at ~83%.
+    // The plain safe-square safeRight = width (100%) for portrait → watermark is always cropped.
+    // Replacing squareSide with min(squareSide, MOSAIC_AR*height) picks whichever constraint
+    // is tighter — 1:1 card or the mosaic — so the watermark stays visible in both.
+    const MOSAIC_AR = 220 / 460 // worst-case desktop mosaic item width:height
+    const safeRight = Math.round((width + Math.min(squareSide, MOSAIC_AR * height)) / 2)
     const wmX = safeRight - pad
     const wmY = safeBottom - pad
 
