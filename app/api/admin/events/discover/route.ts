@@ -144,7 +144,7 @@ export async function POST() {
   }
 
   // Fire all 3 search queries in parallel
-  let allResults: BraveResult[]
+  let allResults: SearchResult[]
   try {
     const resultSets = await Promise.all(
       SEARCH_QUERIES.map(q => tavilySearch(searchApiKey, q))
