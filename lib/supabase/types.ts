@@ -38,6 +38,7 @@ export interface Settings {
   newsletter_admin_emails: string | null
   newsletter_scheduled_send_time: string | null
   ai_api_key: string | null
+  search_api_key: string | null
 }
 
 export interface Category {

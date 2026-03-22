@@ -8,6 +8,7 @@ const PREFIX = 'enc:'
 export const SENSITIVE_SETTINGS_FIELDS = [
   'mailchimp_api_key',
   'ai_api_key',
+  'search_api_key',
   'resend_api_key',
   'smtp_pass',
   'smtp_user',

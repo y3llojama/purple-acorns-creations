@@ -26,6 +26,7 @@ const DEFAULT_SETTINGS: Settings = {
   newsletter_admin_emails: null,
   newsletter_scheduled_send_time: '10:00',
   ai_api_key: null,
+  search_api_key: null,
 }
 
 export async function getSettings(): Promise<Settings> {

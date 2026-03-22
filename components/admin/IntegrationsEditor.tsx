@@ -51,13 +51,14 @@ interface Props {
   initialNewsletterSendTime: string
   initialAiProvider: string
   hasAiApiKey: boolean
+  hasSearchApiKey: boolean
 }
 
 export default function IntegrationsEditor({
   initialMode, initialPhotos, initialBeholdWidgetId,
   hasResendApiKey, initialNewsletterFromName, initialNewsletterFromEmail,
   initialNewsletterAdminEmails, initialNewsletterSendTime,
-  initialAiProvider, hasAiApiKey,
+  initialAiProvider, hasAiApiKey, hasSearchApiKey,
 }: Props) {
 
   const [behold, setBehold] = useState(initialBeholdWidgetId)
@@ -76,6 +77,9 @@ export default function IntegrationsEditor({
   const [newsletterAdminEmails, setNewsletterAdminEmails] = useState(initialNewsletterAdminEmails)
   const [newsletterSendTime, setNewsletterSendTime] = useState(initialNewsletterSendTime)
   const [resendSaved, setResendSaved] = useState(false)
+
+  const [searchApiKey, setSearchApiKey] = useState('')
+  const [searchSaved, setSearchSaved] = useState(false)
 
   const [aiProvider, setAiProvider] = useState(initialAiProvider)
   const [aiApiKey, setAiApiKey] = useState('')
@@ -220,6 +224,29 @@ export default function IntegrationsEditor({
             </span>
           )}
         </div>
+      </Section>
+
+      <Section title="Event Search (Brave)">
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '14px', marginBottom: '16px' }}>
+          Used by "Find Events" to search the web for Purple Acornz events in MA / NH / RI. Get a free API key (2,000 searches/month) at{' '}
+          <a href="https://brave.com/search/api/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)' }}>brave.com/search/api</a>.
+        </p>
+        <label htmlFor="search-api-key" style={labelStyle}>
+          Brave Search API Key {hasSearchApiKey && <span style={{ color: 'green', fontWeight: 400, fontSize: '13px' }}>✓ saved</span>}
+        </label>
+        <input
+          id="search-api-key"
+          type="password"
+          value={searchApiKey}
+          onChange={e => { setSearchApiKey(e.target.value); setSearchSaved(false) }}
+          placeholder={hasSearchApiKey ? '•••••••• (leave blank to keep current)' : 'BSA...'}
+          style={inputStyle}
+        />
+        <button style={btnStyle} onClick={async () => {
+          const r = await save({ search_api_key: searchApiKey })
+          if (r.ok) setSearchSaved(true)
+        }}>Save</button>
+        <SavedStatus saved={searchSaved} />
       </Section>
 
       <Section title="AI Provider">

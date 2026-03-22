@@ -29,6 +29,7 @@ export default async function IntegrationsPage() {
       initialNewsletterSendTime={settings.newsletter_scheduled_send_time ?? '10:00'}
       initialAiProvider={settings.ai_provider ?? ''}
       hasAiApiKey={!!settings.ai_api_key}
+      hasSearchApiKey={!!settings.search_api_key}
     />
   )
 }

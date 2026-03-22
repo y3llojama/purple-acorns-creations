@@ -93,6 +93,10 @@ export async function POST(request: Request) {
     const key = String(body.ai_api_key ?? '').trim()
     if (key) update.ai_api_key = encryptValue(key)
   }
+  if (body.search_api_key !== undefined) {
+    const key = String(body.search_api_key ?? '').trim()
+    if (key) update.search_api_key = encryptValue(key)
+  }
 
   update.updated_at = new Date().toISOString()
   const supabase = createServiceRoleClient()
