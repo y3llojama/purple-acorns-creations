@@ -65,11 +65,8 @@ async function callAiProvider(provider: string, apiKey: string, prompt: string):
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 2000,
-        // Pre-fill the assistant turn with '[' to force Claude to output JSON immediately
-        messages: [
-          { role: 'user', content: prompt },
-          { role: 'assistant', content: '[' },
-        ],
+        system: 'You are a data extraction tool. You output only valid JSON arrays. No prose, no markdown, no explanation. Your entire response must be a single JSON array starting with [ and ending with ].',
+        messages: [{ role: 'user', content: prompt }],
       }),
     })
     if (!res.ok) {
@@ -77,8 +74,7 @@ async function callAiProvider(provider: string, apiKey: string, prompt: string):
       throw new Error(`Anthropic API error ${res.status}: ${body.slice(0, 200)}`)
     }
     const data = await res.json()
-    // Prepend the pre-fill character we forced
-    return '[' + (data.content?.[0]?.text ?? '')
+    return data.content?.[0]?.text ?? ''
   }
 
   if (provider === 'openai') {
@@ -191,24 +187,16 @@ export async function POST() {
   const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
   const snippets = allResults
-    .map((r, i) => `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.description ?? ''}`)
+    .map((r, i) => `${i + 1}) ${r.title}\nURL: ${r.url}\n${r.description ?? ''}`)
     .join('\n\n')
 
-  const prompt = `Today is ${today}. You are extracting craft fair and market events for "Purple Acorns Creations" (also spelled "Purple Acornz"), a Massachusetts-based handmade jewelry and crochet accessories vendor.
-
-Below are web search results. Extract all events where Purple Acorns Creations appeared or is scheduled to appear as a vendor. Only include events in Massachusetts, New Hampshire, or Rhode Island. Only include events between ${oneYearAgo} and one year from today.
+  const prompt = `Today is ${today}. Extract vendor events for Purple Acorns Creations (also spelled Purple Acornz), a MA-based craft vendor. Only include events in MA, NH, or RI between ${oneYearAgo} and one year from today. Only include events with a specific date.
 
 Search results:
 ${snippets}
 
-Return ONLY a valid JSON array — no prose, no markdown, no code fences:
-[{"name": "event name", "date": "YYYY-MM-DD", "location": "venue or city, state", "link_url": "https://..."}]
-
-Rules:
-- Only include events you can extract a specific date for (YYYY-MM-DD format).
-- Use the URL from the search result as link_url when relevant.
-- If you cannot determine a date, omit the event entirely.
-- If no events found, return an empty array: []`
+Return a JSON array: [{"name":"","date":"YYYY-MM-DD","location":"venue, state","link_url":"https://..."}]
+Return [] if nothing qualifies.`
 
   let rawText: string
   try {
