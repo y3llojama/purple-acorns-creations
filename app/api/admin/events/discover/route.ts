@@ -65,7 +65,11 @@ async function callAiProvider(provider: string, apiKey: string, prompt: string):
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 2000,
-        messages: [{ role: 'user', content: prompt }],
+        // Pre-fill the assistant turn with '[' to force Claude to output JSON immediately
+        messages: [
+          { role: 'user', content: prompt },
+          { role: 'assistant', content: '[' },
+        ],
       }),
     })
     if (!res.ok) {
@@ -73,7 +77,8 @@ async function callAiProvider(provider: string, apiKey: string, prompt: string):
       throw new Error(`Anthropic API error ${res.status}: ${body.slice(0, 200)}`)
     }
     const data = await res.json()
-    return data.content?.[0]?.text ?? ''
+    // Prepend the pre-fill character we forced
+    return '[' + (data.content?.[0]?.text ?? '')
   }
 
   if (provider === 'openai') {
@@ -213,14 +218,19 @@ Rules:
     return NextResponse.json({ error: 'Event extraction failed. Please try again.' }, { status: 502 })
   }
 
-  // Extract JSON array — find first [ to last ]
+  // Extract JSON array — scan backwards from the last ] to find the outermost array
   let foundEvents: DiscoveredEvent[]
   try {
-    const start = rawText.indexOf('[')
     const end = rawText.lastIndexOf(']')
-    if (start === -1 || end === -1 || end <= start) {
-      return NextResponse.json({ added: 0, skipped: 0 })
+    if (end === -1) return NextResponse.json({ added: 0, skipped: 0 })
+    // Walk backwards from end to find the matching [
+    let depth = 0
+    let start = -1
+    for (let i = end; i >= 0; i--) {
+      if (rawText[i] === ']') depth++
+      else if (rawText[i] === '[') { depth--; if (depth === 0) { start = i; break } }
     }
+    if (start === -1) return NextResponse.json({ added: 0, skipped: 0 })
     foundEvents = JSON.parse(rawText.slice(start, end + 1))
     if (!Array.isArray(foundEvents)) throw new Error('Not an array')
   } catch (err) {
