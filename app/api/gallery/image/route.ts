@@ -1,26 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
 import { Resvg } from '@resvg/resvg-js'
-import fs from 'node:fs'
 import path from 'node:path'
 import { isValidHttpsUrl } from '@/lib/validate'
 import { getSettings } from '@/lib/theme'
 import { interpolate, buildVars } from '@/lib/variables'
 
-// Loaded once per Lambda instance — fs.readFileSync works because
-// next.config.js outputFileTracingIncludes bundles this file with the function.
-let _fontBuffer: Buffer | null = null
-function getFontBuffer(): Buffer | null {
-  if (_fontBuffer) return _fontBuffer
-  try {
-    _fontBuffer = fs.readFileSync(
-      path.join(process.cwd(), 'public', 'fonts', 'DancingScript-Regular.ttf')
-    )
-    return _fontBuffer
-  } catch {
-    return null
-  }
-}
+// Path to DancingScript font — bundled with this function via outputFileTracingIncludes.
+const FONT_PATH = path.join(process.cwd(), 'public', 'fonts', 'DancingScript-Regular.ttf')
 
 // Rate limiter: 200 requests per IP per 60 seconds
 const rateLimitMap = new Map<string, { count: number; windowStart: number }>()
@@ -106,10 +93,8 @@ export async function GET(request: NextRequest) {
 
     // We use resvg-js (Rust SVG renderer) instead of Sharp's SVG composite (which uses librsvg).
     // librsvg requires fontconfig to initialize Pango — fontconfig is unavailable on Vercel Lambda,
-    // causing every glyph to render as a replacement box. resvg-js loads fonts directly from a
-    // memory buffer via font.loadFontData, with no fontconfig dependency.
-    const fontBuffer = getFontBuffer()
-
+    // causing every glyph to render as a replacement box. resvg-js loads fonts from a file path
+    // with its own font engine, no fontconfig dependency.
     const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
   <text
     x="${wmX}"
@@ -127,7 +112,8 @@ export async function GET(request: NextRequest) {
 
     const resvg = new Resvg(svg, {
       font: {
-        loadFontData: fontBuffer ? [new Uint8Array(fontBuffer)] : [],
+        fontFiles: [FONT_PATH],
+        loadSystemFonts: false,
         defaultFontFamily: 'Dancing Script',
       },
     })
