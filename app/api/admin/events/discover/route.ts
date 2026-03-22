@@ -119,10 +119,22 @@ export async function POST() {
 
   const supabase = createServiceRoleClient()
 
-  const { data: settingsRow } = await supabase
+  const { data: settingsRow, error: settingsError } = await supabase
     .from('settings')
     .select('search_api_key, ai_provider, ai_api_key')
     .single()
+
+  if (settingsError) {
+    console.error('[discover] settings fetch error:', settingsError.message)
+    // Likely means the migration hasn't been run yet
+    if (settingsError.message?.includes('search_api_key')) {
+      return NextResponse.json(
+        { error: 'Database migration not applied. Run migration 022 in the Supabase SQL editor.' },
+        { status: 503 }
+      )
+    }
+    return NextResponse.json({ error: 'Failed to load settings.' }, { status: 500 })
+  }
 
   const settings = settingsRow ? decryptSettings(settingsRow) : null
   const searchApiKey = process.env.SEARCH_API_KEY ?? settings?.search_api_key
@@ -131,7 +143,7 @@ export async function POST() {
 
   if (!searchApiKey) {
     return NextResponse.json(
-      { error: 'Brave Search API key not configured. Add it in Admin → Integrations.' },
+      { error: 'Tavily API key not configured. Add it in Admin → Integrations → Event Search.' },
       { status: 503 }
     )
   }
@@ -161,7 +173,7 @@ export async function POST() {
       }
     }
   } catch (err) {
-    console.error('[discover] Brave Search failed:', err)
+    console.error('[discover] Tavily search failed:', err)
     return NextResponse.json({ error: 'Search failed. Please try again.' }, { status: 502 })
   }
 
