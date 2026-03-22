@@ -30,10 +30,10 @@ const nextConfig = {
       },
     ]
   },
-  // Bundle the watermark font with the /api/gallery/image serverless function.
+  // Bundle the watermark fonts with the /api/gallery/image serverless function.
   // Without this, fs.readFileSync cannot find files in public/ on Vercel Lambda.
   outputFileTracingIncludes: {
-    '/api/gallery/image': ['./public/fonts/**'],
+    '/api/gallery/image': ['./public/fonts/DMSans-Medium.ttf', './public/fonts/DancingScript-Regular.ttf'],
   },
   // @resvg/resvg-js uses native .node bindings — mark as external so Turbopack
   // doesn't try to bundle it (which fails on non-ECMAScript assets).

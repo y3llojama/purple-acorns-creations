@@ -6,8 +6,8 @@ import { isValidHttpsUrl } from '@/lib/validate'
 import { getSettings } from '@/lib/theme'
 import { interpolate, buildVars } from '@/lib/variables'
 
-// Path to DancingScript font — bundled with this function via outputFileTracingIncludes.
-const FONT_PATH = path.join(process.cwd(), 'public', 'fonts', 'DancingScript-Regular.ttf')
+// DM Sans Medium — same typeface used in the site nav, bundled via outputFileTracingIncludes.
+const FONT_PATH = path.join(process.cwd(), 'public', 'fonts', 'DMSans-Medium.ttf')
 
 // Rate limiter: 200 requests per IP per 60 seconds
 const rateLimitMap = new Map<string, { count: number; windowStart: number }>()
@@ -94,10 +94,12 @@ export async function GET(request: NextRequest) {
     const wmX = safeRight - pad
     const wmY = safeBottom - pad
 
-    // Font size relative to the visible square.
-    // squareSide/30 renders at ~7px in the 220px mosaic item (invisible).
-    // squareSide/20 renders at ~11px in the mosaic and ~15px in shop cards — both readable.
+    // Font size: squareSide/20 gives ~11px apparent at 220px mosaic width and ~15px in shop cards.
+    // Stroke width scaled proportionally so thin/thick looks the same across image sizes.
     const fontSize = Math.max(14, Math.round(squareSide / 20))
+    const strokeWidth = Math.max(2, Math.round(squareSide / 120))
+    // Letter spacing: 0.08em expressed as absolute pixels for SVG attribute
+    const letterSpacing = Math.round(fontSize * 0.08)
 
     // We use resvg-js (Rust SVG renderer) instead of Sharp's SVG composite (which uses librsvg).
     // librsvg requires fontconfig to initialize Pango — fontconfig is unavailable on Vercel Lambda,
@@ -108,12 +110,15 @@ export async function GET(request: NextRequest) {
     x="${wmX}"
     y="${wmY}"
     text-anchor="end"
-    font-family="Dancing Script, sans-serif"
+    font-family="DM Sans, sans-serif"
     font-size="${fontSize}"
+    font-weight="500"
+    letter-spacing="${letterSpacing}"
     fill="white"
+    fill-opacity="0.92"
     stroke="black"
-    stroke-opacity="0.85"
-    stroke-width="4"
+    stroke-opacity="0.6"
+    stroke-width="${strokeWidth}"
     paint-order="stroke fill"
   >${escapeXml(watermark)}</text>
 </svg>`
@@ -122,7 +127,7 @@ export async function GET(request: NextRequest) {
       font: {
         fontFiles: [FONT_PATH],
         loadSystemFonts: false,
-        defaultFontFamily: 'Dancing Script',
+        defaultFontFamily: 'DM Sans',
       },
     })
     const overlayPng = resvg.render().asPng()
