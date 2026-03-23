@@ -85,7 +85,13 @@ export interface Message {
 }
 
 export interface MessageReply {
-  id: string; message_id: string; body: string; created_at: string
+  id: string
+  message_id: string
+  body: string
+  direction: 'outbound' | 'inbound'
+  from_email: string | null
+  resend_message_id: string | null
+  created_at: string
 }
 
 export type NewsletterStatus = 'draft' | 'scheduled' | 'sent' | 'cancelled'
