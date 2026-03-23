@@ -7,7 +7,7 @@ import {
   LayoutDashboard, FileText, Calendar, Image, MessageSquare,
   Palette, Plug, Mail, BarChart2, ClipboardList,
   ChevronLeft, ChevronRight, ExternalLink, LogOut,
-  Package, Radio, MapPin, Settings,
+  Package, Radio, MapPin, Settings, Tag,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { href: '/admin/markets', label: 'Markets', Icon: MapPin },
   { href: '/admin/gallery', label: 'Gallery', Icon: Image },
   { href: '/admin/inventory', label: 'Inventory', Icon: Package },
+  { href: '/admin/private-sales', label: 'Private Sales', Icon: Tag },
   { href: '/admin/messages', label: 'Messages', Icon: MessageSquare },
   { href: '/admin/branding', label: 'Branding', Icon: Palette },
   { href: '/admin/integrations', label: 'Integrations', Icon: Plug },
