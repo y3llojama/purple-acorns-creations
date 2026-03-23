@@ -116,7 +116,26 @@ Get the DB password from Supabase dashboard → Project Settings → Database �
 
 ---
 
-### 7. (Optional) Terraform — for full IaC / recreate from scratch
+### 7. Cloudflare Email Worker + Resend inbound (customer reply capture)
+
+> Lets customer replies to admin emails appear in the admin messages thread.
+
+1. **Verify domain in Resend** — Domains → Add `purpleacornz.com` → add DKIM/SPF DNS records in Cloudflare
+2. **Enable Resend inbound** — Domains → `purpleacornz.com` → Receiving → set webhook URL to `https://purpleacornz.com/api/webhooks/resend-inbound` → copy Signing Secret
+3. **Add env vars** — add `RESEND_WEBHOOK_SECRET` to `.env.local` and Vercel
+4. **Deploy Cloudflare Worker**
+   ```bash
+   CLOUDFLARE_API_TOKEN=<token> bash scripts/deploy-cf-worker.sh
+   ```
+   Get token: Cloudflare → My Profile → API Tokens → Create Token (Edit Cloudflare Workers template)
+5. **Update Cloudflare routing rule** — Email → Email Routing → `hello@purpleacornz.com` → Edit → change action to **Send to a Worker** → select `purple-acorns-email-forwarder`
+6. **Configure in admin** — Admin → Integrations → set Resend API Key, Messages From Email (`hello@purpleacornz.com`), and Reply Email Footer
+
+See [Email (Contact Notifications & Replies)](#email-contact-notifications--replies) for full details.
+
+---
+
+### 8. (Optional) Terraform — for full IaC / recreate from scratch
 
 Only needed if you want to be able to `terraform destroy` + `terraform apply` to recreate the entire Supabase project from scratch. See [Supabase Infrastructure (Terraform)](#supabase-infrastructure-terraform).
 
@@ -152,9 +171,11 @@ lib/                  # Core utilities
   validate.ts         # isValidEmail(), isValidHttpsUrl()
   cors.ts             # Runtime CORS handling
   supabase/           # server.ts (service role), client.ts (anon), types.ts
+cloudflare/
+  email-worker/       # Cloudflare Email Worker — fans out hello@purpleacornz.com to Gmail + Resend
 infra/                # Terraform — full Supabase IaC
 backups/              # Database backups (data.sql committed; settings.sql gitignored)
-scripts/              # Automation scripts
+scripts/              # Automation scripts (includes deploy-cf-worker.sh)
 supabase/migrations/  # SQL schema
 docs/                 # Setup guides and design docs
 ```
@@ -200,7 +221,7 @@ cp .env.example .env.local
 | `RESEND_API_KEY` | Resend API key for newsletter delivery | [resend.com](https://resend.com) |
 | `NEWSLETTER_FROM_EMAIL` | Verified sender address | Your verified Resend domain |
 | `NEWSLETTER_ADMIN_EMAILS` | Preview recipients (comma-separated) | Your choice |
-| `RESEND_WEBHOOK_SECRET` | Webhook signing secret (open/click tracking) | Resend dashboard → Webhooks |
+| `RESEND_WEBHOOK_SECRET` | Webhook signing secret — used for newsletter open/click tracking **and** inbound email replies | Resend dashboard → Domains → Receiving → Signing Secret |
 | `CRON_SECRET` | Shared secret for Vercel Cron endpoint | Generate with `openssl rand -hex 32` |
 | `AI_API_KEY` | API key for AI draft generation | Depends on provider (see [Newsletter](#newsletter)) |
 | `NEXT_PUBLIC_SITE_URL` | Production domain for newsletter links | Your Vercel domain |
@@ -288,25 +309,81 @@ See **[docs/newsletter-setup.md](docs/newsletter-setup.md)** for full setup inst
 
 ## Email (Contact Notifications & Replies)
 
-Transactional emails (contact form notifications and admin message replies) use **Resend as primary** with **Gmail SMTP as fallback** if configured.
+Transactional emails (contact form notifications and admin message replies) use **Resend as primary** with **Gmail SMTP as fallback** if configured. Customer replies to admin emails are captured back into the admin messages thread via Resend inbound.
 
-### From address
+> **Troubleshooting:** See [docs/email-troubleshooting.md](docs/email-troubleshooting.md) for common issues — Cloudflare bot protection blocking webhooks, signature verification failures, API key permissions, MX record conflicts, and more.
 
-All emails are sent from `hello@purpleacornz.com`. This address is configured in Admin → Integrations → Resend → From Email.
+### 1. Verify your domain in Resend
 
-`hello@purpleacornz.com` is set up with **Cloudflare Email Routing** — inbound mail is forwarded to the owner's Gmail. This means:
-- Emails sent via Resend appear to come from `hello@purpleacornz.com`
-- Customer replies to those emails → Cloudflare forwards to Gmail ✓
-- No separate mailbox or Google Workspace subscription required
+1. [resend.com](https://resend.com) → Domains → Add Domain → `purpleacornz.com`
+2. Add the DKIM and SPF DNS records Resend provides to Cloudflare DNS
+3. Wait for verification (usually a few minutes)
 
-### Provider priority
+### 2. Configure Resend inbound
 
-1. **Resend** — used if `resend_api_key` and `newsletter_from_email` are set in Admin → Integrations
+1. Resend dashboard → Domains → `purpleacornz.com` → **Receiving**
+2. Enable inbound and set the webhook URL to:
+   ```
+   https://purpleacornz.com/api/webhooks/resend-inbound
+   ```
+3. Copy the **Signing Secret** → add to `.env.local` and Vercel:
+   ```
+   RESEND_WEBHOOK_SECRET=whsec_...
+   ```
+
+### 3. Deploy the Cloudflare Email Worker
+
+The Worker fans out `hello@purpleacornz.com` to both Gmail and Resend inbound simultaneously.
+
+```bash
+CLOUDFLARE_API_TOKEN=<your-token> bash scripts/deploy-cf-worker.sh
+```
+
+Get your API token at Cloudflare dashboard → My Profile → API Tokens → Create Token (use the "Edit Cloudflare Workers" template).
+
+### 4. Update Cloudflare Email Routing rule
+
+1. Cloudflare dashboard → Email → Email Routing → Custom Addresses
+2. Find `hello@purpleacornz.com` → **Edit**
+3. Change action from "Send to an email" to **Send to a Worker**
+4. Select `purple-acorns-email-forwarder`
+5. Save
+
+> **Rollback:** if anything breaks, edit the rule back to "Send to an email" → `purpleacornzcreations@gmail.com`.
+
+### 5. Configure email settings in admin
+
+Admin → Integrations → Resend section:
+- **Resend API Key** — from [resend.com](https://resend.com) → API Keys
+- **From Name** — e.g. `Purple Acorns Creations`
+- **Messages From Email** — `hello@purpleacornz.com`
+- **Reply Email Footer** — text appended to every admin reply (supports `${CONTACT_FORM}`, `${BUSINESS_NAME}`). Default: directs customers to reply to the thread or use the contact form for new messages.
+
+### 6. (Optional) Use `hello@purpleacornz.com` in iOS Mail
+
+Cloudflare Email Routing is receive-only — it has no IMAP server. To send from `hello@purpleacornz.com` in iOS Mail:
+
+1. Gmail → Settings → Accounts → **Send mail as** → Add `hello@purpleacornz.com`
+2. Gmail will send a verification email to `hello@purpleacornz.com` → Cloudflare forwards it to your Gmail → click the link
+3. Set it as your default From address
+4. Add the Gmail account to iOS Mail (IMAP) — it will send as `hello@purpleacornz.com`
+
+> Replies sent this way bypass Resend and have no message ID — threading in the admin UI falls back to email address matching, which works correctly.
+
+### How inbound threading works
+
+When a customer replies to an admin reply email:
+1. Their email arrives at `hello@purpleacornz.com`
+2. Cloudflare Worker forwards it to both Gmail (so you see it in your inbox) and Resend inbound
+3. Resend calls `/api/webhooks/resend-inbound` with the email metadata
+4. The webhook fetches the full email (body + headers) via `resend.emails.receiving.get(email_id)`
+5. The `In-Reply-To` header is matched against stored Resend message IDs to find the thread; falls back to matching by sender email address
+6. The reply is saved to the thread and marked unread in the admin messages UI
+
+### Provider priority (outbound)
+
+1. **Resend** — used if `resend_api_key` and `messages_from_email` are set in Admin → Integrations
 2. **SMTP (Gmail fallback)** — used if Resend is not configured or fails, and SMTP credentials are set
-
-### Resend domain verification
-
-The `purpleacornz.com` domain must be verified in the Resend dashboard before emails can be sent. Verification involves adding DNS records (DKIM, SPF) — done once per domain, covers both newsletters and transactional email.
 
 ### Testing
 
