@@ -33,14 +33,18 @@ export async function POST(request: Request) {
 
   // Send the reply email
   const emailResult = await sendReply(message.email, message.name, replyBody)
-  if (!emailResult.success) {
-    return NextResponse.json({ error: emailResult.error ?? 'Failed to send reply' }, { status: 500 })
+  if (!emailResult?.success) {
+    return NextResponse.json({ error: emailResult?.error ?? 'Failed to send reply' }, { status: 500 })
   }
 
   // Save reply to database
   const { data: reply, error: dbError } = await supabase
     .from('message_replies')
-    .insert({ message_id: messageId, body: replyBody })
+    .insert({
+      message_id: messageId,
+      body: replyBody,
+      resend_message_id: emailResult.messageId ?? null,
+    })
     .select()
     .single()
 
