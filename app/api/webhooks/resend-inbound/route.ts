@@ -146,7 +146,7 @@ export async function POST(request: Request) {
 
   // Parse and upload any image attachments from the email
   const attachmentUrls = await uploadInboundAttachments(
-    (fullEmail as Record<string, unknown>).attachments as
+    (fullEmail as unknown as Record<string, unknown>).attachments as
       Array<{ filename?: string; content_type?: string; data?: string }> | undefined
   )
 

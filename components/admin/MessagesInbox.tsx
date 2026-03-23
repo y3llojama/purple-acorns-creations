@@ -6,7 +6,41 @@ import { useIsMobile } from '@/lib/hooks/useIsMobile'
 import type { Message, MessageReply } from '@/lib/supabase/types'
 
 const POLL_INTERVAL = 45_000
-const PER_PAGE = 20
+const REPLY_PER_PAGE = 20
+const MSG_PER_PAGE = 20
+const CACHE_TTL = 5 * 60 * 1000
+
+// ── sessionStorage cache ──────────────────────────────────────────
+
+function mkCacheKey(sort: string, page: number) {
+  return `pac_msgs_${sort}_p${page}`
+}
+
+function readCache(key: string): { messages: Message[]; total: number } | null {
+  try {
+    const raw = sessionStorage.getItem(key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (Date.now() - parsed.ts > CACHE_TTL) { sessionStorage.removeItem(key); return null }
+    return { messages: parsed.messages, total: parsed.total }
+  } catch { return null }
+}
+
+function writeCache(key: string, messages: Message[], total: number) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify({ messages, total, ts: Date.now() }))
+  } catch { /* quota exceeded — ignore */ }
+}
+
+function clearCache() {
+  try {
+    Object.keys(sessionStorage)
+      .filter(k => k.startsWith('pac_msgs_'))
+      .forEach(k => sessionStorage.removeItem(k))
+  } catch { /* ignore */ }
+}
+
+// ── Types ─────────────────────────────────────────────────────────
 
 interface PaginatedReplies {
   data: MessageReply[]
@@ -15,10 +49,29 @@ interface PaginatedReplies {
   per_page: number
 }
 
-interface Props { initialMessages: Message[] }
+interface PaginatedMessages {
+  data: Message[]
+  total: number
+  page: number
+  per_page: number
+}
 
-export default function MessagesInbox({ initialMessages }: Props) {
+interface Props {
+  initialMessages: Message[]
+  initialTotal: number
+}
+
+// ── Component ─────────────────────────────────────────────────────
+
+export default function MessagesInbox({ initialMessages, initialTotal }: Props) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
+  const [total, setTotal] = useState(initialTotal)
+  const [page, setPage] = useState(1)
+  const [sort, setSort] = useState<'newest' | 'oldest'>('newest')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [emailFilter, setEmailFilter] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
   const [selected, setSelected] = useState<string | null>(null)
   const [replies, setReplies] = useState<MessageReply[]>([])
   const [replyTotal, setReplyTotal] = useState(0)
@@ -26,20 +79,95 @@ export default function MessagesInbox({ initialMessages }: Props) {
   const [newMsgCount, setNewMsgCount] = useState(0)
   const [pendingMessages, setPendingMessages] = useState<Message[]>([])
   const [newReplyIds, setNewReplyIds] = useState<Set<string>>(new Set())
+
   const isMobile = useIsMobile()
   const knownIdsRef = useRef(new Set(initialMessages.map(m => m.id)))
   const selectedRef = useRef<string | null>(null)
   const replyPageRef = useRef(1)
+  // Tracks newest created_at seen — used for incremental polling
+  const newestKnownAtRef = useRef(
+    initialMessages.length > 0 ? initialMessages[0].created_at : ''
+  )
+
+  // Seed sessionStorage with SSR page-1 data so re-navigation is instant
+  useEffect(() => {
+    if (initialMessages.length > 0) {
+      writeCache(mkCacheKey('newest', 1), initialMessages, initialTotal)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep refs in sync with state for use inside intervals
   useEffect(() => { selectedRef.current = selected }, [selected])
   useEffect(() => { replyPageRef.current = replyPage }, [replyPage])
 
   const selectedMsg = messages.find(m => m.id === selected) ?? null
+  const totalPages = Math.ceil(total / MSG_PER_PAGE)
+
+  // ── Fetch messages ────────────────────────────────────────────────
+  async function fetchMessages(params: {
+    page: number
+    sort: 'newest' | 'oldest'
+    q: string
+    email: string
+    forceRefresh?: boolean
+  }) {
+    const { page, sort, q, email, forceRefresh = false } = params
+    const isFiltered = !!(q || email)
+    const key = mkCacheKey(sort, page)
+
+    if (!isFiltered && !forceRefresh) {
+      const cached = readCache(key)
+      if (cached) {
+        setMessages(cached.messages)
+        setTotal(cached.total)
+        return
+      }
+    }
+
+    setIsLoading(true)
+    try {
+      const qs = new URLSearchParams({ page: String(page), sort, per_page: String(MSG_PER_PAGE) })
+      if (q) qs.set('q', q)
+      if (email) qs.set('email', email)
+      const res = await fetch(`/api/admin/messages?${qs}`)
+      if (!res.ok) return
+      const paged: PaginatedMessages = await res.json()
+      setMessages(paged.data)
+      setTotal(paged.total)
+      if (!isFiltered) writeCache(key, paged.data, paged.total)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // ── List control handlers ─────────────────────────────────────────
+  function handleSortChange(newSort: 'newest' | 'oldest') {
+    setSort(newSort)
+    setPage(1)
+    clearCache()
+    fetchMessages({ page: 1, sort: newSort, q: searchQuery, email: emailFilter })
+  }
+
+  function handleSearchChange(q: string) {
+    setSearchQuery(q)
+    setPage(1)
+    fetchMessages({ page: 1, sort, q, email: emailFilter })
+  }
+
+  function handleEmailFilterChange(email: string) {
+    setEmailFilter(email)
+    setPage(1)
+    fetchMessages({ page: 1, sort, q: searchQuery, email })
+  }
+
+  function handlePageChange(newPage: number) {
+    setPage(newPage)
+    fetchMessages({ page: newPage, sort, q: searchQuery, email: emailFilter })
+  }
 
   // ── Reply loader ──────────────────────────────────────────────────
   const loadReplies = useCallback(async (messageId: string, page: number, highlight = false) => {
-    const res = await fetch(`/api/admin/messages/reply?message_id=${messageId}&page=${page}&per_page=${PER_PAGE}`)
+    const res = await fetch(`/api/admin/messages/reply?message_id=${messageId}&page=${page}&per_page=${REPLY_PER_PAGE}`)
     if (!res.ok) return
     const paged: PaginatedReplies = await res.json()
     if (highlight) {
@@ -74,11 +202,10 @@ export default function MessagesInbox({ initialMessages }: Props) {
       })
     }
 
-    // Load the last page (most recent activity)
-    const firstRes = await fetch(`/api/admin/messages/reply?message_id=${id}&page=1&per_page=${PER_PAGE}`)
+    const firstRes = await fetch(`/api/admin/messages/reply?message_id=${id}&page=1&per_page=${REPLY_PER_PAGE}`)
     if (!firstRes.ok) return
     const firstPage: PaginatedReplies = await firstRes.json()
-    const lastPage = Math.max(1, Math.ceil(firstPage.total / PER_PAGE))
+    const lastPage = Math.max(1, Math.ceil(firstPage.total / REPLY_PER_PAGE))
     await loadReplies(id, lastPage)
   }
 
@@ -94,7 +221,7 @@ export default function MessagesInbox({ initialMessages }: Props) {
       const data = await res.json().catch(() => ({}))
       throw new Error(data.error ?? 'Failed to send reply')
     }
-    const lastPage = Math.max(1, Math.ceil((replyTotal + 1) / PER_PAGE))
+    const lastPage = Math.max(1, Math.ceil((replyTotal + 1) / REPLY_PER_PAGE))
     await loadReplies(selected, lastPage)
   }
 
@@ -107,20 +234,26 @@ export default function MessagesInbox({ initialMessages }: Props) {
     })
     if (res.ok) {
       setMessages(prev => prev.filter(m => m.id !== id))
+      setTotal(prev => prev - 1)
+      clearCache()
       if (selected === id) { setSelected(null); setReplies([]) }
     }
   }
 
   // ── Polling ───────────────────────────────────────────────────────
   const pollMessages = useCallback(async () => {
-    const res = await fetch('/api/admin/messages')
+    if (!newestKnownAtRef.current) return
+    const res = await fetch(`/api/admin/messages?since=${encodeURIComponent(newestKnownAtRef.current)}`)
     if (!res.ok) return
-    const fresh: Message[] = await res.json()
-    const newOnes = fresh.filter(m => !knownIdsRef.current.has(m.id))
-    if (newOnes.length > 0) {
-      newOnes.forEach(m => knownIdsRef.current.add(m.id))
-      setPendingMessages(newOnes)
-      setNewMsgCount(newOnes.length)
+    const { data: newOnes }: { data: Message[] } = await res.json()
+    const genuinelyNew = newOnes.filter(m => !knownIdsRef.current.has(m.id))
+    if (genuinelyNew.length > 0) {
+      genuinelyNew.forEach(m => knownIdsRef.current.add(m.id))
+      const newest = genuinelyNew[0].created_at
+      if (newest > newestKnownAtRef.current) newestKnownAtRef.current = newest
+      setPendingMessages(genuinelyNew)
+      setNewMsgCount(genuinelyNew.length)
+      clearCache()
     }
   }, [])
 
@@ -160,11 +293,12 @@ export default function MessagesInbox({ initialMessages }: Props) {
   function handleLoadNew() {
     setMessages(prev => {
       const existingIds = new Set(prev.map(m => m.id))
-      const merged = [...pendingMessages.filter(m => !existingIds.has(m.id)), ...prev]
-      return merged
+      return [...pendingMessages.filter(m => !existingIds.has(m.id)), ...prev]
     })
+    setTotal(prev => prev + pendingMessages.length)
     setPendingMessages([])
     setNewMsgCount(0)
+    clearCache()
   }
 
   return (
@@ -180,9 +314,18 @@ export default function MessagesInbox({ initialMessages }: Props) {
             messages={messages}
             selected={selected}
             onSelect={selectMessage}
-            onRefresh={pollMessages}
+            onRefresh={() => fetchMessages({ page, sort, q: searchQuery, email: emailFilter, forceRefresh: true })}
             newCount={newMsgCount}
             onLoadNew={handleLoadNew}
+            page={page}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            sort={sort}
+            onSortChange={handleSortChange}
+            onSearchChange={handleSearchChange}
+            onEmailFilterChange={handleEmailFilterChange}
+            isLoading={isLoading}
+            total={total}
           />
         </div>
 
@@ -193,7 +336,7 @@ export default function MessagesInbox({ initialMessages }: Props) {
             replies={replies}
             total={replyTotal}
             page={replyPage}
-            perPage={PER_PAGE}
+            perPage={REPLY_PER_PAGE}
             onPageChange={page => loadReplies(selected!, page)}
             onBack={() => { setSelected(null); setReplies([]) }}
             onDelete={handleDelete}

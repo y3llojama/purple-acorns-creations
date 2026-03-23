@@ -3,10 +3,11 @@ import MessagesInbox from '@/components/admin/MessagesInbox'
 
 export default async function MessagesPage() {
   const supabase = createServiceRoleClient()
-  const { data: messages } = await supabase
+  const { data: messages, count } = await supabase
     .from('messages')
-    .select('*')
+    .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
+    .range(0, 19)
 
-  return <MessagesInbox initialMessages={messages ?? []} />
+  return <MessagesInbox initialMessages={messages ?? []} initialTotal={count ?? 0} />
 }

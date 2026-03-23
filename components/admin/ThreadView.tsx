@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import ConfirmDialog from './ConfirmDialog'
 import { createClient } from '@/lib/supabase/client'
 import { validateImageAttachment, isValidHttpsUrl } from '@/lib/validate'
@@ -24,6 +24,20 @@ function formatTimestamp(dateStr: string): string {
   return new Date(dateStr).toLocaleString()
 }
 
+function escapeRegex(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function highlightText(text: string, query: string): React.ReactNode {
+  if (!query.trim()) return text
+  const parts = text.split(new RegExp(`(${escapeRegex(query.trim())})`, 'gi'))
+  return parts.map((part, i) =>
+    part.toLowerCase() === query.trim().toLowerCase()
+      ? <mark key={i} style={{ background: 'var(--color-accent)', color: 'var(--color-primary)', borderRadius: '2px', padding: '0 1px' }}>{part}</mark>
+      : part
+  )
+}
+
 function buildPageButtons(current: number, total: number): (number | '…')[] {
   if (total <= 10) return Array.from({ length: total }, (_, i) => i + 1)
   const set = new Set<number>([1, total, current, current - 1, current + 1].filter(p => p >= 1 && p <= total))
@@ -37,6 +51,7 @@ function buildPageButtons(current: number, total: number): (number | '…')[] {
 }
 
 export default function ThreadView({ message, replies, total, page, perPage, onPageChange, onBack, onDelete, onSendReply, isMobile, newReplyIds }: Props) {
+  const [threadSearch, setThreadSearch] = useState('')
   const [replyText, setReplyText] = useState('')
   const [attachments, setAttachments] = useState<string[]>([])
   const [attachNames, setAttachNames] = useState<string[]>([])
@@ -48,6 +63,12 @@ export default function ThreadView({ message, replies, total, page, perPage, onP
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const totalPages = Math.ceil(total / perPage)
+
+  const visibleReplies = useMemo(() => {
+    const q = threadSearch.trim().toLowerCase()
+    if (!q) return replies
+    return replies.filter(r => r.body.toLowerCase().includes(q))
+  }, [replies, threadSearch])
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -128,12 +149,29 @@ export default function ThreadView({ message, replies, total, page, perPage, onP
       </div>
 
       {/* Original message body */}
-      <div style={{ padding: '16px', background: 'var(--color-bg)', borderRadius: '6px', marginBottom: '24px', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-        {message.message}
+      <div style={{ padding: '16px', background: 'var(--color-bg)', borderRadius: '6px', marginBottom: '16px', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+        {highlightText(message.message, threadSearch)}
       </div>
 
-      {/* Pagination — top */}
-      {totalPages > 1 && (
+      {/* Thread search */}
+      <div style={{ marginBottom: '16px' }}>
+        <input
+          type="search"
+          value={threadSearch}
+          onChange={e => setThreadSearch(e.target.value)}
+          placeholder="Search in this thread…"
+          aria-label="Search within thread"
+          style={{ width: '100%', padding: '8px 12px', fontSize: '14px', borderRadius: '4px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', boxSizing: 'border-box' }}
+        />
+        {threadSearch.trim() && (
+          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+            {visibleReplies.length} of {replies.length} repl{replies.length !== 1 ? 'ies' : 'y'} match
+          </div>
+        )}
+      </div>
+
+      {/* Pagination — top (hidden when searching within thread) */}
+      {totalPages > 1 && !threadSearch.trim() && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Page {page} of {totalPages}</span>
           <div style={{ display: 'flex', gap: '4px' }}>
@@ -158,9 +196,9 @@ export default function ThreadView({ message, replies, total, page, perPage, onP
       )}
 
       {/* Chat bubbles */}
-      {replies.length > 0 && (
+      {visibleReplies.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px' }}>
-          {replies.map(r => {
+          {visibleReplies.map(r => {
             const isOut = r.direction === 'outbound'
             const isNew = newReplyIds.has(r.id)
             return (
@@ -186,7 +224,7 @@ export default function ThreadView({ message, replies, total, page, perPage, onP
                     lineHeight: 1.5,
                     whiteSpace: 'pre-wrap',
                   }}>
-                    <p style={{ margin: 0 }}>{r.body}</p>
+                    <p style={{ margin: 0 }}>{highlightText(r.body, threadSearch)}</p>
                     {r.attachments.map(url => isValidHttpsUrl(url) && (
                       <img
                         key={url}
@@ -206,8 +244,8 @@ export default function ThreadView({ message, replies, total, page, perPage, onP
         </div>
       )}
 
-      {/* Pagination — bottom (numbered buttons) */}
-      {totalPages > 1 && (
+      {/* Pagination — bottom (numbered buttons, hidden when searching) */}
+      {totalPages > 1 && !threadSearch.trim() && (
         <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginBottom: '24px', flexWrap: 'wrap' }}>
           {buildPageButtons(page, totalPages).map((p, i) =>
             p === '…'
