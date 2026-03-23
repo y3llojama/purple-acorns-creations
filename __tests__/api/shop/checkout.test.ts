@@ -18,7 +18,7 @@ describe('POST /api/shop/checkout', () => {
     const { POST } = await import('@/app/api/shop/checkout/route')
     const req = new Request('http://localhost/api/shop/checkout', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cart: [], sourceId: 'tok_test' }),
+      body: JSON.stringify({ cart: [], sourceId: 'tok_test', shipping: { name: 'Test User', address1: '1 Main St', city: 'Austin', state: 'TX', zip: '78701', country: 'US' } }),
     })
     expect((await POST(req)).status).toBe(400)
   })
@@ -27,7 +27,7 @@ describe('POST /api/shop/checkout', () => {
     const { POST } = await import('@/app/api/shop/checkout/route')
     const req = new Request('http://localhost/api/shop/checkout', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cart: [{ productId: 'p1', quantity: 1 }] }),
+      body: JSON.stringify({ cart: [{ productId: 'p1', quantity: 1 }], shipping: { name: 'Test User', address1: '1 Main St', city: 'Austin', state: 'TX', zip: '78701', country: 'US' } }),
     })
     expect((await POST(req)).status).toBe(400)
   })
