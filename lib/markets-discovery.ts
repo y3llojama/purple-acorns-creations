@@ -162,7 +162,7 @@ Return a single JSON array. Omit fields you have no data for. Return [] if nothi
     const instagram_url = item.instagram_url && isValidHttpsUrl(item.instagram_url) ? item.instagram_url : null
 
     if (item.type === 'fair') {
-      const { data: existing } = await supabase.from('craft_fairs').select('id').ilike('name', name).single()
+      const { data: existing } = await supabase.from('craft_fairs').select('id').ilike('name', name).maybeSingle()
       if (existing) { skipped++; continue }
       const { error: insertError } = await supabase.from('craft_fairs').insert({
         name, location, website_url, instagram_url,
@@ -174,7 +174,7 @@ Return a single JSON array. Omit fields you have no data for. Return [] if nothi
       if (insertError) { console.error('[markets-discovery] insert fair error:', insertError); continue }
       added++
     } else if (item.type === 'venue') {
-      const { data: existing } = await supabase.from('artist_venues').select('id').ilike('name', name).single()
+      const { data: existing } = await supabase.from('artist_venues').select('id').ilike('name', name).maybeSingle()
       if (existing) { skipped++; continue }
       const { error: insertError } = await supabase.from('artist_venues').insert({
         name, location, website_url, instagram_url,
