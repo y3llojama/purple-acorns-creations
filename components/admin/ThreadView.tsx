@@ -13,6 +13,8 @@ interface Props {
   page: number
   perPage: number
   onPageChange: (page: number) => void
+  replySort: 'oldest' | 'newest'
+  onReplySortChange: (sort: 'oldest' | 'newest') => void
   onBack: () => void
   onDelete: (id: string) => void
   onSendReply: (body: string, attachments: string[]) => Promise<void>
@@ -50,7 +52,7 @@ function buildPageButtons(current: number, total: number): (number | '…')[] {
   return result
 }
 
-export default function ThreadView({ message, replies, total, page, perPage, onPageChange, onBack, onDelete, onSendReply, isMobile, newReplyIds }: Props) {
+export default function ThreadView({ message, replies, total, page, perPage, onPageChange, replySort, onReplySortChange, onBack, onDelete, onSendReply, isMobile, newReplyIds }: Props) {
   const [threadSearch, setThreadSearch] = useState('')
   const [replyText, setReplyText] = useState('')
   const [attachments, setAttachments] = useState<string[]>([])
@@ -153,18 +155,27 @@ export default function ThreadView({ message, replies, total, page, perPage, onP
         {highlightText(message.message, threadSearch)}
       </div>
 
-      {/* Thread search */}
-      <div style={{ marginBottom: '16px' }}>
-        <input
-          type="search"
-          value={threadSearch}
-          onChange={e => setThreadSearch(e.target.value)}
-          placeholder="Search in this thread…"
-          aria-label="Search within thread"
-          style={{ width: '100%', padding: '8px 12px', fontSize: '14px', borderRadius: '4px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', boxSizing: 'border-box' }}
-        />
+      {/* Thread search + sort */}
+      <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <input
+            type="search"
+            value={threadSearch}
+            onChange={e => setThreadSearch(e.target.value)}
+            placeholder="Search in this thread…"
+            aria-label="Search within thread"
+            style={{ flex: 1, padding: '8px 12px', fontSize: '14px', borderRadius: '4px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', boxSizing: 'border-box' }}
+          />
+          <button
+            onClick={() => onReplySortChange(replySort === 'oldest' ? 'newest' : 'oldest')}
+            aria-label={`Sort replies: ${replySort}`}
+            style={{ background: 'none', border: '1px solid var(--color-border)', color: 'var(--color-primary)', borderRadius: '4px', padding: '8px 12px', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            {replySort === 'oldest' ? '↑ Oldest' : '↓ Newest'}
+          </button>
+        </div>
         {threadSearch.trim() && (
-          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
             {visibleReplies.length} of {replies.length} repl{replies.length !== 1 ? 'ies' : 'y'} match
           </div>
         )}

@@ -7,24 +7,37 @@ import { decryptSettings } from '@/lib/crypto'
 import { parseFromEmail, verifyInboundHmac } from './helpers'
 
 async function uploadInboundAttachments(
-  attachments: Array<{ filename?: string; content_type?: string; data?: string }> | null | undefined
+  emailId: string,
+  attachments: Array<{ id: string; content_type: string }>,
+  resend: Resend
 ): Promise<string[]> {
   if (!attachments || attachments.length === 0) return []
   const supabase = createServiceRoleClient()
   const urls: string[] = []
+  const typeToExt: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' }
 
   for (const att of attachments.slice(0, 5)) {
     // Only allow the same MIME types as outbound uploads (blocks SVG and other risky types)
-    if (!att.content_type || !MESSAGE_ATTACHMENT_ALLOWED_TYPES.includes(att.content_type) || !att.data) continue
+    if (!MESSAGE_ATTACHMENT_ALLOWED_TYPES.includes(att.content_type)) continue
     try {
-      const buffer = Buffer.from(att.data, 'base64')
-      const typeToExt: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' }
+      // Resend inbound attachments are not base64 in the email payload —
+      // we must fetch via the attachment API to get a download_url
+      const { data: attData, error: attError } = await resend.emails.receiving.attachments.get({
+        emailId,
+        id: att.id,
+      })
+      if (attError || !attData?.download_url) continue
+
+      const fileRes = await fetch(attData.download_url)
+      if (!fileRes.ok) continue
+      const buffer = Buffer.from(await fileRes.arrayBuffer())
+
       const ext = typeToExt[att.content_type] ?? 'jpg'
       const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-      const { error } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('messages')
         .upload(path, buffer, { contentType: att.content_type })
-      if (error) continue
+      if (uploadError) continue
       const { data } = supabase.storage.from('messages').getPublicUrl(path)
       if (isValidHttpsUrl(data.publicUrl)) urls.push(data.publicUrl)
     } catch {
@@ -145,10 +158,7 @@ export async function POST(request: Request) {
   }
 
   // Parse and upload any image attachments from the email
-  const attachmentUrls = await uploadInboundAttachments(
-    (fullEmail as unknown as Record<string, unknown>).attachments as
-      Array<{ filename?: string; content_type?: string; data?: string }> | undefined
-  )
+  const attachmentUrls = await uploadInboundAttachments(emailId, fullEmail.attachments ?? [], resend)
 
   await supabase
     .from('message_replies')

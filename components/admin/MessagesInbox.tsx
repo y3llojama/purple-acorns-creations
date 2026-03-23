@@ -9,6 +9,7 @@ const POLL_INTERVAL = 45_000
 const REPLY_PER_PAGE = 20
 const MSG_PER_PAGE = 20
 const CACHE_TTL = 5 * 60 * 1000
+const REPLY_CACHE_TTL = 2 * 60 * 1000
 
 // ── sessionStorage cache ──────────────────────────────────────────
 
@@ -38,6 +39,37 @@ function clearCache() {
       .filter(k => k.startsWith('pac_msgs_'))
       .forEach(k => sessionStorage.removeItem(k))
   } catch { /* ignore */ }
+}
+
+// ── Reply cache (in-memory, per session) ─────────────────────────
+
+interface ReplyCacheEntry {
+  data: MessageReply[]
+  total: number
+  page: number
+  ts: number
+}
+const replyCache = new Map<string, ReplyCacheEntry>()
+
+function replyCacheKey(messageId: string, page: number, sort: string) {
+  return `${messageId}_${sort}_p${page}`
+}
+
+function readReplyCache(key: string): ReplyCacheEntry | null {
+  const entry = replyCache.get(key)
+  if (!entry) return null
+  if (Date.now() - entry.ts > REPLY_CACHE_TTL) { replyCache.delete(key); return null }
+  return entry
+}
+
+function writeReplyCache(key: string, data: MessageReply[], total: number, page: number) {
+  replyCache.set(key, { data, total, page, ts: Date.now() })
+}
+
+function invalidateReplyCacheForMessage(messageId: string) {
+  for (const key of replyCache.keys()) {
+    if (key.startsWith(messageId)) replyCache.delete(key)
+  }
 }
 
 // ── Types ─────────────────────────────────────────────────────────
@@ -76,6 +108,7 @@ export default function MessagesInbox({ initialMessages, initialTotal }: Props) 
   const [replies, setReplies] = useState<MessageReply[]>([])
   const [replyTotal, setReplyTotal] = useState(0)
   const [replyPage, setReplyPage] = useState(1)
+  const [replySort, setReplySort] = useState<'oldest' | 'newest'>('oldest')
   const [newMsgCount, setNewMsgCount] = useState(0)
   const [pendingMessages, setPendingMessages] = useState<Message[]>([])
   const [newReplyIds, setNewReplyIds] = useState<Set<string>>(new Set())
@@ -84,6 +117,7 @@ export default function MessagesInbox({ initialMessages, initialTotal }: Props) 
   const knownIdsRef = useRef(new Set(initialMessages.map(m => m.id)))
   const selectedRef = useRef<string | null>(null)
   const replyPageRef = useRef(1)
+  const replySortRef = useRef<'oldest' | 'newest'>('oldest')
   // Tracks newest created_at seen — used for incremental polling
   const newestKnownAtRef = useRef(
     initialMessages.length > 0 ? initialMessages[0].created_at : ''
@@ -99,6 +133,7 @@ export default function MessagesInbox({ initialMessages, initialTotal }: Props) 
   // Keep refs in sync with state for use inside intervals
   useEffect(() => { selectedRef.current = selected }, [selected])
   useEffect(() => { replyPageRef.current = replyPage }, [replyPage])
+  useEffect(() => { replySortRef.current = replySort }, [replySort])
 
   const selectedMsg = messages.find(m => m.id === selected) ?? null
   const totalPages = Math.ceil(total / MSG_PER_PAGE)
@@ -166,10 +201,25 @@ export default function MessagesInbox({ initialMessages, initialTotal }: Props) 
   }
 
   // ── Reply loader ──────────────────────────────────────────────────
-  const loadReplies = useCallback(async (messageId: string, page: number, highlight = false) => {
-    const res = await fetch(`/api/admin/messages/reply?message_id=${messageId}&page=${page}&per_page=${REPLY_PER_PAGE}`)
+  const loadReplies = useCallback(async (messageId: string, page: number, highlight = false, sort?: 'oldest' | 'newest') => {
+    const s = sort ?? replySortRef.current
+    const cacheKey = replyCacheKey(messageId, page, s)
+
+    // Serve from cache for normal loads (not highlight polls)
+    if (!highlight) {
+      const cached = readReplyCache(cacheKey)
+      if (cached) {
+        setReplies(cached.data)
+        setReplyTotal(cached.total)
+        setReplyPage(cached.page)
+        return
+      }
+    }
+
+    const res = await fetch(`/api/admin/messages/reply?message_id=${messageId}&page=${page}&per_page=${REPLY_PER_PAGE}&sort=${s}`)
     if (!res.ok) return
     const paged: PaginatedReplies = await res.json()
+
     if (highlight) {
       setReplies(prev => {
         const existingIds = new Set(prev.map(r => r.id))
@@ -180,8 +230,11 @@ export default function MessagesInbox({ initialMessages, initialTotal }: Props) 
         }
         return paged.data
       })
+      // Invalidate cache for this page since new replies arrived
+      replyCache.delete(cacheKey)
     } else {
       setReplies(paged.data)
+      writeReplyCache(cacheKey, paged.data, paged.total, paged.page)
     }
     setReplyTotal(paged.total)
     setReplyPage(paged.page)
@@ -202,11 +255,28 @@ export default function MessagesInbox({ initialMessages, initialTotal }: Props) 
       })
     }
 
-    const firstRes = await fetch(`/api/admin/messages/reply?message_id=${id}&page=1&per_page=${REPLY_PER_PAGE}`)
+    const firstRes = await fetch(`/api/admin/messages/reply?message_id=${id}&page=1&per_page=${REPLY_PER_PAGE}&sort=${replySort}`)
     if (!firstRes.ok) return
     const firstPage: PaginatedReplies = await firstRes.json()
-    const lastPage = Math.max(1, Math.ceil(firstPage.total / REPLY_PER_PAGE))
-    await loadReplies(id, lastPage)
+    // oldest sort: load last page to show most recent; newest sort: page 1 is already newest
+    const startPage = replySort === 'oldest'
+      ? Math.max(1, Math.ceil(firstPage.total / REPLY_PER_PAGE))
+      : 1
+    await loadReplies(id, startPage)
+  }
+
+  // ── Reply sort ────────────────────────────────────────────────────
+  async function handleReplySortChange(newSort: 'oldest' | 'newest') {
+    setReplySort(newSort)
+    replySortRef.current = newSort
+    if (!selected) return
+    const firstRes = await fetch(`/api/admin/messages/reply?message_id=${selected}&page=1&per_page=${REPLY_PER_PAGE}&sort=${newSort}`)
+    if (!firstRes.ok) return
+    const firstPage: PaginatedReplies = await firstRes.json()
+    const startPage = newSort === 'oldest'
+      ? Math.max(1, Math.ceil(firstPage.total / REPLY_PER_PAGE))
+      : 1
+    await loadReplies(selected, startPage, false, newSort)
   }
 
   // ── Send reply ────────────────────────────────────────────────────
@@ -221,6 +291,7 @@ export default function MessagesInbox({ initialMessages, initialTotal }: Props) 
       const data = await res.json().catch(() => ({}))
       throw new Error(data.error ?? 'Failed to send reply')
     }
+    invalidateReplyCacheForMessage(selected)
     const lastPage = Math.max(1, Math.ceil((replyTotal + 1) / REPLY_PER_PAGE))
     await loadReplies(selected, lastPage)
   }
@@ -236,6 +307,7 @@ export default function MessagesInbox({ initialMessages, initialTotal }: Props) 
       setMessages(prev => prev.filter(m => m.id !== id))
       setTotal(prev => prev - 1)
       clearCache()
+      invalidateReplyCacheForMessage(id)
       if (selected === id) { setSelected(null); setReplies([]) }
     }
   }
@@ -260,7 +332,7 @@ export default function MessagesInbox({ initialMessages, initialTotal }: Props) 
   const pollReplies = useCallback(async () => {
     const id = selectedRef.current
     if (!id) return
-    await loadReplies(id, replyPageRef.current, true)
+    await loadReplies(id, replyPageRef.current, true, replySortRef.current)
   }, [loadReplies])
 
   useEffect(() => {
@@ -338,6 +410,8 @@ export default function MessagesInbox({ initialMessages, initialTotal }: Props) 
             page={replyPage}
             perPage={REPLY_PER_PAGE}
             onPageChange={page => loadReplies(selected!, page)}
+            replySort={replySort}
+            onReplySortChange={handleReplySortChange}
             onBack={() => { setSelected(null); setReplies([]) }}
             onDelete={handleDelete}
             onSendReply={handleSendReply}

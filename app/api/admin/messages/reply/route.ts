@@ -71,6 +71,7 @@ export async function GET(request: Request) {
   const messageId = searchParams.get('message_id')
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
   const perPage = Math.min(100, Math.max(1, parseInt(searchParams.get('per_page') ?? '20', 10)))
+  const sort = searchParams.get('sort') === 'newest' ? 'newest' : 'oldest'
 
   if (!messageId || !isValidUuid(messageId)) {
     return NextResponse.json({ error: 'Valid message_id required' }, { status: 400 })
@@ -93,7 +94,7 @@ export async function GET(request: Request) {
     .from('message_replies')
     .select('*')
     .eq('message_id', messageId)
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: sort === 'oldest' })
     .range(offset, offset + perPage - 1)
 
   if (dbError) return NextResponse.json({ error: 'Failed to load replies' }, { status: 500 })
