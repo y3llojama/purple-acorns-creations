@@ -251,14 +251,16 @@ export default function ThreadView({ message, replies, total, page, perPage, onP
         {attachments.length > 0 && (
           <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
             {attachments.map((url, i) => (
-              <div key={url} style={{ position: 'relative', width: '56px', height: '56px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-                {isValidHttpsUrl(url) && <img src={url} alt={sanitizeText(attachNames[i] ?? '')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+              <div key={url} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                <div style={{ width: '56px', height: '56px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+                  {isValidHttpsUrl(url) && <img src={url} alt={sanitizeText(attachNames[i] ?? '')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                </div>
                 <button
                   onClick={() => removeAttachment(i)}
                   aria-label={`Remove attachment ${attachNames[i]}`}
-                  style={{ position: 'absolute', top: '2px', right: '2px', background: 'rgba(0,0,0,.6)', color: '#fff', border: 'none', borderRadius: '50%', width: '18px', height: '18px', fontSize: '10px', cursor: 'pointer', lineHeight: '18px', padding: 0 }}
+                  style={{ background: 'none', border: '1px solid var(--color-border)', color: 'var(--color-primary)', borderRadius: '4px', width: '56px', minHeight: '48px', fontSize: '11px', cursor: 'pointer' }}
                 >
-                  ✕
+                  Remove
                 </button>
               </div>
             ))}

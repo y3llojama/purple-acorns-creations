@@ -146,8 +146,8 @@ export default function MessagesInbox({ initialMessages }: Props) {
     startPolling()
 
     function handleVisibility() {
-      if (document.visibilityState === 'hidden') stopPolling()
-      else startPolling()
+      stopPolling()
+      if (document.visibilityState !== 'hidden') startPolling()
     }
     document.addEventListener('visibilitychange', handleVisibility)
 

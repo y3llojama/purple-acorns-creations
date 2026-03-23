@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { sanitizeText } from '@/lib/sanitize'
-import { clampLength, isValidHttpsUrl } from '@/lib/validate'
+import { clampLength, isValidHttpsUrl, MESSAGE_ATTACHMENT_ALLOWED_TYPES } from '@/lib/validate'
 import { decryptSettings } from '@/lib/crypto'
 import { parseFromEmail, verifyInboundHmac } from './helpers'
 
@@ -14,11 +14,12 @@ async function uploadInboundAttachments(
   const urls: string[] = []
 
   for (const att of attachments.slice(0, 5)) {
-    // Skip non-images or malformed entries
-    if (!att.content_type?.startsWith('image/') || !att.data) continue
+    // Only allow the same MIME types as outbound uploads (blocks SVG and other risky types)
+    if (!att.content_type || !MESSAGE_ATTACHMENT_ALLOWED_TYPES.includes(att.content_type) || !att.data) continue
     try {
       const buffer = Buffer.from(att.data, 'base64')
-      const ext = att.content_type.split('/')[1]?.replace('jpeg', 'jpg') ?? 'jpg'
+      const typeToExt: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' }
+      const ext = typeToExt[att.content_type] ?? 'jpg'
       const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
       const { error } = await supabase.storage
         .from('messages')
