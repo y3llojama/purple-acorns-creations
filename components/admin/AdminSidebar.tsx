@@ -7,7 +7,7 @@ import {
   LayoutDashboard, FileText, Calendar, Image, MessageSquare,
   Palette, Plug, Mail, BarChart2, ClipboardList,
   ChevronLeft, ChevronRight, ExternalLink, LogOut,
-  Package, Radio, MapPin,
+  Package, Radio, MapPin, Settings,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -24,6 +24,7 @@ const NAV_ITEMS = [
   { href: '/admin/newsletter', label: 'Newsletter', Icon: Mail },
   { href: '/admin/analytics', label: 'Analytics', Icon: BarChart2 },
   { href: '/admin/reports', label: 'Reports', Icon: ClipboardList },
+  { href: '/admin/settings', label: 'Settings', Icon: Settings },
 ]
 
 interface Props { businessName: string }

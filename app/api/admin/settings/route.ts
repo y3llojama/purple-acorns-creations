@@ -108,6 +108,15 @@ export async function POST(request: Request) {
     const val = String(body.newsletter_scheduled_send_time ?? '')
     update.newsletter_scheduled_send_time = /^\d{2}:\d{2}$/.test(val) ? val : null
   }
+  if (body.shipping_mode !== undefined) {
+    const mode = String(body.shipping_mode)
+    update.shipping_mode = ['fixed', 'percentage'].includes(mode) ? mode : 'fixed'
+  }
+  if (body.shipping_value !== undefined) {
+    const val = parseFloat(String(body.shipping_value))
+    if (isNaN(val) || val < 0) return NextResponse.json({ error: 'shipping_value must be >= 0' }, { status: 400 })
+    update.shipping_value = val.toFixed(2)
+  }
 
   update.updated_at = new Date().toISOString()
   const supabase = createServiceRoleClient()
