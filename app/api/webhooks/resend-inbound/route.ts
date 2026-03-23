@@ -6,6 +6,33 @@ import { clampLength } from '@/lib/validate'
 import { decryptSettings } from '@/lib/crypto'
 import { parseFromEmail, verifyInboundHmac } from './helpers'
 
+async function uploadInboundAttachments(
+  attachments: Array<{ filename?: string; content_type?: string; data?: string }> | null | undefined
+): Promise<string[]> {
+  if (!attachments || attachments.length === 0) return []
+  const supabase = createServiceRoleClient()
+  const urls: string[] = []
+
+  for (const att of attachments.slice(0, 5)) {
+    // Skip non-images or malformed entries
+    if (!att.content_type?.startsWith('image/') || !att.data) continue
+    try {
+      const buffer = Buffer.from(att.data, 'base64')
+      const ext = att.content_type.split('/')[1]?.replace('jpeg', 'jpg') ?? 'jpg'
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error } = await supabase.storage
+        .from('messages')
+        .upload(path, buffer, { contentType: att.content_type })
+      if (error) continue
+      const { data } = supabase.storage.from('messages').getPublicUrl(path)
+      urls.push(data.publicUrl)
+    } catch {
+      // skip malformed attachment silently
+    }
+  }
+  return urls
+}
+
 // In-memory rate limiter: 60 requests per IP per 60 seconds
 const rateLimitMap = new Map<string, { count: number; reset: number }>()
 
@@ -116,9 +143,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true })
   }
 
+  // Parse and upload any image attachments from the email
+  const attachmentUrls = await uploadInboundAttachments(
+    (fullEmail as Record<string, unknown>).attachments as
+      Array<{ filename?: string; content_type?: string; data?: string }> | undefined
+  )
+
   await supabase
     .from('message_replies')
-    .insert({ message_id: messageId, body: text, direction: 'inbound', from_email: fromEmail })
+    .insert({ message_id: messageId, body: text, direction: 'inbound', from_email: fromEmail, attachments: attachmentUrls })
 
   await supabase.from('messages').update({ is_read: false }).eq('id', messageId)
 
