@@ -4,12 +4,13 @@ import { requireAdminSession } from '@/lib/auth'
 import { isValidHttpsUrl, clampLength } from '@/lib/validate'
 import { sanitizeText } from '@/lib/sanitize'
 
-type TableName = 'craft_fairs' | 'artist_venues'
+type TableName = 'craft_fairs' | 'artist_venues' | 'recurring_markets'
 
 function resolveTable(url: string): TableName | null {
   const param = new URL(url).searchParams.get('table')
   if (param === 'fairs') return 'craft_fairs'
   if (param === 'venues') return 'artist_venues'
+  if (param === 'markets') return 'recurring_markets'
   return null
 }
 
@@ -24,18 +25,19 @@ export async function GET() {
   const { error } = await requireAdminSession()
   if (error) return error
   const supabase = createServiceRoleClient()
-  const [{ data: craft_fairs }, { data: artist_venues }] = await Promise.all([
+  const [{ data: craft_fairs }, { data: artist_venues }, { data: recurring_markets }] = await Promise.all([
     supabase.from('craft_fairs').select('*').order('name'),
     supabase.from('artist_venues').select('*').order('name'),
+    supabase.from('recurring_markets').select('*').order('name'),
   ])
-  return NextResponse.json({ craft_fairs: craft_fairs ?? [], artist_venues: artist_venues ?? [] })
+  return NextResponse.json({ craft_fairs: craft_fairs ?? [], artist_venues: artist_venues ?? [], recurring_markets: recurring_markets ?? [] })
 }
 
 export async function POST(request: Request) {
   const { error } = await requireAdminSession()
   if (error) return error
   const table = resolveTable(request.url)
-  if (!table) return NextResponse.json({ error: 'table param required: fairs or venues' }, { status: 400 })
+  if (!table) return NextResponse.json({ error: 'table param required: fairs, venues, or markets' }, { status: 400 })
   const body = await request.json().catch(() => ({} as Record<string, unknown>))
   const name = sanitizeText(clampLength(String(body.name ?? ''), 200))
   const location = sanitizeText(clampLength(String(body.location ?? ''), 300))
@@ -56,12 +58,20 @@ export async function POST(request: Request) {
     }).select().single()
     if (dbError) return NextResponse.json({ error: 'Failed to create fair' }, { status: 500 })
     return NextResponse.json(data, { status: 201 })
-  } else {
+  } else if (table === 'artist_venues') {
     const { data, error: dbError } = await supabase.from('artist_venues').insert({
       ...shared,
       hosting_model: body.hosting_model ? sanitizeText(clampLength(String(body.hosting_model), 200)) || null : null,
     }).select().single()
     if (dbError) return NextResponse.json({ error: 'Failed to create venue' }, { status: 500 })
+    return NextResponse.json(data, { status: 201 })
+  } else {
+    const { data, error: dbError } = await supabase.from('recurring_markets').insert({
+      ...shared,
+      frequency: body.frequency ? sanitizeText(clampLength(String(body.frequency), 100)) || null : null,
+      typical_months: body.typical_months ? sanitizeText(clampLength(String(body.typical_months), 200)) || null : null,
+    }).select().single()
+    if (dbError) return NextResponse.json({ error: 'Failed to create market' }, { status: 500 })
     return NextResponse.json(data, { status: 201 })
   }
 }
@@ -70,7 +80,7 @@ export async function PUT(request: Request) {
   const { error } = await requireAdminSession()
   if (error) return error
   const table = resolveTable(request.url)
-  if (!table) return NextResponse.json({ error: 'table param required: fairs or venues' }, { status: 400 })
+  if (!table) return NextResponse.json({ error: 'table param required: fairs, venues, or markets' }, { status: 400 })
   const body = await request.json().catch(() => ({} as Record<string, unknown>))
   const { id, ...fields } = body as { id?: string } & Record<string, unknown>
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
@@ -85,8 +95,11 @@ export async function PUT(request: Request) {
     if (fields.avg_artists !== undefined) update.avg_artists = fields.avg_artists ? sanitizeText(clampLength(String(fields.avg_artists), 100)) || null : null
     if (fields.avg_shoppers !== undefined) update.avg_shoppers = fields.avg_shoppers ? sanitizeText(clampLength(String(fields.avg_shoppers), 100)) || null : null
     if (fields.typical_months !== undefined) update.typical_months = fields.typical_months ? sanitizeText(clampLength(String(fields.typical_months), 200)) || null : null
-  } else {
+  } else if (table === 'artist_venues') {
     if (fields.hosting_model !== undefined) update.hosting_model = fields.hosting_model ? sanitizeText(clampLength(String(fields.hosting_model), 200)) || null : null
+  } else {
+    if (fields.frequency !== undefined) update.frequency = fields.frequency ? sanitizeText(clampLength(String(fields.frequency), 100)) || null : null
+    if (fields.typical_months !== undefined) update.typical_months = fields.typical_months ? sanitizeText(clampLength(String(fields.typical_months), 200)) || null : null
   }
   const supabase = createServiceRoleClient()
   const { error: dbError } = await supabase.from(table).update(update).eq('id', id)
@@ -98,7 +111,7 @@ export async function DELETE(request: Request) {
   const { error } = await requireAdminSession()
   if (error) return error
   const table = resolveTable(request.url)
-  if (!table) return NextResponse.json({ error: 'table param required: fairs or venues' }, { status: 400 })
+  if (!table) return NextResponse.json({ error: 'table param required: fairs, venues, or markets' }, { status: 400 })
   const body = await request.json().catch(() => ({} as Record<string, unknown>))
   if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 })
   const supabase = createServiceRoleClient()

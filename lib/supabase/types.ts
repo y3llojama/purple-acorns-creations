@@ -168,3 +168,16 @@ export interface ArtistVenue {
   created_at: string
   updated_at: string
 }
+
+export interface RecurringMarket {
+  id: string
+  name: string
+  location: string
+  website_url: string | null
+  instagram_url: string | null
+  frequency: string | null
+  typical_months: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}

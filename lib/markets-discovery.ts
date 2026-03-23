@@ -25,7 +25,17 @@ interface DiscoveredVenue {
   hosting_model?: string
 }
 
-type Discovered = DiscoveredFair | DiscoveredVenue
+interface DiscoveredMarket {
+  type: 'market'
+  name: string
+  location: string
+  website_url?: string
+  instagram_url?: string
+  frequency?: string
+  typical_months?: string
+}
+
+type Discovered = DiscoveredFair | DiscoveredVenue | DiscoveredMarket
 
 const SEARCH_QUERIES = [
   'craft fair "New England" 2026 artists vendors Massachusetts Rhode Island Connecticut',
@@ -33,6 +43,7 @@ const SEARCH_QUERIES = [
   'artist collective store consignment "New England" handmade craft vendors',
   'craft market holiday 2025 2026 Massachusetts "vendor applications"',
   '"artist venue" OR "maker market" OR "pop-up market" Boston Providence Portland Maine',
+  '"artisan market" OR "flea market" weekly monthly New England vendor application 2026',
 ]
 
 async function tavilySearch(apiKey: string, query: string): Promise<SearchResult[]> {
@@ -113,16 +124,23 @@ export async function runMarketsDiscovery(
 
   const snippets = allResults.map((r, i) => `${i + 1}) ${r.title}\nURL: ${r.url}\n${r.description ?? ''}`).join('\n\n')
 
-  const prompt = `Extract New England art/craft fairs and artist-hosting stores or collectives from these search results. Only include venues in MA, NH, RI, VT, CT, or ME.
+  const prompt = `Extract New England arts and craft market venues from these search results. Only include venues in MA, NH, RI, VT, CT, or ME.
 
-For each result return a JSON object with:
-- Craft fairs: { "type": "fair", "name": "", "location": "city, state", "website_url": "https://...", "instagram_url": "https://...", "years_in_operation": "", "avg_artists": "", "avg_shoppers": "", "typical_months": "" }
-- Stores/collectives: { "type": "venue", "name": "", "location": "city, state", "website_url": "https://...", "instagram_url": "https://...", "hosting_model": "" }
+Classify each result as one of three types:
+
+1. Seasonal craft fairs (application-based juried shows, specific dates):
+   { "type": "fair", "name": "", "location": "city, state", "website_url": "https://...", "instagram_url": "https://...", "years_in_operation": "", "avg_artists": "", "avg_shoppers": "", "typical_months": "" }
+
+2. Stores or collectives that host artists permanently (consignment, booth rental):
+   { "type": "venue", "name": "", "location": "city, state", "website_url": "https://...", "instagram_url": "https://...", "hosting_model": "consignment|booth rental|pop-up|etc" }
+
+3. Recurring pop-up or outdoor markets (weekly/monthly markets, flea markets, artisan markets):
+   { "type": "market", "name": "", "location": "city, state", "website_url": "https://...", "instagram_url": "https://...", "frequency": "weekly|monthly|bi-weekly|etc", "typical_months": "" }
 
 Search results:
 ${snippets}
 
-Return a single JSON array. Omit fields you have no data for. Return [] if nothing qualifies.`
+Return a single JSON array containing all found venues. Omit fields you have no data for. Return [] if nothing qualifies.`
 
   let rawText: string
   try {
@@ -181,6 +199,16 @@ Return a single JSON array. Omit fields you have no data for. Return [] if nothi
         hosting_model: item.hosting_model ? sanitizeText(clampLength(item.hosting_model, 200)) || null : null,
       })
       if (insertError) { console.error('[markets-discovery] insert venue error:', insertError); continue }
+      added++
+    } else if (item.type === 'market') {
+      const { data: existing } = await supabase.from('recurring_markets').select('id').ilike('name', name).maybeSingle()
+      if (existing) { skipped++; continue }
+      const { error: insertError } = await supabase.from('recurring_markets').insert({
+        name, location, website_url, instagram_url,
+        frequency: item.frequency ? sanitizeText(clampLength(item.frequency, 100)) || null : null,
+        typical_months: item.typical_months ? sanitizeText(clampLength(item.typical_months, 200)) || null : null,
+      })
+      if (insertError) { console.error('[markets-discovery] insert market error:', insertError); continue }
       added++
     }
   }
