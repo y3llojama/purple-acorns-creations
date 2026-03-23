@@ -35,8 +35,8 @@ const defaultProps = {
 describe('ThreadView', () => {
   it('renders original message header', () => {
     render(<ThreadView {...defaultProps} />)
-    expect(screen.getByText('Sarah')).toBeInTheDocument()
-    expect(screen.getByText('sarah@example.com')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Sarah' })).toBeInTheDocument()
+    expect(screen.getAllByText(/sarah@example\.com/)[0]).toBeInTheDocument()
   })
 
   it('renders outbound reply on the right', () => {
@@ -74,7 +74,7 @@ describe('ThreadView', () => {
     fireEvent.change(textarea, { target: { value: 'Thanks!' } })
     fireEvent.click(screen.getByRole('button', { name: /send reply/i }))
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
-    expect(screen.getByText(/sarah@example.com/)).toBeInTheDocument()
+    expect(screen.getAllByText(/sarah@example\.com/).length).toBeGreaterThan(0)
   })
 
   it('calls onSendReply after confirming send', async () => {

@@ -115,9 +115,7 @@ export default function ThreadView({ message, replies, total, page, perPage, onP
         <div>
           <h2 style={{ fontSize: '20px', marginBottom: '4px' }}>{message.name}</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {!showConfirm && (
-              <span style={{ fontSize: '14px', color: 'var(--color-accent)' }}>{message.email}</span>
-            )}
+            <span style={{ fontSize: '14px', color: 'var(--color-accent)' }}>{message.email}</span>
             <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{formatTimestamp(message.created_at)}</span>
           </div>
         </div>
@@ -174,7 +172,7 @@ export default function ThreadView({ message, replies, total, page, perPage, onP
               >
                 <div style={{ maxWidth: '72%', display: 'flex', flexDirection: 'column', alignItems: isOut ? 'flex-end' : 'flex-start', gap: '4px' }}>
                   <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                    {isOut ? 'You' : 'Customer'}
+                    {isOut ? 'You' : message.name}
                   </span>
                   <div style={{
                     background: isOut ? 'var(--color-primary)' : 'var(--color-surface)',
