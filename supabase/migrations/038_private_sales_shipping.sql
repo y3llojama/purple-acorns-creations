@@ -4,7 +4,15 @@
 ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_reserved INTEGER NOT NULL DEFAULT 0;
 
 -- 2. Add CHECK constraint to stock_count (floor at 0)
-ALTER TABLE products ADD CONSTRAINT products_stock_count_non_negative CHECK (stock_count >= 0);
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'products_stock_count_non_negative'
+      AND conrelid = 'products'::regclass
+  ) THEN
+    ALTER TABLE products ADD CONSTRAINT products_stock_count_non_negative CHECK (stock_count >= 0);
+  END IF;
+END $$;
 
 -- 3. Update decrement_stock to respect stock_reserved
 CREATE OR REPLACE FUNCTION decrement_stock(product_id UUID, qty INTEGER)
@@ -17,7 +25,8 @@ $$ LANGUAGE sql;
 
 -- 4. Shipping config in settings
 ALTER TABLE settings
-  ADD COLUMN IF NOT EXISTS shipping_mode  TEXT          NOT NULL DEFAULT 'fixed',
+  ADD COLUMN IF NOT EXISTS shipping_mode  TEXT          NOT NULL DEFAULT 'fixed'
+    CHECK (shipping_mode IN ('fixed', 'percentage')),
   ADD COLUMN IF NOT EXISTS shipping_value NUMERIC(10,2) NOT NULL DEFAULT 0
     CHECK (shipping_value >= 0);
 
@@ -47,6 +56,8 @@ CREATE TABLE IF NOT EXISTS private_sale_items (
 
 ALTER TABLE private_sale_items ENABLE ROW LEVEL SECURITY;
 
+CREATE INDEX IF NOT EXISTS private_sale_items_sale_id_idx ON private_sale_items(private_sale_id);
+
 -- 7. create_private_sale: atomic insert + reserve
 CREATE OR REPLACE FUNCTION create_private_sale(sale JSONB, items JSONB)
 RETURNS private_sales AS $$
@@ -66,15 +77,7 @@ BEGIN
 
   -- Insert items and reserve stock
   FOR item IN SELECT * FROM jsonb_array_elements(items) LOOP
-    INSERT INTO private_sale_items (private_sale_id, product_id, quantity, custom_price)
-    VALUES (
-      new_sale.id,
-      (item->>'product_id')::UUID,
-      (item->>'quantity')::INTEGER,
-      (item->>'custom_price')::NUMERIC
-    );
-
-    -- Lock row and check available stock
+    -- Lock row first, then check available stock
     SELECT * INTO prod FROM products WHERE id = (item->>'product_id')::UUID FOR UPDATE;
     IF prod.stock_count - prod.stock_reserved < (item->>'quantity')::INTEGER THEN
       RAISE EXCEPTION 'INSUFFICIENT_STOCK:%', item->>'product_id';
@@ -83,13 +86,24 @@ BEGIN
     UPDATE products
     SET stock_reserved = stock_reserved + (item->>'quantity')::INTEGER
     WHERE id = (item->>'product_id')::UUID;
+
+    INSERT INTO private_sale_items (private_sale_id, product_id, quantity, custom_price)
+    VALUES (
+      new_sale.id,
+      (item->>'product_id')::UUID,
+      (item->>'quantity')::INTEGER,
+      (item->>'custom_price')::NUMERIC
+    );
   END LOOP;
 
   RETURN new_sale;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 8. release_private_sale_stock: atomic revoke + release
+-- 8. release_private_sale_stock: soft-revoke + release reserved stock
+-- revoked_at update is fully idempotent (only sets if not already set)
+-- stock_reserved decrement is safe to call multiple times — GREATEST guard
+-- prevents negative values, though only the first effective call fully decrements
 CREATE OR REPLACE FUNCTION release_private_sale_stock(sale_id UUID)
 RETURNS void AS $$
 DECLARE
@@ -123,6 +137,8 @@ BEGIN
   END IF;
 
   FOR item IN SELECT * FROM private_sale_items WHERE private_sale_id = sale_id LOOP
+    -- Lock product row before decrementing (prevents race with concurrent public checkout)
+    PERFORM id FROM products WHERE id = item.product_id FOR UPDATE;
     -- Decrement stock_count (CHECK constraint enforces >= 0)
     UPDATE products
     SET stock_count = stock_count - item.quantity,

@@ -24,7 +24,8 @@ create table if not exists settings (
   smtp_pass text,
   updated_at timestamptz default now(),
   -- Shipping config (added in 038)
-  shipping_mode  text          not null default 'fixed',
+  shipping_mode  text          not null default 'fixed'
+    check (shipping_mode in ('fixed', 'percentage')),
   shipping_value numeric(10,2) not null default 0 check (shipping_value >= 0)
 );
 insert into settings (id) values (gen_random_uuid())
@@ -186,6 +187,8 @@ CREATE TABLE IF NOT EXISTS private_sale_items (
 
 ALTER TABLE private_sale_items ENABLE ROW LEVEL SECURITY;
 
+CREATE INDEX IF NOT EXISTS private_sale_items_sale_id_idx ON private_sale_items(private_sale_id);
+
 -- create_private_sale: atomic insert + reserve stock (added in 038)
 CREATE OR REPLACE FUNCTION create_private_sale(sale JSONB, items JSONB)
 RETURNS private_sales AS $$
@@ -203,14 +206,7 @@ BEGIN
   RETURNING * INTO new_sale;
 
   FOR item IN SELECT * FROM jsonb_array_elements(items) LOOP
-    INSERT INTO private_sale_items (private_sale_id, product_id, quantity, custom_price)
-    VALUES (
-      new_sale.id,
-      (item->>'product_id')::UUID,
-      (item->>'quantity')::INTEGER,
-      (item->>'custom_price')::NUMERIC
-    );
-
+    -- Lock row first, then check available stock
     SELECT * INTO prod FROM products WHERE id = (item->>'product_id')::UUID FOR UPDATE;
     IF prod.stock_count - prod.stock_reserved < (item->>'quantity')::INTEGER THEN
       RAISE EXCEPTION 'INSUFFICIENT_STOCK:%', item->>'product_id';
@@ -219,13 +215,24 @@ BEGIN
     UPDATE products
     SET stock_reserved = stock_reserved + (item->>'quantity')::INTEGER
     WHERE id = (item->>'product_id')::UUID;
+
+    INSERT INTO private_sale_items (private_sale_id, product_id, quantity, custom_price)
+    VALUES (
+      new_sale.id,
+      (item->>'product_id')::UUID,
+      (item->>'quantity')::INTEGER,
+      (item->>'custom_price')::NUMERIC
+    );
   END LOOP;
 
   RETURN new_sale;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- release_private_sale_stock: atomic revoke + release reserved stock (added in 038)
+-- release_private_sale_stock: soft-revoke + release reserved stock (added in 038)
+-- revoked_at update is fully idempotent (only sets if not already set)
+-- stock_reserved decrement is safe to call multiple times — GREATEST guard
+-- prevents negative values, though only the first effective call fully decrements
 CREATE OR REPLACE FUNCTION release_private_sale_stock(sale_id UUID)
 RETURNS void AS $$
 DECLARE
@@ -257,6 +264,9 @@ BEGIN
   END IF;
 
   FOR item IN SELECT * FROM private_sale_items WHERE private_sale_id = sale_id LOOP
+    -- Lock product row before decrementing (prevents race with concurrent public checkout)
+    PERFORM id FROM products WHERE id = item.product_id FOR UPDATE;
+    -- Decrement stock_count (CHECK constraint enforces >= 0)
     UPDATE products
     SET stock_count = stock_count - item.quantity,
         stock_reserved = GREATEST(stock_reserved - item.quantity, 0)
