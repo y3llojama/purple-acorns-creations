@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Product } from '@/lib/supabase/types'
 
 interface SelectedProduct {
@@ -8,17 +9,21 @@ interface SelectedProduct {
   customPrice: number
 }
 
-export default function PrivateSaleForm() {
-  const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([])
+interface Props {
+  initialItems?: SelectedProduct[]
+  initialNote?: string
+}
+
+export default function PrivateSaleForm({ initialItems = [], initialNote = '' }: Props) {
+  const router = useRouter()
+  const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>(initialItems)
   const [expiresIn, setExpiresIn] = useState<'48h' | '7d' | '14d'>('7d')
-  const [customerNote, setCustomerNote] = useState('')
-  const [generatedUrl, setGeneratedUrl] = useState<string | null>(null)
+  const [customerNote, setCustomerNote] = useState(initialNote)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [search, setSearch] = useState('')
   const [productsLoading, setProductsLoading] = useState(true)
-  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     async function loadProducts() {
@@ -73,7 +78,6 @@ export default function PrivateSaleForm() {
     }
     setLoading(true)
     setError(null)
-    setGeneratedUrl(null)
 
     const res = await fetch('/api/admin/private-sales', {
       method: 'POST',
@@ -96,21 +100,7 @@ export default function PrivateSaleForm() {
       return
     }
 
-    const body = await res.json()
-    const url = body.url ?? `${process.env.NEXT_PUBLIC_SITE_URL}/private-sale/${body.token}`
-    setGeneratedUrl(url)
-    setLoading(false)
-  }
-
-  async function handleCopyUrl() {
-    if (!generatedUrl) return
-    try {
-      await navigator.clipboard.writeText(generatedUrl)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      setError('Could not copy URL — please copy it manually.')
-    }
+    router.push('/admin/private-sales')
   }
 
   const selectedIds = new Set(selectedProducts.map(s => s.product.id))
@@ -291,7 +281,6 @@ export default function PrivateSaleForm() {
         </div>
       </section>
 
-      {/* Submit */}
       <button
         type="submit"
         disabled={loading}
@@ -306,64 +295,10 @@ export default function PrivateSaleForm() {
           fontSize: '15px',
           fontWeight: '600',
           opacity: loading ? 0.6 : 1,
-          marginBottom: '24px',
         }}
       >
         {loading ? 'Creating…' : 'Create Private Sale Link'}
       </button>
-
-      {/* Generated URL */}
-      {generatedUrl && (
-        <div
-          role="alert"
-          style={{
-            padding: '16px',
-            background: '#f0fdf4',
-            border: '1px solid #bbf7d0',
-            borderRadius: '6px',
-          }}
-        >
-          <p style={{ margin: '0 0 10px', fontWeight: '600', color: '#15803d', fontSize: '14px' }}>
-            Private sale link created!
-          </p>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <input
-              type="text"
-              readOnly
-              value={generatedUrl}
-              style={{
-                flex: 1,
-                minWidth: '200px',
-                padding: '0 12px',
-                minHeight: '48px',
-                border: '1px solid #bbf7d0',
-                borderRadius: '4px',
-                fontSize: '13px',
-                background: '#fff',
-                color: '#374151',
-              }}
-            />
-            <button
-              type="button"
-              onClick={handleCopyUrl}
-              style={{
-                padding: '0 20px',
-                minHeight: '48px',
-                background: '#16a34a',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {copied ? 'Copied!' : 'Copy URL'}
-            </button>
-          </div>
-        </div>
-      )}
     </form>
   )
 }

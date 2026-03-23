@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { PrivateSale } from '@/lib/supabase/types'
 import { sanitizeText } from '@/lib/sanitize'
@@ -26,7 +26,13 @@ export default function PrivateSaleList({ initialData }: Props) {
   const router = useRouter()
   const [sales, setSales] = useState<PrivateSale[]>(initialData.data)
   const [revoking, setRevoking] = useState<string | null>(null)
+  const [copying, setCopying] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [origin, setOrigin] = useState('')
+
+  useEffect(() => {
+    setOrigin(window.location.origin)
+  }, [])
 
   async function handleRevoke(id: string) {
     setRevoking(id)
@@ -44,11 +50,18 @@ export default function PrivateSaleList({ initialData }: Props) {
   }
 
   async function handleCopyLink(token: string) {
+    const url = `${origin}/private-sale/${token}`
     try {
-      await navigator.clipboard.writeText(`${process.env.NEXT_PUBLIC_SITE_URL}/private-sale/${token}`)
+      await navigator.clipboard.writeText(url)
+      setCopying(token)
+      setTimeout(() => setCopying(null), 2000)
     } catch {
       setError('Could not copy link — please copy it manually.')
     }
+  }
+
+  function handleClone(id: string) {
+    router.push(`/admin/private-sales/new?clone=${id}`)
   }
 
   if (sales.length === 0) {
@@ -68,10 +81,11 @@ export default function PrivateSaleList({ initialData }: Props) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--color-border, #e5e7eb)', textAlign: 'left' }}>
-              <th style={{ padding: '12px 16px', fontWeight: '600', color: 'var(--color-primary)' }}>Customer Note</th>
+              <th style={{ padding: '12px 16px', fontWeight: '600', color: 'var(--color-primary)' }}>Note</th>
               <th style={{ padding: '12px 16px', fontWeight: '600', color: 'var(--color-primary)' }}>Items</th>
-              <th style={{ padding: '12px 16px', fontWeight: '600', color: 'var(--color-primary)' }}>Total Value</th>
+              <th style={{ padding: '12px 16px', fontWeight: '600', color: 'var(--color-primary)' }}>Total</th>
               <th style={{ padding: '12px 16px', fontWeight: '600', color: 'var(--color-primary)' }}>Expires</th>
+              <th style={{ padding: '12px 16px', fontWeight: '600', color: 'var(--color-primary)' }}>Link</th>
               <th style={{ padding: '12px 16px', fontWeight: '600', color: 'var(--color-primary)' }}>Status</th>
               <th style={{ padding: '12px 16px', fontWeight: '600', color: 'var(--color-primary)' }}>Actions</th>
             </tr>
@@ -81,25 +95,44 @@ export default function PrivateSaleList({ initialData }: Props) {
               const status = getStatus(sale)
               const items = sale.items ?? []
               const totalValue = items.reduce((sum, item) => sum + item.custom_price * item.quantity, 0)
-              const firstName = sanitizeText(items[0]?.product?.name ?? 'Item')
+              const itemNames = items.map(i => sanitizeText(i.product?.name ?? 'Item')).join(', ')
               const itemsSummary = items.length > 1
-                ? `${firstName} +${items.length - 1} more`
-                : firstName
+                ? `${sanitizeText(items[0]?.product?.name ?? 'Item')} +${items.length - 1} more`
+                : sanitizeText(items[0]?.product?.name ?? 'Item')
               const statusStyle = STATUS_STYLES[status]
+              const saleUrl = `${origin}/private-sale/${sale.token}`
 
               return (
                 <tr key={sale.id} style={{ borderBottom: '1px solid var(--color-border, #e5e7eb)' }}>
-                  <td style={{ padding: '12px 16px', color: 'var(--color-text, #111827)' }}>
-                    {sale.customer_note ? sanitizeText(sale.customer_note) : <em style={{ color: 'var(--color-text-muted)' }}>None</em>}
+                  <td style={{ padding: '12px 16px', color: 'var(--color-text, #111827)', maxWidth: '160px' }}>
+                    {sale.customer_note
+                      ? <span title={sanitizeText(sale.customer_note)}>{sanitizeText(sale.customer_note).slice(0, 40)}{sale.customer_note.length > 40 ? '…' : ''}</span>
+                      : <em style={{ color: 'var(--color-text-muted)' }}>None</em>}
                   </td>
                   <td style={{ padding: '12px 16px', color: 'var(--color-text, #111827)' }}>
-                    {items.length === 0 ? <em style={{ color: '#9ca3af' }}>No items</em> : itemsSummary}
+                    {items.length === 0
+                      ? <em style={{ color: '#9ca3af' }}>No items</em>
+                      : <span title={itemNames}>{itemsSummary}</span>}
                   </td>
-                  <td style={{ padding: '12px 16px', color: 'var(--color-text, #111827)' }}>
+                  <td style={{ padding: '12px 16px', color: 'var(--color-text, #111827)', whiteSpace: 'nowrap' }}>
                     ${totalValue.toFixed(2)}
                   </td>
-                  <td style={{ padding: '12px 16px', color: 'var(--color-text, #111827)' }}>
+                  <td style={{ padding: '12px 16px', color: 'var(--color-text, #111827)', whiteSpace: 'nowrap' }}>
                     {new Date(sale.expires_at).toLocaleDateString()}
+                  </td>
+                  <td style={{ padding: '12px 16px', maxWidth: '220px' }}>
+                    {origin ? (
+                      <a
+                        href={saleUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontSize: '12px', color: '#2563eb', wordBreak: 'break-all' }}
+                      >
+                        {saleUrl}
+                      </a>
+                    ) : (
+                      <span style={{ fontSize: '12px', color: '#9ca3af' }}>loading…</span>
+                    )}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{
@@ -121,7 +154,7 @@ export default function PrivateSaleList({ initialData }: Props) {
                           <button
                             onClick={() => handleCopyLink(sale.token)}
                             style={{
-                              padding: '0 16px',
+                              padding: '0 14px',
                               minHeight: '48px',
                               background: 'var(--color-primary)',
                               color: 'var(--color-accent)',
@@ -132,13 +165,29 @@ export default function PrivateSaleList({ initialData }: Props) {
                               whiteSpace: 'nowrap',
                             }}
                           >
-                            Copy Link
+                            {copying === sale.token ? 'Copied!' : 'Copy'}
+                          </button>
+                          <button
+                            onClick={() => handleClone(sale.id)}
+                            style={{
+                              padding: '0 14px',
+                              minHeight: '48px',
+                              background: '#f3f4f6',
+                              color: '#374151',
+                              border: '1px solid #d1d5db',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            Clone & Edit
                           </button>
                           <button
                             onClick={() => handleRevoke(sale.id)}
                             disabled={revoking === sale.id}
                             style={{
-                              padding: '0 16px',
+                              padding: '0 14px',
                               minHeight: '48px',
                               background: '#dc2626',
                               color: '#fff',
@@ -153,6 +202,24 @@ export default function PrivateSaleList({ initialData }: Props) {
                             {revoking === sale.id ? 'Revoking…' : 'Revoke'}
                           </button>
                         </>
+                      )}
+                      {(status === 'expired' || status === 'revoked') && (
+                        <button
+                          onClick={() => handleClone(sale.id)}
+                          style={{
+                            padding: '0 14px',
+                            minHeight: '48px',
+                            background: '#f3f4f6',
+                            color: '#374151',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          Clone & Edit
+                        </button>
                       )}
                     </div>
                   </td>
