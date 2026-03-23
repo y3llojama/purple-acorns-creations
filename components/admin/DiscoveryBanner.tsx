@@ -32,7 +32,7 @@ export default function DiscoveryBanner({ searchingMessage = 'Searching in the b
         <button
           onClick={dismiss}
           aria-label="Dismiss"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--color-text-muted)', lineHeight: 1, padding: '4px 8px', minHeight: '36px' }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--color-text-muted)', lineHeight: 1, padding: '4px 8px', minHeight: '48px' }}
         >
           ✕
         </button>

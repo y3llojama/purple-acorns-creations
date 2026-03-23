@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useContext, useState, useCallback, useRef } from 'react'
+import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react'
 
 type DiscoverState = 'idle' | 'searching' | 'done'
 
@@ -37,18 +37,18 @@ export function DiscoveryProvider({ children, endpoint, pollEndpoint, noun = 'it
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const resolvedRef = useRef(false)
 
-  const stopPolling = () => {
+  const stopPolling = useCallback(() => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
-  }
+  }, [])
 
   const resolve = useCallback((msg: string | null, err: string | null) => {
     if (resolvedRef.current) return
     resolvedRef.current = true
-    stopPolling()
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
     setMessage(msg)
     setError(err)
     setState('done')
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   const dismiss = useCallback(() => {
     setState('idle')
@@ -56,6 +56,10 @@ export function DiscoveryProvider({ children, endpoint, pollEndpoint, noun = 'it
     setError(null)
     resolvedRef.current = false
   }, [])
+
+  useEffect(() => {
+    return () => { stopPolling() }
+  }, [stopPolling])
 
   const startDiscovery = useCallback(async () => {
     if (state === 'searching') return
@@ -99,7 +103,7 @@ export function DiscoveryProvider({ children, endpoint, pollEndpoint, noun = 'it
         const added = data.added!
         resolve(`${added} ${noun}${added !== 1 ? 's' : ''} added${data.skipped ? `, ${data.skipped} already in your list` : ''}!`, null)
       } else {
-        resolve('No new items found.', null)
+        resolve(`No new ${noun}s found.`, null)
       }
     })
   }, [state, resolve, endpoint, pollEndpoint, noun])
