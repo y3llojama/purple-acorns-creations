@@ -6,6 +6,7 @@ import { isValidHttpsUrl } from '@/lib/validate'
 import type { CraftFair, ArtistVenue } from '@/lib/supabase/types'
 
 type Tab = 'fairs' | 'venues'
+type SortDir = 'asc' | 'desc'
 
 const emptyFairForm = {
   name: '', location: '', website_url: '', instagram_url: '',
@@ -29,6 +30,21 @@ function matches(obj: Record<string, unknown>, q: string): boolean {
   return Object.values(obj).some(v => typeof v === 'string' && v.toLowerCase().includes(lower))
 }
 
+function sortRows<T extends Record<string, unknown>>(rows: T[], col: keyof T | null, dir: SortDir): T[] {
+  if (!col) return rows
+  return [...rows].sort((a, b) => {
+    const av = a[col] ?? ''
+    const bv = b[col] ?? ''
+    if (av === '' && bv !== '') return 1   // nulls / empty last
+    if (bv === '' && av !== '') return -1
+    const cmp = String(av).localeCompare(String(bv), undefined, { sensitivity: 'base' })
+    return dir === 'asc' ? cmp : -cmp
+  })
+}
+
+const emptyFairFilters = { state: '', month: '' }
+const emptyVenueFilters = { state: '', model: '' }
+
 export default function MarketsManager({ initialFairs, initialVenues }: Props) {
   const [fairs, setFairs] = useState<CraftFair[]>(initialFairs)
   const [venues, setVenues] = useState<ArtistVenue[]>(initialVenues)
@@ -40,10 +56,51 @@ export default function MarketsManager({ initialFairs, initialVenues }: Props) {
   const [editId, setEditId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; table: 'fairs' | 'venues' } | null>(null)
   const [status, setStatus] = useState<'idle' | 'saving' | 'error'>('idle')
+  const [fairFilters, setFairFilters] = useState(emptyFairFilters)
+  const [venueFilters, setVenueFilters] = useState(emptyVenueFilters)
   const { state: discoverState, startDiscovery } = useDiscovery()
 
-  const filteredFairs = useMemo(() => fairs.filter(f => matches(f as unknown as Record<string, unknown>, search)), [fairs, search])
-  const filteredVenues = useMemo(() => venues.filter(v => matches(v as unknown as Record<string, unknown>, search)), [venues, search])
+  // Unique filter options derived from full (unfiltered) arrays
+  const fairStates = useMemo(
+    () => [...new Set(fairs.map(f => f.location.split(', ').at(-1) ?? '').filter(Boolean))].sort(),
+    [fairs]
+  )
+  const fairMonths = useMemo(() => {
+    const s = new Set<string>()
+    fairs.forEach(f => {
+      if (f.typical_months) f.typical_months.split(/,\s*/).forEach(m => { if (m.trim()) s.add(m.trim()) })
+    })
+    return [...s].sort()
+  }, [fairs])
+  const venueStates = useMemo(
+    () => [...new Set(venues.map(v => v.location.split(', ').at(-1) ?? '').filter(Boolean))].sort(),
+    [venues]
+  )
+  const venueModels = useMemo(
+    () => [...new Set(venues.map(v => v.hosting_model ?? '').filter(Boolean))].sort(),
+    [venues]
+  )
+
+  const filteredFairs = useMemo(() => fairs.filter(f => {
+    if (!matches(f as unknown as Record<string, unknown>, search)) return false
+    if (fairFilters.state && !(f.location.split(', ').at(-1) === fairFilters.state)) return false
+    if (fairFilters.month && !(f.typical_months ?? '').toLowerCase().includes(fairFilters.month.toLowerCase())) return false
+    return true
+  }), [fairs, search, fairFilters])
+
+  const filteredVenues = useMemo(() => venues.filter(v => {
+    if (!matches(v as unknown as Record<string, unknown>, search)) return false
+    if (venueFilters.state && !(v.location.split(', ').at(-1) === venueFilters.state)) return false
+    if (venueFilters.model && v.hosting_model !== venueFilters.model) return false
+    return true
+  }), [venues, search, venueFilters])
+
+  function switchTab(t: Tab) {
+    setTab(t)
+    setShowForm(false); setEditId(null)
+    setFairForm(emptyFairForm); setVenueForm(emptyVenueForm); setStatus('idle')
+    setFairFilters(emptyFairFilters); setVenueFilters(emptyVenueFilters)
+  }
 
   function fairField(k: keyof FairForm) {
     return {
@@ -143,6 +200,10 @@ export default function MarketsManager({ initialFairs, initialVenues }: Props) {
   const inputStyle: React.CSSProperties = { width: '100%', padding: '8px', fontSize: '16px', borderRadius: '4px', border: '1px solid var(--color-border)' }
   const btnPrimary: React.CSSProperties = { background: 'var(--color-primary)', color: 'var(--color-accent)', padding: '12px 20px', fontSize: '16px', border: 'none', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }
   const btnOutline: React.CSSProperties = { ...btnPrimary, background: 'transparent', color: 'var(--color-primary)', border: '2px solid var(--color-primary)' }
+  const selectStyle: React.CSSProperties = { padding: '8px 12px', fontSize: '14px', borderRadius: '4px', border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', cursor: 'pointer', minHeight: '36px' }
+
+  const hasFairFilters = fairFilters.state !== '' || fairFilters.month !== ''
+  const hasVenueFilters = venueFilters.state !== '' || venueFilters.model !== ''
 
   return (
     <div>
@@ -169,7 +230,7 @@ export default function MarketsManager({ initialFairs, initialVenues }: Props) {
       {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: '2px solid var(--color-border)', marginBottom: '20px' }}>
         {(['fairs', 'venues'] as Tab[]).map(t => (
-          <button key={t} onClick={() => { setTab(t); setShowForm(false); setEditId(null); setFairForm(emptyFairForm); setVenueForm(emptyVenueForm); setStatus('idle') }} style={{
+          <button key={t} onClick={() => switchTab(t)} style={{
             background: 'none', border: 'none',
             borderBottom: tab === t ? '3px solid var(--color-primary)' : '3px solid transparent',
             color: tab === t ? 'var(--color-primary)' : 'var(--color-text-muted)',
@@ -223,9 +284,53 @@ export default function MarketsManager({ initialFairs, initialVenues }: Props) {
         </form>
       )}
 
+      {/* Filter bars */}
+      {tab === 'fairs' && (
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '16px' }}>
+          {fairStates.length > 0 && (
+            <select value={fairFilters.state} onChange={e => setFairFilters(f => ({ ...f, state: e.target.value }))} style={selectStyle} aria-label="Filter by state">
+              <option value="">All states</option>
+              {fairStates.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
+          {fairMonths.length > 0 && (
+            <select value={fairFilters.month} onChange={e => setFairFilters(f => ({ ...f, month: e.target.value }))} style={selectStyle} aria-label="Filter by month">
+              <option value="">All months</option>
+              {fairMonths.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          )}
+          {hasFairFilters && (
+            <button onClick={() => setFairFilters(emptyFairFilters)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', fontSize: '13px', cursor: 'pointer', padding: '4px 8px', textDecoration: 'underline' }}>
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
+      {tab === 'venues' && (
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '16px' }}>
+          {venueStates.length > 0 && (
+            <select value={venueFilters.state} onChange={e => setVenueFilters(f => ({ ...f, state: e.target.value }))} style={selectStyle} aria-label="Filter by state">
+              <option value="">All states</option>
+              {venueStates.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
+          {venueModels.length > 0 && (
+            <select value={venueFilters.model} onChange={e => setVenueFilters(f => ({ ...f, model: e.target.value }))} style={selectStyle} aria-label="Filter by hosting model">
+              <option value="">All models</option>
+              {venueModels.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          )}
+          {hasVenueFilters && (
+            <button onClick={() => setVenueFilters(emptyVenueFilters)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', fontSize: '13px', cursor: 'pointer', padding: '4px 8px', textDecoration: 'underline' }}>
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Tables */}
-      {tab === 'fairs' && <FairsTable fairs={filteredFairs} search={search} onEdit={handleEditFair} onDelete={id => setDeleteTarget({ id, table: 'fairs' })} />}
-      {tab === 'venues' && <VenuesTable venues={filteredVenues} search={search} onEdit={handleEditVenue} onDelete={id => setDeleteTarget({ id, table: 'venues' })} />}
+      {tab === 'fairs' && <FairsTable fairs={filteredFairs} search={search} hasFilters={hasFairFilters} onEdit={handleEditFair} onDelete={id => setDeleteTarget({ id, table: 'fairs' })} />}
+      {tab === 'venues' && <VenuesTable venues={filteredVenues} search={search} hasFilters={hasVenueFilters} onEdit={handleEditVenue} onDelete={id => setDeleteTarget({ id, table: 'venues' })} />}
 
       {deleteTarget && (
         <ConfirmDialog
@@ -247,20 +352,60 @@ function LinkButtons({ website_url, instagram_url }: { website_url: string | nul
   )
 }
 
-function FairsTable({ fairs, search, onEdit, onDelete }: { fairs: CraftFair[]; search: string; onEdit: (f: CraftFair) => void; onDelete: (id: string) => void }) {
-  if (fairs.length === 0) return <p style={{ color: 'var(--color-text-muted)', fontSize: '16px' }}>{search ? 'No craft fairs match your search.' : 'No craft fairs yet. Click "+ Add New" to add one.'}</p>
+type FairSortCol = keyof Pick<CraftFair, 'name' | 'location' | 'years_in_operation' | 'avg_artists' | 'avg_shoppers' | 'typical_months' | 'notes'>
+type VenueSortCol = keyof Pick<ArtistVenue, 'name' | 'location' | 'hosting_model' | 'notes'>
+
+function SortTh({ label, col, sortCol, sortDir, onSort, style }: {
+  label: string; col: string; sortCol: string | null; sortDir: SortDir; onSort: (col: string) => void; style?: React.CSSProperties
+}) {
+  const active = sortCol === col
+  return (
+    <th onClick={() => onSort(col)} style={{ padding: '8px 12px', fontWeight: '600', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', ...style }}>
+      {label}
+      <span aria-hidden style={{ marginLeft: '4px', fontSize: '11px', opacity: active ? 1 : 0.3 }}>
+        {active ? (sortDir === 'asc' ? '▲' : '▼') : '▲'}
+      </span>
+    </th>
+  )
+}
+
+function FairsTable({ fairs, search, hasFilters, onEdit, onDelete }: { fairs: CraftFair[]; search: string; hasFilters: boolean; onEdit: (f: CraftFair) => void; onDelete: (id: string) => void }) {
+  const [sortCol, setSortCol] = useState<FairSortCol | null>(null)
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
+
+  function handleSort(col: string) {
+    const c = col as FairSortCol
+    if (sortCol === c) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortCol(c); setSortDir('asc') }
+  }
+
+  const sorted = useMemo(
+    () => sortRows(fairs as unknown as Record<string, unknown>[], sortCol, sortDir) as unknown as CraftFair[],
+    [fairs, sortCol, sortDir]
+  )
+
+  if (sorted.length === 0) return <p style={{ color: 'var(--color-text-muted)', fontSize: '16px' }}>{(search || hasFilters) ? 'No craft fairs match your search or filters.' : 'No craft fairs yet. Click "+ Add New" to add one.'}</p>
+
+  const thProps = { sortCol, sortDir, onSort: handleSort }
+
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
         <thead>
           <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
-            {['Name', 'Location', 'Links', 'Est.', 'Artists', 'Shoppers', 'Month(s)', 'Notes', 'Actions'].map(h => (
-              <th key={h} style={{ padding: '8px 12px', fontWeight: '600' }}>{h}</th>
-            ))}
+            <SortTh label="Name" col="name" {...thProps} />
+            <SortTh label="Location" col="location" {...thProps} />
+            <th style={{ padding: '8px 12px', fontWeight: '600' }}>Links</th>
+            <SortTh label="Est." col="years_in_operation" {...thProps} />
+            <SortTh label="Artists" col="avg_artists" {...thProps} />
+            <SortTh label="Shoppers" col="avg_shoppers" {...thProps} />
+            <SortTh label="Month(s)" col="typical_months" {...thProps} />
+            <SortTh label="Notes" col="notes" {...thProps} />
+            <th style={{ padding: '8px 12px', fontWeight: '600' }}>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {fairs.map(f => (
+          {sorted.map(f => (
             <tr key={f.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
               <td style={{ padding: '10px 12px', fontWeight: '500', color: 'var(--color-primary)' }}>{f.name}</td>
               <td style={{ padding: '10px 12px' }}>{f.location}</td>
@@ -284,20 +429,40 @@ function FairsTable({ fairs, search, onEdit, onDelete }: { fairs: CraftFair[]; s
   )
 }
 
-function VenuesTable({ venues, search, onEdit, onDelete }: { venues: ArtistVenue[]; search: string; onEdit: (v: ArtistVenue) => void; onDelete: (id: string) => void }) {
-  if (venues.length === 0) return <p style={{ color: 'var(--color-text-muted)', fontSize: '16px' }}>{search ? 'No stores/collectives match your search.' : 'No stores or collectives yet. Click "+ Add New" to add one.'}</p>
+function VenuesTable({ venues, search, hasFilters, onEdit, onDelete }: { venues: ArtistVenue[]; search: string; hasFilters: boolean; onEdit: (v: ArtistVenue) => void; onDelete: (id: string) => void }) {
+  const [sortCol, setSortCol] = useState<VenueSortCol | null>(null)
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
+
+  function handleSort(col: string) {
+    const c = col as VenueSortCol
+    if (sortCol === c) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortCol(c); setSortDir('asc') }
+  }
+
+  const sorted = useMemo(
+    () => sortRows(venues as unknown as Record<string, unknown>[], sortCol, sortDir) as unknown as ArtistVenue[],
+    [venues, sortCol, sortDir]
+  )
+
+  if (sorted.length === 0) return <p style={{ color: 'var(--color-text-muted)', fontSize: '16px' }}>{(search || hasFilters) ? 'No stores/collectives match your search or filters.' : 'No stores or collectives yet. Click "+ Add New" to add one.'}</p>
+
+  const thProps = { sortCol, sortDir, onSort: handleSort }
+
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
         <thead>
           <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
-            {['Name', 'Location', 'Links', 'Hosting Model', 'Notes', 'Actions'].map(h => (
-              <th key={h} style={{ padding: '8px 12px', fontWeight: '600' }}>{h}</th>
-            ))}
+            <SortTh label="Name" col="name" {...thProps} />
+            <SortTh label="Location" col="location" {...thProps} />
+            <th style={{ padding: '8px 12px', fontWeight: '600' }}>Links</th>
+            <SortTh label="Hosting Model" col="hosting_model" {...thProps} />
+            <SortTh label="Notes" col="notes" {...thProps} />
+            <th style={{ padding: '8px 12px', fontWeight: '600' }}>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {venues.map(v => (
+          {sorted.map(v => (
             <tr key={v.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
               <td style={{ padding: '10px 12px', fontWeight: '500', color: 'var(--color-primary)' }}>{v.name}</td>
               <td style={{ padding: '10px 12px' }}>{v.location}</td>
