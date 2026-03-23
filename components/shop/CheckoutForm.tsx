@@ -8,8 +8,15 @@ interface SquareCard {
   attach: (container: HTMLElement) => Promise<void>
   tokenize: () => Promise<{ status: string; token?: string; errors?: Array<{ message: string }> }>
 }
+interface VerificationDetails {
+  amount: string
+  currencyCode: string
+  intent: 'CHARGE' | 'STORE'
+  billingContact: { givenName?: string; familyName?: string; countryCode?: string }
+}
 interface SquarePayments {
   card: () => Promise<SquareCard>
+  verifyBuyer: (sourceId: string, details: VerificationDetails) => Promise<{ token: string }>
 }
 declare global {
   interface Window {
