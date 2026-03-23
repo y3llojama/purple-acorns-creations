@@ -27,7 +27,7 @@ async function getEmailSettings() {
   const supabase = createServiceRoleClient()
   const { data } = await supabase
     .from('settings')
-    .select('contact_email, smtp_host, smtp_port, smtp_user, smtp_pass, business_name, resend_api_key, newsletter_from_name, messages_from_email')
+    .select('contact_email, smtp_host, smtp_port, smtp_user, smtp_pass, business_name, resend_api_key, newsletter_from_name, messages_from_email, reply_email_footer')
     .single()
   return data ? decryptSettings(data) : data
 }
@@ -35,7 +35,7 @@ async function getEmailSettings() {
 async function sendViaResend(
   settings: Awaited<ReturnType<typeof getEmailSettings>>,
   options: SendEmailOptions
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
   if (!settings?.resend_api_key || !settings?.messages_from_email) {
     return { success: false, error: 'Resend not configured' }
   }
@@ -59,7 +59,7 @@ async function sendViaResend(
     return { success: false, error: message }
   }
 
-  return { success: true }
+  return { success: true, messageId: result.data?.id ?? undefined }
 }
 
 async function sendViaSmtp(
@@ -97,12 +97,12 @@ async function sendViaSmtp(
   }
 }
 
-export async function sendEmail(options: SendEmailOptions): Promise<{ success: boolean; error?: string }> {
+export async function sendEmail(options: SendEmailOptions): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const settings = await getEmailSettings()
 
   // Try Resend first
   const resendResult = await sendViaResend(settings, options)
-  if (resendResult.success) return { success: true }
+  if (resendResult.success) return { success: true, messageId: resendResult.messageId }
 
   // Fall back to SMTP if configured
   const smtpResult = await sendViaSmtp(settings, options)
@@ -145,16 +145,21 @@ export async function sendReply(to: string, toName: string, body: string) {
   const settings = await getEmailSettings()
   const businessName = settings?.business_name ?? 'Purple Acorns Creations'
   const resolvedBody = interpolate(body, buildVars(businessName))
+
+  const rawFooter = settings?.reply_email_footer ?? ''
+  const resolvedFooter = interpolate(rawFooter, buildVars(businessName))
+
   const safeName = escapeHtml(stripControlChars(toName))
   const safeBody = escapeHtml(resolvedBody)
   const safeBusinessName = escapeHtml(businessName)
+  const safeFooter = escapeHtml(resolvedFooter)
 
   return sendEmail({
     to,
     subject: `Reply from ${businessName}`,
-    text: `Hi ${stripControlChars(toName)},\n\n${resolvedBody}\n\n— ${businessName}`,
+    text: `Hi ${stripControlChars(toName)},\n\n${resolvedBody}\n\n— ${businessName}${resolvedFooter ? `\n\n---\n${resolvedFooter}` : ''}`,
     html: `<p>Hi ${safeName},</p>
 <p>${safeBody.replace(/\n/g, '<br />')}</p>
-<p>— ${safeBusinessName}</p>`,
+<p>— ${safeBusinessName}</p>${safeFooter ? `<hr /><p style="font-size:12px;color:#888;">${safeFooter.replace(/\n/g, '<br />')}</p>` : ''}`,
   })
 }
