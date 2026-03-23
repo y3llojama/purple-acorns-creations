@@ -241,8 +241,8 @@ export default function MarketsManager({ initialFairs, initialVenues }: Props) {
 function LinkButtons({ website_url, instagram_url }: { website_url: string | null; instagram_url: string | null }) {
   return (
     <span style={{ display: 'flex', gap: '6px' }}>
-      {website_url && <a href={website_url} target="_blank" rel="noopener noreferrer" aria-label="Website" style={{ fontSize: '13px', color: 'var(--color-primary)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '2px 8px', textDecoration: 'none' }}>web ↗</a>}
-      {instagram_url && <a href={instagram_url} target="_blank" rel="noopener noreferrer" aria-label="Instagram" style={{ fontSize: '13px', color: 'var(--color-primary)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '2px 8px', textDecoration: 'none' }}>IG ↗</a>}
+      {website_url && isValidHttpsUrl(website_url) && <a href={website_url} target="_blank" rel="noopener noreferrer" aria-label="Website" style={{ fontSize: '13px', color: 'var(--color-primary)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '2px 8px', textDecoration: 'none' }}>web ↗</a>}
+      {instagram_url && isValidHttpsUrl(instagram_url) && <a href={instagram_url} target="_blank" rel="noopener noreferrer" aria-label="Instagram" style={{ fontSize: '13px', color: 'var(--color-primary)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '2px 8px', textDecoration: 'none' }}>IG ↗</a>}
     </span>
   )
 }
@@ -273,8 +273,8 @@ function FairsTable({ fairs, search, onEdit, onDelete }: { fairs: CraftFair[]; s
                 <span title={f.notes ?? undefined} style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{f.notes ?? '—'}</span>
               </td>
               <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
-                <button onClick={() => onEdit(f)} aria-label={`Edit ${f.name}`} style={{ background: 'none', border: '1px solid var(--color-primary)', color: 'var(--color-primary)', padding: '6px 12px', fontSize: '13px', borderRadius: '4px', cursor: 'pointer', minHeight: '36px', marginRight: '6px' }}>Edit</button>
-                <button onClick={() => onDelete(f.id)} aria-label={`Delete ${f.name}`} style={{ background: 'none', border: '1px solid #c05050', color: '#c05050', padding: '6px 12px', fontSize: '13px', borderRadius: '4px', cursor: 'pointer', minHeight: '36px' }}>Delete</button>
+                <button onClick={() => onEdit(f)} aria-label={`Edit ${f.name}`} style={{ background: 'none', border: '1px solid var(--color-primary)', color: 'var(--color-primary)', padding: '6px 12px', fontSize: '13px', borderRadius: '4px', cursor: 'pointer', minHeight: '48px', marginRight: '6px' }}>Edit</button>
+                <button onClick={() => onDelete(f.id)} aria-label={`Delete ${f.name}`} style={{ background: 'none', border: '1px solid #c05050', color: '#c05050', padding: '6px 12px', fontSize: '13px', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}>Delete</button>
               </td>
             </tr>
           ))}
@@ -307,8 +307,8 @@ function VenuesTable({ venues, search, onEdit, onDelete }: { venues: ArtistVenue
                 <span title={v.notes ?? undefined} style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{v.notes ?? '—'}</span>
               </td>
               <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
-                <button onClick={() => onEdit(v)} aria-label={`Edit ${v.name}`} style={{ background: 'none', border: '1px solid var(--color-primary)', color: 'var(--color-primary)', padding: '6px 12px', fontSize: '13px', borderRadius: '4px', cursor: 'pointer', minHeight: '36px', marginRight: '6px' }}>Edit</button>
-                <button onClick={() => onDelete(v.id)} aria-label={`Delete ${v.name}`} style={{ background: 'none', border: '1px solid #c05050', color: '#c05050', padding: '6px 12px', fontSize: '13px', borderRadius: '4px', cursor: 'pointer', minHeight: '36px' }}>Delete</button>
+                <button onClick={() => onEdit(v)} aria-label={`Edit ${v.name}`} style={{ background: 'none', border: '1px solid var(--color-primary)', color: 'var(--color-primary)', padding: '6px 12px', fontSize: '13px', borderRadius: '4px', cursor: 'pointer', minHeight: '48px', marginRight: '6px' }}>Edit</button>
+                <button onClick={() => onDelete(v.id)} aria-label={`Delete ${v.name}`} style={{ background: 'none', border: '1px solid #c05050', color: '#c05050', padding: '6px 12px', fontSize: '13px', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}>Delete</button>
               </td>
             </tr>
           ))}
