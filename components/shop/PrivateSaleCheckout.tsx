@@ -15,8 +15,15 @@ interface SquareCard {
   attach: (container: HTMLElement) => Promise<void>
   tokenize: () => Promise<{ status: string; token?: string; errors?: Array<{ message: string }> }>
 }
+interface VerificationDetails {
+  amount: string
+  currencyCode: string
+  intent: 'CHARGE' | 'STORE'
+  billingContact: { givenName?: string; familyName?: string; countryCode?: string }
+}
 interface SquarePayments {
   card: () => Promise<SquareCard>
+  verifyBuyer: (sourceId: string, details: VerificationDetails) => Promise<{ token: string }>
 }
 declare global {
   interface Window {
@@ -27,6 +34,7 @@ declare global {
 export default function PrivateSaleCheckout({ sale, token }: { sale: SaleData; token: string }) {
   const router = useRouter()
   const cardRef = useRef<SquareCard | null>(null)
+  const paymentsRef = useRef<SquarePayments | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -71,6 +79,7 @@ export default function PrivateSaleCheckout({ sale, token }: { sale: SaleData; t
       const locationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID ?? ''
       const payments = await window.Square.payments(appId, locationId)
       if (cancelled) return
+      paymentsRef.current = payments
       const card = await payments.card()
       if (cancelled) return
       await card.attach(containerRef.current)
@@ -106,9 +115,34 @@ export default function PrivateSaleCheckout({ sale, token }: { sale: SaleData; t
       if (result.status !== 'OK' || !result.token) {
         setError(result.errors?.[0]?.message ?? 'Card error — please try again'); return
       }
+      const sourceId = result.token
+
+      // Buyer verification (3DS/SCA) — shows bank challenge dialog if required
+      let verificationToken: string | undefined
+      if (paymentsRef.current) {
+        try {
+          const nameParts = shipping.name.trim().split(' ')
+          const verification = await paymentsRef.current.verifyBuyer(sourceId, {
+            amount: (subtotal + shippingCost).toFixed(2),
+            currencyCode: 'USD',
+            intent: 'CHARGE',
+            billingContact: {
+              givenName: nameParts[0] ?? '',
+              familyName: nameParts.slice(1).join(' ') || undefined,
+              countryCode: shipping.country || 'US',
+            },
+          })
+          verificationToken = verification.token
+        } catch {
+          // verifyBuyer throws if customer cancels the challenge dialog
+          setError('Verification was cancelled. Please try again.')
+          return
+        }
+      }
+
       const res = await fetch(`/api/shop/private-sale/${token}/checkout`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sourceId: result.token, shipping }),
+        body: JSON.stringify({ sourceId, verificationToken, shipping }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))

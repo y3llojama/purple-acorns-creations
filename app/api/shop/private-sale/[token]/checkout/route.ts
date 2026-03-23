@@ -4,6 +4,7 @@ import { getSquareClient } from '@/lib/channels/square/client'
 import { calculateShipping } from '@/lib/shipping'
 import { sanitizeText } from '@/lib/sanitize'
 import type { ShippingAddress } from '@/lib/supabase/types'
+import { SquareError } from 'square'
 
 const rateMap = new Map<string, { count: number; reset: number }>()
 function checkRate(ip: string): boolean {
@@ -14,6 +15,29 @@ function checkRate(ip: string): boolean {
   return entry.count <= 10
 }
 
+const CARD_ERROR_MESSAGES: Record<string, string> = {
+  CARD_DECLINED:               'Your card was declined. Please try a different card.',
+  CARD_DECLINED_VERIFICATION_REQUIRED: 'Your bank requires additional verification. Please contact your bank.',
+  CARD_EXPIRED:                'Your card has expired. Please use a different card.',
+  INVALID_CARD:                'Invalid card details. Please check and try again.',
+  VERIFY_CVV_FAILURE:          'CVV check failed. Please check your card details.',
+  VERIFY_AVS_FAILURE:          'Address verification failed. Please check your billing address.',
+  INSUFFICIENT_FUNDS:          'Insufficient funds. Please try a different card.',
+  CARD_NOT_SUPPORTED:          'This card type is not supported. Please try a different card.',
+  PAYMENT_LIMIT_EXCEEDED:      'Payment amount exceeds limit. Please contact support.',
+  TEMPORARY_ERROR:             'A temporary error occurred. Please try again.',
+}
+
+function squarePaymentError(err: unknown): { message: string; detail: string } {
+  if (err instanceof SquareError) {
+    const first = (err as SquareError & { errors?: Array<{ code?: string; detail?: string }> }).errors?.[0]
+    const message = (first?.code && CARD_ERROR_MESSAGES[first.code])
+      ?? 'Payment failed — please try a different card.'
+    return { message, detail: first ? `${first.code}: ${first.detail ?? ''}` : String(err) }
+  }
+  return { message: 'Payment failed — please try a different card.', detail: String(err) }
+}
+
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
   const ip = (request.headers.get('x-forwarded-for') ?? 'unknown').split(',')[0].trim()
   if (!checkRate(ip)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
@@ -22,6 +46,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   const body = await request.json().catch(() => ({}))
   const sourceId: string = typeof body.sourceId === 'string' ? body.sourceId : ''
   if (!sourceId) return NextResponse.json({ error: 'sourceId required' }, { status: 400 })
+  const verificationToken: string | undefined = typeof body.verificationToken === 'string' ? body.verificationToken : undefined
 
   const shippingRaw = body.shipping
   const requiredFields: (keyof ShippingAddress)[] = ['name', 'address1', 'city', 'state', 'zip', 'country']
@@ -67,17 +92,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   const shippingCents = Math.round(shippingCost * 100)
   const totalCents = Math.round(subtotal * 100) + shippingCents
 
+  // Create Square order
   let orderId = ''
   let paymentId = ''
-  try {
-    const { client, locationId } = await getSquareClient()
+  const { client, locationId } = await getSquareClient()
 
+  try {
     const orderResult = await client.orders.create({
       order: {
         locationId,
         lineItems: [
           ...sale.items.map((item: { custom_price: number; quantity: number }) => ({
-            name: `Item (private sale)`,
+            name: 'Item (private sale)',
             quantity: String(item.quantity),
             basePriceMoney: { amount: BigInt(Math.round(item.custom_price * 100)), currency: 'USD' as const },
           })),
@@ -104,24 +130,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       idempotencyKey: crypto.randomUUID(),
     })
     orderId = orderResult.order?.id ?? ''
+  } catch (err) {
+    const { message, detail } = squarePaymentError(err)
+    console.error('[private-sale checkout] Square order creation error:', detail)
+    return NextResponse.json({ error: message, detail }, { status: 402 })
+  }
 
+  // Charge the card
+  try {
     const paymentResult = await client.payments.create({
       sourceId, orderId, locationId,
       amountMoney: { amount: BigInt(totalCents), currency: 'USD' as const },
       idempotencyKey: crypto.randomUUID(),
+      ...(verificationToken ? { verificationToken } : {}),
     })
     paymentId = paymentResult.payment?.id ?? ''
   } catch (err) {
-    console.error('[private-sale checkout] Square payment error:', err)
-    return NextResponse.json({ error: 'Payment failed — please try a different card' }, { status: 402 })
+    const { message, detail } = squarePaymentError(err)
+    console.error('[private-sale checkout] Square payment error:', detail)
+    return NextResponse.json({ error: message, detail }, { status: 402 })
   }
 
-  // Fulfill (atomic) — refund if DB fails
+  // Fulfill atomically — refund if DB fails
   const { error: fulfillError } = await supabase.rpc('fulfill_private_sale', { sale_id: sale.id })
   if (fulfillError) {
     console.error('fulfill_private_sale failed after payment. paymentId:', paymentId, 'sale_id:', sale.id, fulfillError)
     try {
-      const { client } = await getSquareClient()
       await client.refunds.refundPayment({
         paymentId,
         idempotencyKey: `refund-${paymentId}`,
