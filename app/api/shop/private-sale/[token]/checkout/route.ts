@@ -60,14 +60,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     return NextResponse.json({ error: 'This link is no longer available' }, { status: 410 })
   }
 
-  // Belt-and-suspenders stock check (DB function does atomic check, but surface errors early)
-  for (const item of sale.items) {
-    const { data: prod } = await supabase.from('products').select('stock_count,stock_reserved').eq('id', item.product_id).maybeSingle()
-    if (!prod || prod.stock_count - prod.stock_reserved < item.quantity) {
-      return NextResponse.json({ error: 'Item no longer available' }, { status: 409 })
-    }
-  }
-
   // Calculate totals
   const { data: settings } = await supabase.from('settings').select('shipping_mode,shipping_value').limit(1).maybeSingle()
   const subtotal = sale.items.reduce((sum: number, i: { custom_price: number; quantity: number }) => sum + i.custom_price * i.quantity, 0)
