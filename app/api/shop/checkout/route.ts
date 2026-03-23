@@ -118,12 +118,33 @@ export async function POST(request: Request) {
   // Step 4: Atomically decrement stock per item (charge already succeeded)
   const decremented: LineItem[] = []
   for (const item of cart) {
-    const { data: rows } = await supabase.rpc('decrement_stock', { product_id: item.productId, qty: item.quantity })
+    const { data: rows, error: rpcError } = await supabase.rpc('decrement_stock', { product_id: item.productId, qty: item.quantity })
+    if (rpcError) {
+      console.error('[checkout] decrement_stock error:', rpcError.message)
+      // Roll back stock for already-decremented items in this order
+      for (const done of decremented) {
+        const { error: rollbackError } = await supabase.rpc('increment_stock', { product_id: done.productId, qty: done.quantity })
+        if (rollbackError) console.error('[checkout] increment_stock rollback failed for', done.productId, rollbackError.message)
+      }
+      try {
+        const { client } = await getSquareClient()
+        await client.refunds.refundPayment({
+          paymentId,
+          idempotencyKey: `refund-${paymentId}`,
+          amountMoney: { amount: BigInt(totalCents), currency: 'USD' },
+          reason: 'Stock decrement error during checkout',
+        })
+      } catch (err) {
+        console.error('Refund failed after decrement_stock error. paymentId:', paymentId, err)
+      }
+      return NextResponse.json({ error: 'Checkout failed — payment refunded' }, { status: 500 })
+    }
     // Step 5: Race condition — item sold between validation and charge
     if (Array.isArray(rows) && rows.length === 0) {
       // Roll back stock for already-decremented items in this order
       for (const done of decremented) {
-        await supabase.rpc('increment_stock', { product_id: done.productId, qty: done.quantity })
+        const { error: rollbackError } = await supabase.rpc('increment_stock', { product_id: done.productId, qty: done.quantity })
+        if (rollbackError) console.error('[checkout] increment_stock rollback failed for', done.productId, rollbackError.message)
       }
       try {
         const { client } = await getSquareClient()

@@ -154,11 +154,6 @@ export interface ShippingAddress {
   country: string
 }
 
-export interface ShippingConfig {
-  mode: 'fixed' | 'percentage'
-  value: number
-}
-
 export interface PrivateSale {
   id: string
   token: string

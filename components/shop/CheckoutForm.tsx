@@ -32,11 +32,8 @@ export default function CheckoutForm({ onSuccess }: { onSuccess?: () => void }) 
 
   useEffect(() => {
     fetch('/api/shop/shipping-config')
-      .then(r => r.json())
-      .then(d => {
-        const cost = calculateShipping(total, d)
-        setShippingCost(cost)
-      })
+      .then(r => { if (!r.ok) throw new Error('fetch failed'); return r.json() })
+      .then(d => setShippingCost(calculateShipping(total, d)))
       .catch(() => setShippingCost(0))
   }, [total])
 
@@ -108,8 +105,12 @@ export default function CheckoutForm({ onSuccess }: { onSuccess?: () => void }) 
           },
         }),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError((data as { error?: string }).error ?? 'Payment failed')
+        return
+      }
       const data = await res.json()
-      if (!res.ok) { setError(data.error ?? 'Payment failed'); return }
       onSuccess?.()
       router.push(`/shop/confirmation/${data.orderId}`)
       clearCart()
