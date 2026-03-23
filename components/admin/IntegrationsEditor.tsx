@@ -45,6 +45,7 @@ interface Props {
   initialPhotos: FollowAlongPhoto[]
   initialBeholdWidgetId: string
   hasResendApiKey: boolean
+  initialMessagesFromEmail: string
   initialNewsletterFromName: string
   initialNewsletterFromEmail: string
   initialNewsletterAdminEmails: string
@@ -56,7 +57,7 @@ interface Props {
 
 export default function IntegrationsEditor({
   initialMode, initialPhotos, initialBeholdWidgetId,
-  hasResendApiKey, initialNewsletterFromName, initialNewsletterFromEmail,
+  hasResendApiKey, initialMessagesFromEmail, initialNewsletterFromName, initialNewsletterFromEmail,
   initialNewsletterAdminEmails, initialNewsletterSendTime,
   initialAiProvider, hasAiApiKey, hasSearchApiKey,
 }: Props) {
@@ -69,6 +70,8 @@ export default function IntegrationsEditor({
 
   const [contactEmail, setContactEmail] = useState('')
   const [contactSaved, setContactSaved] = useState(false)
+
+  const [messagesFromEmail, setMessagesFromEmail] = useState(initialMessagesFromEmail)
 
   // API key fields: start empty — submitting empty = keep existing key
   const [resendApiKey, setResendApiKey] = useState('')
@@ -154,9 +157,10 @@ export default function IntegrationsEditor({
         <SavedStatus saved={contactSaved} />
       </Section>
 
-      <Section title="Email (SMTP)">
+      <Section title="Email (SMTP — fallback)">
         <p style={{ color: 'var(--color-text-muted)', fontSize: '14px', marginBottom: '16px' }}>
-          Used to send contact form notifications and message replies. Defaults to Gmail SMTP.
+          Optional. Used as a fallback for contact notifications and replies if Resend is not configured or fails.
+          Emails will appear to come from the SMTP account address.
           For Gmail, use an <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)' }}>App Password</a> (not your regular password).
         </p>
         <label htmlFor="smtp-host" style={labelStyle}>SMTP Host</label>
@@ -191,17 +195,20 @@ export default function IntegrationsEditor({
         </div>
       </Section>
 
-      <Section title="Newsletter (Resend)">
+      <Section title="Newsletter and Messages (Resend)">
         <p style={{ color: 'var(--color-text-muted)', fontSize: '14px', marginBottom: '16px' }}>
-          Used to send newsletters to subscribers. Get your API key at{' '}
+          Used to send newsletters and contact message replies. Get your API key at{' '}
           <a href="https://resend.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)' }}>resend.com</a>.
         </p>
         <label htmlFor="resend-api-key" style={labelStyle}>Resend API Key {hasResendApiKey && <span style={{ color: 'green', fontWeight: 400, fontSize: '13px' }}>✓ saved</span>}</label>
         <input id="resend-api-key" type="password" value={resendApiKey} onChange={e => { setResendApiKey(e.target.value); setResendSaved(false) }} placeholder={hasResendApiKey ? '•••••••• (leave blank to keep current)' : 're_...'} style={inputStyle} />
         <label htmlFor="newsletter-from-name" style={{ ...labelStyle, marginTop: '12px' }}>From Name</label>
         <input id="newsletter-from-name" value={newsletterFromName} onChange={e => { setNewsletterFromName(e.target.value); setResendSaved(false) }} placeholder="Purple Acorns Creations" style={inputStyle} />
-        <label htmlFor="newsletter-from-email" style={{ ...labelStyle, marginTop: '12px' }}>From Email</label>
+        <label htmlFor="newsletter-from-email" style={{ ...labelStyle, marginTop: '12px' }}>Newsletter From Email</label>
         <input id="newsletter-from-email" type="email" value={newsletterFromEmail} onChange={e => { setNewsletterFromEmail(e.target.value); setResendSaved(false) }} placeholder="newsletter@yourdomain.com" style={inputStyle} />
+        <label htmlFor="messages-from-email" style={{ ...labelStyle, marginTop: '12px' }}>Messages From Email</label>
+        <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px' }}>Used for contact notifications and admin replies. Customer replies to this address will be forwarded to your inbox.</p>
+        <input id="messages-from-email" type="email" value={messagesFromEmail} onChange={e => { setMessagesFromEmail(e.target.value); setResendSaved(false) }} placeholder="hello@yourdomain.com" style={inputStyle} />
         <label htmlFor="newsletter-admin-emails" style={{ ...labelStyle, marginTop: '12px' }}>Admin Preview Emails</label>
         <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px' }}>Comma-separated. These addresses receive a preview before the newsletter goes out.</p>
         <input id="newsletter-admin-emails" value={newsletterAdminEmails} onChange={e => { setNewsletterAdminEmails(e.target.value); setResendSaved(false) }} placeholder="you@example.com, partner@example.com" style={inputStyle} />
@@ -209,7 +216,7 @@ export default function IntegrationsEditor({
         <input id="newsletter-send-time" type="time" value={newsletterSendTime} onChange={e => { setNewsletterSendTime(e.target.value); setResendSaved(false) }} style={{ ...inputStyle, width: 'auto' }} />
         <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
           <button style={btnStyle} onClick={async () => {
-            const r = await save({ resend_api_key: resendApiKey, newsletter_from_name: newsletterFromName, newsletter_from_email: newsletterFromEmail, newsletter_admin_emails: newsletterAdminEmails, newsletter_scheduled_send_time: newsletterSendTime })
+            const r = await save({ resend_api_key: resendApiKey, newsletter_from_name: newsletterFromName, newsletter_from_email: newsletterFromEmail, messages_from_email: messagesFromEmail, newsletter_admin_emails: newsletterAdminEmails, newsletter_scheduled_send_time: newsletterSendTime })
             if (r.ok) setResendSaved(true)
           }}>Save Newsletter Settings</button>
           <button style={testBtnStyle} disabled={resendTesting} onClick={async () => {

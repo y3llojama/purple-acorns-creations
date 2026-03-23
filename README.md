@@ -16,6 +16,7 @@ Website for Purple Acorns Creations — a handmade jewellery and crochet shop. B
 - [Testing](#testing)
 - [Admin Authentication](#admin-authentication)
 - [Newsletter](#newsletter)
+- [Email (Contact Notifications & Replies)](#email-contact-notifications--replies)
 - [Supabase Infrastructure (Terraform)](#supabase-infrastructure-terraform)
 - [Database Backups](#database-backups)
 - [Deployment](#deployment)
@@ -282,6 +283,34 @@ See **[docs/newsletter-setup.md](docs/newsletter-setup.md)** for full setup inst
 - Vercel Cron setup
 - Admin workflow (Brief → Draft → Edit → Preview → Send)
 - Public pages (`/newsletter`, `/newsletter/[slug]`)
+
+---
+
+## Email (Contact Notifications & Replies)
+
+Transactional emails (contact form notifications and admin message replies) use **Resend as primary** with **Gmail SMTP as fallback** if configured.
+
+### From address
+
+All emails are sent from `hello@purpleacornz.com`. This address is configured in Admin → Integrations → Resend → From Email.
+
+`hello@purpleacornz.com` is set up with **Cloudflare Email Routing** — inbound mail is forwarded to the owner's Gmail. This means:
+- Emails sent via Resend appear to come from `hello@purpleacornz.com`
+- Customer replies to those emails → Cloudflare forwards to Gmail ✓
+- No separate mailbox or Google Workspace subscription required
+
+### Provider priority
+
+1. **Resend** — used if `resend_api_key` and `newsletter_from_email` are set in Admin → Integrations
+2. **SMTP (Gmail fallback)** — used if Resend is not configured or fails, and SMTP credentials are set
+
+### Resend domain verification
+
+The `purpleacornz.com` domain must be verified in the Resend dashboard before emails can be sent. Verification involves adding DNS records (DKIM, SPF) — done once per domain, covers both newsletters and transactional email.
+
+### Testing
+
+Admin → Integrations → **Test SMTP** / **Test Resend** buttons verify connectivity without sending a real email.
 
 ---
 

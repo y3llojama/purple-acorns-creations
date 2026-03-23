@@ -97,6 +97,17 @@ export async function POST(request: Request) {
     const key = String(body.search_api_key ?? '').trim()
     if (key) update.search_api_key = encryptValue(key)
   }
+  if (body.resend_api_key !== undefined) {
+    const key = String(body.resend_api_key ?? '').trim()
+    if (key) update.resend_api_key = encryptValue(key)
+  }
+  for (const field of ['newsletter_from_name', 'newsletter_from_email', 'newsletter_admin_emails', 'messages_from_email'] as const) {
+    if (body[field] !== undefined) update[field] = sanitizeText(String(body[field] ?? '')).slice(0, 200) || null
+  }
+  if (body.newsletter_scheduled_send_time !== undefined) {
+    const val = String(body.newsletter_scheduled_send_time ?? '')
+    update.newsletter_scheduled_send_time = /^\d{2}:\d{2}$/.test(val) ? val : null
+  }
 
   update.updated_at = new Date().toISOString()
   const supabase = createServiceRoleClient()
