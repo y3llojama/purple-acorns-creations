@@ -71,5 +71,6 @@ describe('POST /api/shop/private-sale/[token]/checkout', () => {
     expect(res.status).toBe(402)
     const data = await res.json()
     expect(data.error).toBeTruthy()
+    expect(data.detail).toBeUndefined()
   })
 })

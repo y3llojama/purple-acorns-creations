@@ -41,13 +41,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   const supabase = createServiceRoleClient()
 
   // Validate token — all invalid states are 410
-  const { data: sale } = await supabase
+  const { data: sale, error: saleErr } = await supabase
     .from('private_sales')
     .select('id, expires_at, used_at, revoked_at, items:private_sale_items(product_id, quantity, custom_price)')
     .eq('token', token)
     .maybeSingle()
+  if (saleErr) {
+    console.error('[private-sale checkout] DB error on token lookup:', saleErr.message)
+    return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 503 })
+  }
 
-  if (!sale || sale.used_at || sale.revoked_at || new Date(sale.expires_at) <= new Date()) {
+  if (!sale || sale.used_at || sale.revoked_at) {
+    return NextResponse.json({ error: 'This link is no longer available' }, { status: 410 })
+  }
+  if (new Date(sale.expires_at) <= new Date()) {
+    const { error: releaseErr } = await supabase.rpc('release_private_sale_stock', { sale_id: sale.id })
+    if (releaseErr) console.error('[private-sale checkout] release_private_sale_stock failed for sale_id:', sale.id, releaseErr.message)
     return NextResponse.json({ error: 'This link is no longer available' }, { status: 410 })
   }
 
@@ -111,7 +120,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     })
     paymentId = paymentResult.payment?.id ?? ''
   } catch (err) {
-    return NextResponse.json({ error: 'Payment failed — please try a different card', detail: String(err) }, { status: 402 })
+    console.error('[private-sale checkout] Square payment error:', err)
+    return NextResponse.json({ error: 'Payment failed — please try a different card' }, { status: 402 })
   }
 
   // Fulfill (atomic) — refund if DB fails

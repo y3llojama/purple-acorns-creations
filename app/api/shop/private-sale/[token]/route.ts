@@ -17,11 +17,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
   const { token } = await params
   const supabase = createServiceRoleClient()
 
-  const { data: sale } = await supabase
+  const { data: sale, error: saleErr } = await supabase
     .from('private_sales')
     .select('id, expires_at, used_at, revoked_at, items:private_sale_items(quantity, custom_price, product:products(id,name,description,price,images,is_active))')
     .eq('token', token)
     .maybeSingle()
+  if (saleErr) {
+    console.error('[private-sale] DB error:', saleErr.message)
+    return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 503 })
+  }
 
   // All invalid states return 410 (no enumeration side-channel)
   if (!sale) return NextResponse.json({ error: 'This link is no longer available' }, { status: 410 })
@@ -29,7 +33,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
 
   // Lazy expiry cleanup
   if (new Date(sale.expires_at) <= new Date()) {
-    await supabase.rpc('release_private_sale_stock', { sale_id: sale.id })
+    const { error: releaseErr } = await supabase.rpc('release_private_sale_stock', { sale_id: sale.id })
+    if (releaseErr) console.error('[private-sale] release_private_sale_stock failed for sale_id:', sale.id, releaseErr.message)
     return NextResponse.json({ error: 'This link is no longer available' }, { status: 410 })
   }
 
