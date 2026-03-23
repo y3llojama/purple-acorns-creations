@@ -22,7 +22,10 @@ create table if not exists settings (
   smtp_port integer default 587,
   smtp_user text,
   smtp_pass text,
-  updated_at timestamptz default now()
+  updated_at timestamptz default now(),
+  -- Shipping config (added in 038)
+  shipping_mode  text          not null default 'fixed',
+  shipping_value numeric(10,2) not null default 0 check (shipping_value >= 0)
 );
 insert into settings (id) values (gen_random_uuid())
   on conflict do nothing;
@@ -113,3 +116,156 @@ do $$ begin
     execute 'create policy "Public read content" on content for select using (true)';
   end if;
 end $$;
+
+-- Products table — inventory source of truth (added in 018, stock_reserved added in 038)
+CREATE TABLE IF NOT EXISTS products (
+  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name                 TEXT NOT NULL,
+  description          TEXT,
+  price                NUMERIC(10,2) NOT NULL,
+  category             TEXT NOT NULL CHECK (category IN ('rings','necklaces','earrings','bracelets','crochet','other')),
+  stock_count          INTEGER NOT NULL DEFAULT 0 CHECK (stock_count >= 0),
+  stock_reserved       INTEGER NOT NULL DEFAULT 0,   -- units held by active private sales
+  images               TEXT[] NOT NULL DEFAULT '{}'
+                       CHECK (array_length(images, 1) IS NULL OR array_length(images, 1) <= 10),
+  is_active            BOOLEAN NOT NULL DEFAULT true,
+  gallery_featured     BOOLEAN NOT NULL DEFAULT false,
+  gallery_sort_order   INTEGER,
+  view_count           INTEGER NOT NULL DEFAULT 0,
+  square_catalog_id    TEXT,
+  square_variation_id  TEXT,
+  pinterest_product_id TEXT,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Atomic stock decrement — respects stock_reserved (updated in 038)
+CREATE OR REPLACE FUNCTION decrement_stock(product_id UUID, qty INTEGER)
+RETURNS SETOF products AS $$
+  UPDATE products
+  SET stock_count = stock_count - qty
+  WHERE id = product_id AND stock_count - stock_reserved >= qty
+  RETURNING *;
+$$ LANGUAGE sql;
+
+-- Atomic view count increment
+CREATE OR REPLACE FUNCTION increment_view_count(product_id UUID)
+RETURNS void AS $$
+  UPDATE products SET view_count = view_count + 1 WHERE id = product_id;
+$$ LANGUAGE sql;
+
+-- Atomic stock restore (used to roll back decrements on checkout race condition)
+CREATE OR REPLACE FUNCTION increment_stock(product_id UUID, qty INTEGER)
+RETURNS void AS $$
+  UPDATE products SET stock_count = stock_count + qty WHERE id = product_id;
+$$ LANGUAGE sql;
+
+-- Private sales — token-gated sale links (added in 038)
+CREATE TABLE IF NOT EXISTS private_sales (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  token         UUID UNIQUE NOT NULL DEFAULT gen_random_uuid(),
+  created_by    TEXT NOT NULL,
+  expires_at    TIMESTAMPTZ NOT NULL,
+  used_at       TIMESTAMPTZ,
+  revoked_at    TIMESTAMPTZ,
+  customer_note TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE private_sales ENABLE ROW LEVEL SECURITY;
+-- No public access — service_role key bypasses RLS
+
+-- Line items for each private sale (added in 038)
+CREATE TABLE IF NOT EXISTS private_sale_items (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  private_sale_id  UUID NOT NULL REFERENCES private_sales(id) ON DELETE CASCADE,
+  product_id       UUID NOT NULL REFERENCES products(id),
+  quantity         INTEGER NOT NULL CHECK (quantity > 0),
+  custom_price     NUMERIC(10,2) NOT NULL CHECK (custom_price > 0)
+);
+
+ALTER TABLE private_sale_items ENABLE ROW LEVEL SECURITY;
+
+-- create_private_sale: atomic insert + reserve stock (added in 038)
+CREATE OR REPLACE FUNCTION create_private_sale(sale JSONB, items JSONB)
+RETURNS private_sales AS $$
+DECLARE
+  new_sale   private_sales;
+  item       JSONB;
+  prod       products;
+BEGIN
+  INSERT INTO private_sales (created_by, expires_at, customer_note)
+  VALUES (
+    sale->>'created_by',
+    (sale->>'expires_at')::TIMESTAMPTZ,
+    sale->>'customer_note'
+  )
+  RETURNING * INTO new_sale;
+
+  FOR item IN SELECT * FROM jsonb_array_elements(items) LOOP
+    INSERT INTO private_sale_items (private_sale_id, product_id, quantity, custom_price)
+    VALUES (
+      new_sale.id,
+      (item->>'product_id')::UUID,
+      (item->>'quantity')::INTEGER,
+      (item->>'custom_price')::NUMERIC
+    );
+
+    SELECT * INTO prod FROM products WHERE id = (item->>'product_id')::UUID FOR UPDATE;
+    IF prod.stock_count - prod.stock_reserved < (item->>'quantity')::INTEGER THEN
+      RAISE EXCEPTION 'INSUFFICIENT_STOCK:%', item->>'product_id';
+    END IF;
+
+    UPDATE products
+    SET stock_reserved = stock_reserved + (item->>'quantity')::INTEGER
+    WHERE id = (item->>'product_id')::UUID;
+  END LOOP;
+
+  RETURN new_sale;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- release_private_sale_stock: atomic revoke + release reserved stock (added in 038)
+CREATE OR REPLACE FUNCTION release_private_sale_stock(sale_id UUID)
+RETURNS void AS $$
+DECLARE
+  item private_sale_items;
+BEGIN
+  UPDATE private_sales
+  SET revoked_at = NOW()
+  WHERE id = sale_id AND revoked_at IS NULL;
+
+  FOR item IN SELECT * FROM private_sale_items WHERE private_sale_id = sale_id LOOP
+    UPDATE products
+    SET stock_reserved = GREATEST(stock_reserved - item.quantity, 0)
+    WHERE id = item.product_id;
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- fulfill_private_sale: atomic complete — deducts stock and marks sale used (added in 038)
+CREATE OR REPLACE FUNCTION fulfill_private_sale(sale_id UUID)
+RETURNS private_sales AS $$
+DECLARE
+  sale private_sales;
+  item private_sale_items;
+BEGIN
+  SELECT * INTO sale FROM private_sales WHERE id = sale_id FOR UPDATE;
+
+  IF sale.used_at IS NOT NULL OR sale.revoked_at IS NOT NULL OR sale.expires_at <= NOW() THEN
+    RAISE EXCEPTION 'SALE_NOT_ACTIVE';
+  END IF;
+
+  FOR item IN SELECT * FROM private_sale_items WHERE private_sale_id = sale_id LOOP
+    UPDATE products
+    SET stock_count = stock_count - item.quantity,
+        stock_reserved = GREATEST(stock_reserved - item.quantity, 0)
+    WHERE id = item.product_id;
+  END LOOP;
+
+  UPDATE private_sales SET used_at = NOW() WHERE id = sale_id
+  RETURNING * INTO sale;
+
+  RETURN sale;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
