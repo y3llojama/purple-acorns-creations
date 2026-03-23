@@ -1,6 +1,7 @@
 {
   "crons": [
     { "path": "/api/cron/newsletter-send", "schedule": "0 10 * * *" },
-    { "path": "/api/cron/sync", "schedule": "0 3 * * *" }
+    { "path": "/api/cron/sync", "schedule": "0 3 * * *" },
+    { "path": "/api/cron/markets-refresh", "schedule": "0 4 * * *" }
   ]
 }
