@@ -3,6 +3,7 @@ import { calculateShipping } from '@/lib/shipping'
 describe('calculateShipping', () => {
   it('returns 0 when shipping_value is 0', () => {
     expect(calculateShipping(100, { shipping_mode: 'fixed', shipping_value: 0 })).toBe(0)
+    expect(calculateShipping(100, { shipping_mode: 'percentage', shipping_value: 0 })).toBe(0)
   })
 
   it('returns the fixed value regardless of subtotal', () => {
@@ -19,5 +20,10 @@ describe('calculateShipping', () => {
     const subtotal = 45.00
     const shipping = calculateShipping(subtotal, { shipping_mode: 'fixed', shipping_value: 8.50 })
     expect(Math.round((subtotal + shipping) * 100)).toBe(5350)
+  })
+
+  it('returns 0 when subtotal is 0 or negative', () => {
+    expect(calculateShipping(0, { shipping_mode: 'percentage', shipping_value: 10 })).toBe(0)
+    expect(calculateShipping(-5, { shipping_mode: 'percentage', shipping_value: 10 })).toBe(0)
   })
 })
