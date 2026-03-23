@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PrivateSale } from '@/lib/supabase/types'
+import { sanitizeText } from '@/lib/sanitize'
 
 function getStatus(sale: PrivateSale): 'active' | 'expired' | 'used' | 'revoked' {
   if (sale.used_at) return 'used'
@@ -42,8 +43,12 @@ export default function PrivateSaleList({ initialData }: Props) {
     router.refresh()
   }
 
-  function handleCopyLink(token: string) {
-    navigator.clipboard.writeText(`${process.env.NEXT_PUBLIC_SITE_URL}/private-sale/${token}`)
+  async function handleCopyLink(token: string) {
+    try {
+      await navigator.clipboard.writeText(`${process.env.NEXT_PUBLIC_SITE_URL}/private-sale/${token}`)
+    } catch {
+      setError('Could not copy link — please copy it manually.')
+    }
   }
 
   if (sales.length === 0) {
@@ -76,16 +81,16 @@ export default function PrivateSaleList({ initialData }: Props) {
               const status = getStatus(sale)
               const items = sale.items ?? []
               const totalValue = items.reduce((sum, item) => sum + item.custom_price * item.quantity, 0)
-              const firstItemName = items[0]?.product?.name ?? 'Item'
+              const firstName = sanitizeText(items[0]?.product?.name ?? 'Item')
               const itemsSummary = items.length > 1
-                ? `${firstItemName} + ${items.length - 1} more`
-                : firstItemName
+                ? `${firstName} +${items.length - 1} more`
+                : firstName
               const statusStyle = STATUS_STYLES[status]
 
               return (
                 <tr key={sale.id} style={{ borderBottom: '1px solid var(--color-border, #e5e7eb)' }}>
                   <td style={{ padding: '12px 16px', color: 'var(--color-text, #111827)' }}>
-                    {sale.customer_note ?? <em style={{ color: '#9ca3af' }}>None</em>}
+                    {sale.customer_note ? sanitizeText(sale.customer_note) : <em style={{ color: 'var(--color-text-muted)' }}>None</em>}
                   </td>
                   <td style={{ padding: '12px 16px', color: 'var(--color-text, #111827)' }}>
                     {items.length === 0 ? <em style={{ color: '#9ca3af' }}>No items</em> : itemsSummary}

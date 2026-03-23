@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { calculateShipping } from '@/lib/shipping'
 import type { PrivateSaleItem, ShippingAddress } from '@/lib/supabase/types'
+import { sanitizeText } from '@/lib/sanitize'
 
 interface SaleData {
   items: PrivateSaleItem[]
@@ -131,7 +132,7 @@ export default function PrivateSaleCheckout({ sale, token }: { sale: SaleData; t
       <div style={{ marginBottom: '24px', padding: '16px', background: 'var(--color-surface)', borderRadius: '8px' }}>
         {sale.items.map((item, i) => (
           <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px' }}>
-            <span>{item.product?.name ?? 'Item'} × {item.quantity}</span>
+            <span>{sanitizeText(item.product?.name ?? 'Item')} × {item.quantity}</span>
             <span>${((item.custom_price ?? 0) * item.quantity).toFixed(2)}</span>
           </div>
         ))}

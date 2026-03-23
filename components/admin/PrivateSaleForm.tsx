@@ -25,6 +25,7 @@ export default function PrivateSaleForm() {
       setProductsLoading(true)
       const res = await fetch('/api/shop/products?limit=100')
       if (!res.ok) {
+        setError('Failed to load products. Please refresh the page.')
         setProductsLoading(false)
         return
       }
