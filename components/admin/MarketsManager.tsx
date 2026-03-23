@@ -49,9 +49,22 @@ function sortRows<T extends Record<string, unknown>>(rows: T[], col: keyof T | n
   })
 }
 
-const emptyFairFilters = { state: '', month: '' }
-const emptyVenueFilters = { state: '', model: '' }
-const emptyMarketFilters = { state: '', frequency: '' }
+const emptyFairFilters = { state: '', month: '', completeness: '' }
+const emptyVenueFilters = { state: '', model: '', completeness: '' }
+const emptyMarketFilters = { state: '', frequency: '', completeness: '' }
+
+function fairCompleteness(f: CraftFair): 'complete' | 'sparse' {
+  const filled = [f.years_in_operation, f.avg_artists, f.avg_shoppers, f.typical_months].filter(v => v?.trim()).length
+  return filled >= 3 ? 'complete' : 'sparse'
+}
+function venueCompleteness(v: ArtistVenue): 'complete' | 'sparse' {
+  const filled = [v.hosting_model, v.commission_rate, v.booth_fee, v.avg_shoppers, v.application_process].filter(v => v?.trim()).length
+  return filled >= 3 ? 'complete' : 'sparse'
+}
+function marketCompleteness(m: RecurringMarket): 'complete' | 'sparse' {
+  const filled = [m.frequency, m.typical_months, m.vendor_fee, m.avg_vendors, m.avg_shoppers, m.application_process].filter(v => v?.trim()).length
+  return filled >= 4 ? 'complete' : 'sparse'
+}
 
 export default function MarketsManager({ initialFairs, initialVenues, initialMarkets }: Props) {
   const [fairs, setFairs] = useState<CraftFair[]>(initialFairs)
@@ -104,6 +117,7 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
     if (!matches(f as unknown as Record<string, unknown>, search)) return false
     if (fairFilters.state && f.location.split(', ').at(-1) !== fairFilters.state) return false
     if (fairFilters.month && !(f.typical_months ?? '').toLowerCase().includes(fairFilters.month.toLowerCase())) return false
+    if (fairFilters.completeness && fairCompleteness(f) !== fairFilters.completeness) return false
     return true
   }), [fairs, search, fairFilters])
 
@@ -111,6 +125,7 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
     if (!matches(v as unknown as Record<string, unknown>, search)) return false
     if (venueFilters.state && v.location.split(', ').at(-1) !== venueFilters.state) return false
     if (venueFilters.model && v.hosting_model !== venueFilters.model) return false
+    if (venueFilters.completeness && venueCompleteness(v) !== venueFilters.completeness) return false
     return true
   }), [venues, search, venueFilters])
 
@@ -118,6 +133,7 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
     if (!matches(m as unknown as Record<string, unknown>, search)) return false
     if (marketFilters.state && m.location.split(', ').at(-1) !== marketFilters.state) return false
     if (marketFilters.frequency && m.frequency !== marketFilters.frequency) return false
+    if (marketFilters.completeness && marketCompleteness(m) !== marketFilters.completeness) return false
     return true
   }), [markets, search, marketFilters])
 
@@ -273,9 +289,9 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
   const btnOutline: React.CSSProperties = { ...btnPrimary, background: 'transparent', color: 'var(--color-primary)', border: '2px solid var(--color-primary)' }
   const selectStyle: React.CSSProperties = { padding: '8px 12px', fontSize: '14px', borderRadius: '4px', border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', cursor: 'pointer', minHeight: '36px' }
 
-  const hasFairFilters = fairFilters.state !== '' || fairFilters.month !== ''
-  const hasVenueFilters = venueFilters.state !== '' || venueFilters.model !== ''
-  const hasMarketFilters = marketFilters.state !== '' || marketFilters.frequency !== ''
+  const hasFairFilters = fairFilters.state !== '' || fairFilters.month !== '' || fairFilters.completeness !== ''
+  const hasVenueFilters = venueFilters.state !== '' || venueFilters.model !== '' || venueFilters.completeness !== ''
+  const hasMarketFilters = marketFilters.state !== '' || marketFilters.frequency !== '' || marketFilters.completeness !== ''
 
   const tabLabel: Record<Tab, string> = {
     fairs: `Craft Fairs (${fairs.length})`,
@@ -405,6 +421,11 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
               {fairMonths.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           )}
+          <select value={fairFilters.completeness} onChange={e => setFairFilters(f => ({ ...f, completeness: e.target.value }))} style={selectStyle} aria-label="Filter by completeness">
+            <option value="">All info levels</option>
+            <option value="complete">Info complete</option>
+            <option value="sparse">Needs info</option>
+          </select>
           {hasFairFilters && (
             <button onClick={() => setFairFilters(emptyFairFilters)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', fontSize: '13px', cursor: 'pointer', padding: '4px 8px', textDecoration: 'underline' }}>
               Clear filters
@@ -426,6 +447,11 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
               {venueModels.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           )}
+          <select value={venueFilters.completeness} onChange={e => setVenueFilters(f => ({ ...f, completeness: e.target.value }))} style={selectStyle} aria-label="Filter by completeness">
+            <option value="">All info levels</option>
+            <option value="complete">Info complete</option>
+            <option value="sparse">Needs info</option>
+          </select>
           {hasVenueFilters && (
             <button onClick={() => setVenueFilters(emptyVenueFilters)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', fontSize: '13px', cursor: 'pointer', padding: '4px 8px', textDecoration: 'underline' }}>
               Clear filters
@@ -447,6 +473,11 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
               {marketFrequencies.map(f => <option key={f} value={f}>{f}</option>)}
             </select>
           )}
+          <select value={marketFilters.completeness} onChange={e => setMarketFilters(f => ({ ...f, completeness: e.target.value }))} style={selectStyle} aria-label="Filter by completeness">
+            <option value="">All info levels</option>
+            <option value="complete">Info complete</option>
+            <option value="sparse">Needs info</option>
+          </select>
           {hasMarketFilters && (
             <button onClick={() => setMarketFilters(emptyMarketFilters)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', fontSize: '13px', cursor: 'pointer', padding: '4px 8px', textDecoration: 'underline' }}>
               Clear filters
