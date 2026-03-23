@@ -60,7 +60,20 @@ export default function PrivateSaleList({ initialData }: Props) {
     }
   }
 
-  function handleClone(id: string) {
+  async function handleClone(id: string, status: string) {
+    // Active links must be revoked first to release stock_reserved before cloning
+    if (status === 'active') {
+      setRevoking(id)
+      setError(null)
+      const res = await fetch(`/api/admin/private-sales/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setError(body.error ?? 'Failed to revoke before cloning')
+        setRevoking(null)
+        return
+      }
+      setRevoking(null)
+    }
     router.push(`/admin/private-sales/new?clone=${id}`)
   }
 
@@ -168,7 +181,8 @@ export default function PrivateSaleList({ initialData }: Props) {
                             {copying === sale.token ? 'Copied!' : 'Copy'}
                           </button>
                           <button
-                            onClick={() => handleClone(sale.id)}
+                            onClick={() => handleClone(sale.id, status)}
+                            disabled={revoking === sale.id}
                             style={{
                               padding: '0 14px',
                               minHeight: '48px',
@@ -176,12 +190,13 @@ export default function PrivateSaleList({ initialData }: Props) {
                               color: '#374151',
                               border: '1px solid #d1d5db',
                               borderRadius: '4px',
-                              cursor: 'pointer',
+                              cursor: revoking === sale.id ? 'not-allowed' : 'pointer',
                               fontSize: '13px',
                               whiteSpace: 'nowrap',
+                              opacity: revoking === sale.id ? 0.6 : 1,
                             }}
                           >
-                            Clone & Edit
+                            {revoking === sale.id ? 'Revoking…' : 'Clone & Edit'}
                           </button>
                           <button
                             onClick={() => handleRevoke(sale.id)}
@@ -205,7 +220,7 @@ export default function PrivateSaleList({ initialData }: Props) {
                       )}
                       {(status === 'expired' || status === 'revoked') && (
                         <button
-                          onClick={() => handleClone(sale.id)}
+                          onClick={() => handleClone(sale.id, status)}
                           style={{
                             padding: '0 14px',
                             minHeight: '48px',
