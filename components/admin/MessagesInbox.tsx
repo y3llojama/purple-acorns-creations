@@ -163,12 +163,29 @@ export default function MessagesInbox({ initialMessages }: Props) {
             {replies.length > 0 && (
               <div style={{ marginBottom: '24px' }}>
                 <h3 style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginBottom: '12px' }}>Replies</h3>
-                {replies.map(r => (
-                  <div key={r.id} style={{ padding: '12px 16px', background: 'var(--color-bg)', borderRadius: '6px', marginBottom: '8px', borderLeft: '3px solid var(--color-accent)' }}>
-                    <p style={{ lineHeight: 1.5, whiteSpace: 'pre-wrap', margin: '0 0 4px' }}>{r.body}</p>
-                    <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{new Date(r.created_at).toLocaleString()}</span>
-                  </div>
-                ))}
+                {replies.map(r => {
+                  const isInbound = r.direction === 'inbound'
+                  return (
+                    <div
+                      key={r.id}
+                      style={{
+                        padding: '12px 16px',
+                        background: 'var(--color-bg)',
+                        borderRadius: '6px',
+                        marginBottom: '8px',
+                        borderLeft: `3px solid ${isInbound ? 'var(--color-border)' : 'var(--color-accent)'}`,
+                      }}
+                    >
+                      {isInbound && (
+                        <p style={{ fontSize: '12px', fontWeight: '600', color: 'var(--color-text-muted)', margin: '0 0 6px' }}>
+                          {selectedMsg?.name}
+                        </p>
+                      )}
+                      <p style={{ lineHeight: 1.5, whiteSpace: 'pre-wrap', margin: '0 0 4px' }}>{r.body}</p>
+                      <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{new Date(r.created_at).toLocaleString()}</span>
+                    </div>
+                  )
+                })}
               </div>
             )}
 

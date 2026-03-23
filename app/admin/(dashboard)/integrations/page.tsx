@@ -24,6 +24,7 @@ export default async function IntegrationsPage() {
       initialBeholdWidgetId={settings.behold_widget_id ?? ''}
       hasResendApiKey={!!settings.resend_api_key}
       initialMessagesFromEmail={settings.messages_from_email ?? ''}
+      initialReplyEmailFooter={settings.reply_email_footer ?? ''}
       initialNewsletterFromName={settings.newsletter_from_name ?? ''}
       initialNewsletterFromEmail={settings.newsletter_from_email ?? ''}
       initialNewsletterAdminEmails={settings.newsletter_admin_emails ?? ''}

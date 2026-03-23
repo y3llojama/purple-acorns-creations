@@ -40,6 +40,7 @@ export interface Settings {
   ai_api_key: string | null
   search_api_key: string | null
   messages_from_email: string | null
+  reply_email_footer: string | null
 }
 
 export interface Category {

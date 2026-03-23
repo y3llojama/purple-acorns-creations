@@ -28,6 +28,7 @@ const DEFAULT_SETTINGS: Settings = {
   ai_api_key: null,
   search_api_key: null,
   messages_from_email: null,
+  reply_email_footer: null,
 }
 
 export async function getSettings(): Promise<Settings> {

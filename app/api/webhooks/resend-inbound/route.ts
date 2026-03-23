@@ -1,0 +1,113 @@
+import { NextResponse } from 'next/server'
+import { Resend } from 'resend'
+import { createServiceRoleClient } from '@/lib/supabase/server'
+import { sanitizeText } from '@/lib/sanitize'
+import { clampLength } from '@/lib/validate'
+import { decryptSettings } from '@/lib/crypto'
+import { parseFromEmail, verifyInboundHmac } from './helpers'
+
+export async function POST(request: Request) {
+  const webhookSecret = process.env.RESEND_WEBHOOK_SECRET
+  const rawBody = await request.text()
+
+  if (webhookSecret) {
+    const header =
+      request.headers.get('svix-signature') ??
+      request.headers.get('resend-signature') ??
+      ''
+    if (!verifyInboundHmac(webhookSecret, header, rawBody)) {
+      return NextResponse.json({ error: 'Invalid signature.' }, { status: 401 })
+    }
+  }
+
+  let payload: { type: string; data: Record<string, unknown> }
+  try {
+    payload = JSON.parse(rawBody)
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON.' }, { status: 400 })
+  }
+
+  if (payload.type !== 'email.received') {
+    // Ignore other event types that may be routed here
+    return NextResponse.json({ ok: true })
+  }
+
+  // Webhook payload: { type, data: { email_id, from, to, subject, ... } }
+  // Body and headers are NOT in the webhook — must fetch separately via Resend API.
+  const emailId = String(payload.data.email_id ?? '')
+  const fromRaw = String(payload.data.from ?? '')
+
+  if (!emailId) return NextResponse.json({ error: 'Missing email_id.' }, { status: 400 })
+
+  const fromEmail = parseFromEmail(fromRaw)
+  if (!fromEmail) {
+    console.log('[inbound] unparseable from address:', fromRaw)
+    return NextResponse.json({ ok: true })
+  }
+
+  // Fetch Resend API key from encrypted settings
+  const supabase = createServiceRoleClient()
+  const { data: settings } = await supabase
+    .from('settings')
+    .select('resend_api_key')
+    .single()
+  const decrypted = settings ? decryptSettings(settings) : null
+
+  if (!decrypted?.resend_api_key) {
+    console.error('[inbound] Resend API key not configured')
+    return NextResponse.json({ ok: true })
+  }
+
+  // Fetch full email content (text + headers) — not included in webhook payload
+  const resend = new Resend(decrypted.resend_api_key)
+  const { data: fullEmail, error: fetchError } = await resend.emails.receiving.get(emailId)
+
+  if (fetchError || !fullEmail) {
+    console.error('[inbound] failed to fetch email content:', fetchError)
+    return NextResponse.json({ ok: true })
+  }
+
+  const text = sanitizeText(clampLength(String(fullEmail.text ?? ''), 50_000))
+  const headers = (fullEmail.headers ?? {}) as Record<string, string>
+  // Check both casing variants — email header names are case-insensitive
+  const inReplyToRaw = headers['in-reply-to'] ?? headers['In-Reply-To'] ?? ''
+  const inReplyTo = inReplyToRaw.replace(/[<>]/g, '').trim()
+
+  let messageId: string | null = null
+
+  // 1. Match by In-Reply-To header → stored resend_message_id
+  if (inReplyTo) {
+    const { data } = await supabase
+      .from('message_replies')
+      .select('message_id')
+      .eq('resend_message_id', inReplyTo)
+      .limit(1)
+      .single()
+    messageId = data?.message_id ?? null
+  }
+
+  // 2. Fallback: match by sender email address → most recent message from that address
+  if (!messageId) {
+    const { data } = await supabase
+      .from('messages')
+      .select('id')
+      .eq('email', fromEmail)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+    messageId = data?.id ?? null
+  }
+
+  if (!messageId) {
+    console.log('[inbound] unmatched email from', fromEmail)
+    return NextResponse.json({ ok: true })
+  }
+
+  await supabase
+    .from('message_replies')
+    .insert({ message_id: messageId, body: text, direction: 'inbound', from_email: fromEmail })
+
+  await supabase.from('messages').update({ is_read: false }).eq('id', messageId)
+
+  return NextResponse.json({ ok: true })
+}

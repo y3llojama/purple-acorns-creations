@@ -1,0 +1,10 @@
+name = "purple-acorns-email-forwarder"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+DEST_GMAIL = "purpleacornzcreations@gmail.com"
+# DEST_RESEND is the Resend-assigned inbound routing address for this account.
+# Not a secret — HMAC verification on the inbound webhook is the security boundary.
+# Safe to commit.
+DEST_RESEND = "hello@ieurkeueld.resend.app"

@@ -46,6 +46,7 @@ interface Props {
   initialBeholdWidgetId: string
   hasResendApiKey: boolean
   initialMessagesFromEmail: string
+  initialReplyEmailFooter: string
   initialNewsletterFromName: string
   initialNewsletterFromEmail: string
   initialNewsletterAdminEmails: string
@@ -57,7 +58,8 @@ interface Props {
 
 export default function IntegrationsEditor({
   initialMode, initialPhotos, initialBeholdWidgetId,
-  hasResendApiKey, initialMessagesFromEmail, initialNewsletterFromName, initialNewsletterFromEmail,
+  hasResendApiKey, initialMessagesFromEmail, initialReplyEmailFooter,
+  initialNewsletterFromName, initialNewsletterFromEmail,
   initialNewsletterAdminEmails, initialNewsletterSendTime,
   initialAiProvider, hasAiApiKey, hasSearchApiKey,
 }: Props) {
@@ -72,6 +74,7 @@ export default function IntegrationsEditor({
   const [contactSaved, setContactSaved] = useState(false)
 
   const [messagesFromEmail, setMessagesFromEmail] = useState(initialMessagesFromEmail)
+  const [replyEmailFooter, setReplyEmailFooter] = useState(initialReplyEmailFooter)
 
   // API key fields: start empty — submitting empty = keep existing key
   const [resendApiKey, setResendApiKey] = useState('')
@@ -209,6 +212,15 @@ export default function IntegrationsEditor({
         <label htmlFor="messages-from-email" style={{ ...labelStyle, marginTop: '12px' }}>Messages From Email</label>
         <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px' }}>Used for contact notifications and admin replies. Customer replies to this address will be forwarded to your inbox.</p>
         <input id="messages-from-email" type="email" value={messagesFromEmail} onChange={e => { setMessagesFromEmail(e.target.value); setResendSaved(false) }} placeholder="hello@yourdomain.com" style={inputStyle} />
+        <label htmlFor="reply-footer" style={{ ...labelStyle, marginTop: '12px' }}>Reply email footer</label>
+        <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px' }}>Appended to every reply email. Variables: <code>{'${BUSINESS_NAME}'}</code> · <code>{'${CONTACT_FORM}'}</code></p>
+        <textarea
+          id="reply-footer"
+          value={replyEmailFooter}
+          onChange={e => { setReplyEmailFooter(e.target.value); setResendSaved(false) }}
+          rows={4}
+          style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid var(--color-border)', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5, marginBottom: '8px' }}
+        />
         <label htmlFor="newsletter-admin-emails" style={{ ...labelStyle, marginTop: '12px' }}>Admin Preview Emails</label>
         <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px' }}>Comma-separated. These addresses receive a preview before the newsletter goes out.</p>
         <input id="newsletter-admin-emails" value={newsletterAdminEmails} onChange={e => { setNewsletterAdminEmails(e.target.value); setResendSaved(false) }} placeholder="you@example.com, partner@example.com" style={inputStyle} />
@@ -216,7 +228,7 @@ export default function IntegrationsEditor({
         <input id="newsletter-send-time" type="time" value={newsletterSendTime} onChange={e => { setNewsletterSendTime(e.target.value); setResendSaved(false) }} style={{ ...inputStyle, width: 'auto' }} />
         <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
           <button style={btnStyle} onClick={async () => {
-            const r = await save({ resend_api_key: resendApiKey, newsletter_from_name: newsletterFromName, newsletter_from_email: newsletterFromEmail, messages_from_email: messagesFromEmail, newsletter_admin_emails: newsletterAdminEmails, newsletter_scheduled_send_time: newsletterSendTime })
+            const r = await save({ resend_api_key: resendApiKey, newsletter_from_name: newsletterFromName, newsletter_from_email: newsletterFromEmail, messages_from_email: messagesFromEmail, reply_email_footer: replyEmailFooter, newsletter_admin_emails: newsletterAdminEmails, newsletter_scheduled_send_time: newsletterSendTime })
             if (r.ok) setResendSaved(true)
           }}>Save Newsletter Settings</button>
           <button style={testBtnStyle} disabled={resendTesting} onClick={async () => {
