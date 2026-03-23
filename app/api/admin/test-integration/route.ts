@@ -43,12 +43,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Resend API key not configured.' }, { status: 400 })
     }
     try {
-      const res = await fetch('https://api.resend.com/domains', {
-        headers: { Authorization: `Bearer ${apiKey}` },
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: 'test@resend.dev', to: 'test@resend.dev', subject: 'test', text: 'test' }),
       })
-      if (!res.ok) {
+      // 422 = validation error (expected — key is valid but address unverified)
+      // 401 = invalid key
+      if (res.status === 401) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data?.message ?? `Resend API returned ${res.status}`)
+        throw new Error(data?.message ?? 'Invalid API key')
       }
       return NextResponse.json({ success: true, message: 'Resend API key is valid.' })
     } catch (err) {
