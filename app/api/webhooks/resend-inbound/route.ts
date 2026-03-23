@@ -26,11 +26,10 @@ export async function POST(request: Request) {
   }
 
   const rawBody = await request.text()
-  const header =
-    request.headers.get('svix-signature') ??
-    request.headers.get('resend-signature') ??
-    ''
-  if (!verifyInboundHmac(webhookSecret, header, rawBody)) {
+  const svixId = request.headers.get('svix-id') ?? ''
+  const svixTimestamp = request.headers.get('svix-timestamp') ?? ''
+  const svixSignature = request.headers.get('svix-signature') ?? ''
+  if (!verifyInboundHmac(webhookSecret, svixId, svixTimestamp, svixSignature, rawBody)) {
     return NextResponse.json({ error: 'Invalid signature.' }, { status: 401 })
   }
 

@@ -17,36 +17,44 @@ describe('parseFromEmail', () => {
 })
 
 describe('verifyInboundHmac', () => {
-  const secret = 'test-secret'
+  // secret in whsec_ format — base64 of "test-secret-bytes"
+  const rawSecret = 'test-secret-bytes-for-hmac-test!'
+  const secret = `whsec_${Buffer.from(rawSecret).toString('base64')}`
 
-  function makeHeader(body: string, offsetSeconds = 0) {
+  function makeSvixHeaders(svixId: string, body: string, offsetSeconds = 0) {
     const t = Math.floor(Date.now() / 1000) + offsetSeconds
-    const sig = crypto.createHmac('sha256', secret).update(`${t}.${body}`).digest('hex')
-    return `t=${t},v1=${sig}`
+    const svixTimestamp = String(t)
+    const secretBytes = Buffer.from(rawSecret)
+    const toSign = `${svixId}.${svixTimestamp}.${body}`
+    const sig = crypto.createHmac('sha256', secretBytes).update(toSign).digest('base64')
+    return { svixId, svixTimestamp, svixSignature: `v1,${sig}` }
   }
 
   it('returns true for valid signature and fresh timestamp', () => {
     const body = '{"type":"email.received"}'
-    expect(verifyInboundHmac(secret, makeHeader(body), body)).toBe(true)
+    const { svixId, svixTimestamp, svixSignature } = makeSvixHeaders('msg_123', body)
+    expect(verifyInboundHmac(secret, svixId, svixTimestamp, svixSignature, body)).toBe(true)
   })
 
   it('returns false for invalid signature', () => {
     const body = '{"type":"email.received"}'
-    const t = Math.floor(Date.now() / 1000)
-    expect(verifyInboundHmac(secret, `t=${t},v1=badhash`, body)).toBe(false)
+    const { svixId, svixTimestamp } = makeSvixHeaders('msg_123', body)
+    expect(verifyInboundHmac(secret, svixId, svixTimestamp, 'v1,badsig==', body)).toBe(false)
   })
 
   it('returns false when timestamp is older than 5 minutes', () => {
     const body = '{"type":"email.received"}'
-    expect(verifyInboundHmac(secret, makeHeader(body, -301), body)).toBe(false)
+    const { svixId, svixTimestamp, svixSignature } = makeSvixHeaders('msg_123', body, -301)
+    expect(verifyInboundHmac(secret, svixId, svixTimestamp, svixSignature, body)).toBe(false)
   })
 
   it('returns false when timestamp is more than 5 minutes in the future', () => {
     const body = '{"type":"email.received"}'
-    expect(verifyInboundHmac(secret, makeHeader(body, 301), body)).toBe(false)
+    const { svixId, svixTimestamp, svixSignature } = makeSvixHeaders('msg_123', body, 301)
+    expect(verifyInboundHmac(secret, svixId, svixTimestamp, svixSignature, body)).toBe(false)
   })
 
-  it('returns false for missing t= or v1= parts', () => {
-    expect(verifyInboundHmac(secret, 'garbage', '{}')).toBe(false)
+  it('returns false for missing headers', () => {
+    expect(verifyInboundHmac(secret, '', '', '', '{}')).toBe(false)
   })
 })
