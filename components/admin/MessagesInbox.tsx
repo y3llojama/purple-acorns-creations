@@ -1,41 +1,69 @@
 'use client'
-import { useState } from 'react'
-import ConfirmDialog from './ConfirmDialog'
-import type { Message, MessageReply } from '@/lib/supabase/types'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import MessageList from './MessageList'
+import ThreadView from './ThreadView'
 import { useIsMobile } from '@/lib/hooks/useIsMobile'
+import type { Message, MessageReply } from '@/lib/supabase/types'
+
+const POLL_INTERVAL = 45_000
+const PER_PAGE = 20
+
+interface PaginatedReplies {
+  data: MessageReply[]
+  total: number
+  page: number
+  per_page: number
+}
 
 interface Props { initialMessages: Message[] }
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60_000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  return `${days}d ago`
-}
 
 export default function MessagesInbox({ initialMessages }: Props) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [selected, setSelected] = useState<string | null>(null)
   const [replies, setReplies] = useState<MessageReply[]>([])
-  const [replyText, setReplyText] = useState('')
-  const [sending, setSending] = useState(false)
-  const [sendError, setSendError] = useState<string | null>(null)
-  const [deleteId, setDeleteId] = useState<string | null>(null)
-
+  const [replyTotal, setReplyTotal] = useState(0)
+  const [replyPage, setReplyPage] = useState(1)
+  const [newMsgCount, setNewMsgCount] = useState(0)
+  const [pendingMessages, setPendingMessages] = useState<Message[]>([])
+  const [newReplyIds, setNewReplyIds] = useState<Set<string>>(new Set())
   const isMobile = useIsMobile()
-  const selectedMsg = messages.find(m => m.id === selected)
-  const unreadCount = messages.filter(m => !m.is_read).length
+  const knownIdsRef = useRef(new Set(initialMessages.map(m => m.id)))
+  const selectedRef = useRef<string | null>(null)
+  const replyPageRef = useRef(1)
 
+  // Keep refs in sync with state for use inside intervals
+  useEffect(() => { selectedRef.current = selected }, [selected])
+  useEffect(() => { replyPageRef.current = replyPage }, [replyPage])
+
+  const selectedMsg = messages.find(m => m.id === selected) ?? null
+
+  // ── Reply loader ──────────────────────────────────────────────────
+  const loadReplies = useCallback(async (messageId: string, page: number, highlight = false) => {
+    const res = await fetch(`/api/admin/messages/reply?message_id=${messageId}&page=${page}&per_page=${PER_PAGE}`)
+    if (!res.ok) return
+    const paged: PaginatedReplies = await res.json()
+    if (highlight) {
+      setReplies(prev => {
+        const existingIds = new Set(prev.map(r => r.id))
+        const freshIds = paged.data.filter(r => !existingIds.has(r.id)).map(r => r.id)
+        if (freshIds.length > 0) {
+          setNewReplyIds(new Set(freshIds))
+          setTimeout(() => setNewReplyIds(new Set()), 5000)
+        }
+        return paged.data
+      })
+    } else {
+      setReplies(paged.data)
+    }
+    setReplyTotal(paged.total)
+    setReplyPage(paged.page)
+  }, [])
+
+  // ── Select message ────────────────────────────────────────────────
   async function selectMessage(id: string) {
     setSelected(id)
-    setReplyText('')
-    setSendError(null)
+    setNewReplyIds(new Set())
 
-    // Mark as read
     const msg = messages.find(m => m.id === id)
     if (msg && !msg.is_read) {
       setMessages(prev => prev.map(m => m.id === id ? { ...m, is_read: true } : m))
@@ -46,31 +74,31 @@ export default function MessagesInbox({ initialMessages }: Props) {
       })
     }
 
-    // Load replies
-    const res = await fetch(`/api/admin/messages/reply?message_id=${id}`)
-    if (res.ok) setReplies(await res.json())
+    // Load the last page (most recent activity)
+    const firstRes = await fetch(`/api/admin/messages/reply?message_id=${id}&page=1&per_page=${PER_PAGE}`)
+    if (!firstRes.ok) return
+    const firstPage: PaginatedReplies = await firstRes.json()
+    const lastPage = Math.max(1, Math.ceil(firstPage.total / PER_PAGE))
+    await loadReplies(id, lastPage)
   }
 
-  async function handleReply() {
-    if (!replyText.trim() || !selected) return
-    setSending(true)
-    setSendError(null)
+  // ── Send reply ────────────────────────────────────────────────────
+  async function handleSendReply(body: string, attachments: string[]) {
+    if (!selected) return
     const res = await fetch('/api/admin/messages/reply', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message_id: selected, body: replyText.trim() }),
+      body: JSON.stringify({ message_id: selected, body, attachments }),
     })
-    if (res.ok) {
-      const reply = await res.json()
-      setReplies(prev => [...prev, reply])
-      setReplyText('')
-    } else {
+    if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      setSendError(data.error ?? 'Failed to send reply')
+      throw new Error(data.error ?? 'Failed to send reply')
     }
-    setSending(false)
+    const lastPage = Math.max(1, Math.ceil((replyTotal + 1) / PER_PAGE))
+    await loadReplies(selected, lastPage)
   }
 
+  // ── Delete message ────────────────────────────────────────────────
   async function handleDelete(id: string) {
     const res = await fetch('/api/admin/messages', {
       method: 'DELETE',
@@ -81,162 +109,100 @@ export default function MessagesInbox({ initialMessages }: Props) {
       setMessages(prev => prev.filter(m => m.id !== id))
       if (selected === id) { setSelected(null); setReplies([]) }
     }
-    setDeleteId(null)
+  }
+
+  // ── Polling ───────────────────────────────────────────────────────
+  const pollMessages = useCallback(async () => {
+    const res = await fetch('/api/admin/messages')
+    if (!res.ok) return
+    const fresh: Message[] = await res.json()
+    const newOnes = fresh.filter(m => !knownIdsRef.current.has(m.id))
+    if (newOnes.length > 0) {
+      newOnes.forEach(m => knownIdsRef.current.add(m.id))
+      setPendingMessages(newOnes)
+      setNewMsgCount(newOnes.length)
+    }
+  }, [])
+
+  const pollReplies = useCallback(async () => {
+    const id = selectedRef.current
+    if (!id) return
+    await loadReplies(id, replyPageRef.current, true)
+  }, [loadReplies])
+
+  useEffect(() => {
+    let msgTimer: ReturnType<typeof setInterval>
+    let replyTimer: ReturnType<typeof setInterval>
+
+    function startPolling() {
+      msgTimer = setInterval(pollMessages, POLL_INTERVAL)
+      replyTimer = setInterval(pollReplies, POLL_INTERVAL)
+    }
+    function stopPolling() {
+      clearInterval(msgTimer)
+      clearInterval(replyTimer)
+    }
+
+    startPolling()
+
+    function handleVisibility() {
+      if (document.visibilityState === 'hidden') stopPolling()
+      else startPolling()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      stopPolling()
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [pollMessages, pollReplies])
+
+  function handleLoadNew() {
+    setMessages(prev => {
+      const existingIds = new Set(prev.map(m => m.id))
+      const merged = [...pendingMessages.filter(m => !existingIds.has(m.id)), ...prev]
+      return merged
+    })
+    setPendingMessages([])
+    setNewMsgCount(0)
   }
 
   return (
     <div>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', color: 'var(--color-primary)', marginBottom: '24px' }}>
-        Messages {unreadCount > 0 && <span style={{ fontSize: '16px', color: 'var(--color-accent)' }}>({unreadCount} unread)</span>}
+        Messages
       </h1>
 
       <div style={{ display: 'grid', gridTemplateColumns: !isMobile && selected ? '1fr 2fr' : '1fr', gap: '24px' }}>
-        {/* Message list — hidden on mobile when a message is open */}
-        <div style={{ display: isMobile && selected ? 'none' : 'flex', flexDirection: 'column', gap: '8px' }}>
-          {messages.length === 0 && (
-            <p style={{ color: 'var(--color-text-muted)', fontSize: '16px' }}>No messages yet.</p>
-          )}
-          {messages.map(msg => (
-            <button
-              key={msg.id}
-              onClick={() => selectMessage(msg.id)}
-              style={{
-                display: 'block',
-                width: '100%',
-                textAlign: 'left',
-                padding: '16px',
-                background: selected === msg.id ? 'var(--color-primary)' : 'var(--color-surface)',
-                color: selected === msg.id ? 'var(--color-accent)' : 'var(--color-text)',
-                border: '1px solid var(--color-border)',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                minHeight: '48px',
-                fontWeight: msg.is_read ? '400' : '600',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                <span style={{ fontSize: '15px' }}>
-                  {!msg.is_read && <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-accent)', marginRight: '8px' }} />}
-                  {msg.name}
-                </span>
-                <span style={{ fontSize: '12px', opacity: 0.7 }}>{timeAgo(msg.created_at)}</span>
-              </div>
-              <div style={{ fontSize: '13px', opacity: 0.7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {msg.message.slice(0, 80)}{msg.message.length > 80 ? '…' : ''}
-              </div>
-            </button>
-          ))}
+        {/* Left panel */}
+        <div style={{ display: isMobile && selected ? 'none' : 'block' }}>
+          <MessageList
+            messages={messages}
+            selected={selected}
+            onSelect={selectMessage}
+            onRefresh={pollMessages}
+            newCount={newMsgCount}
+            onLoadNew={handleLoadNew}
+          />
         </div>
 
-        {/* Selected message detail */}
+        {/* Right panel */}
         {selectedMsg && (
-          <div style={{ background: 'var(--color-surface)', borderRadius: '8px', border: '1px solid var(--color-border)', padding: '24px' }}>
-            {isMobile && (
-              <button
-                onClick={() => { setSelected(null); setReplies([]) }}
-                style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontSize: '15px', cursor: 'pointer', padding: '0 0 16px', display: 'flex', alignItems: 'center', gap: '6px', minHeight: '48px' }}
-              >
-                ← Back
-              </button>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-              <div>
-                <h2 style={{ fontSize: '20px', marginBottom: '4px' }}>{selectedMsg.name}</h2>
-                <span style={{ color: 'var(--color-accent)', fontSize: '14px' }}>{selectedMsg.email}</span>
-                <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginLeft: '12px' }}>
-                  {new Date(selectedMsg.created_at).toLocaleString()}
-                </span>
-              </div>
-              <button
-                onClick={() => setDeleteId(selectedMsg.id)}
-                style={{ background: 'none', border: '1px solid #c05050', color: '#c05050', padding: '8px 16px', fontSize: '13px', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}
-              >
-                Delete
-              </button>
-            </div>
-
-            <div style={{ padding: '16px', background: 'var(--color-bg)', borderRadius: '6px', marginBottom: '24px', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-              {selectedMsg.message}
-            </div>
-
-            {/* Replies thread */}
-            {replies.length > 0 && (
-              <div style={{ marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginBottom: '12px' }}>Replies</h3>
-                {replies.map(r => {
-                  const isInbound = r.direction === 'inbound'
-                  return (
-                    <div
-                      key={r.id}
-                      style={{
-                        padding: '12px 16px',
-                        background: 'var(--color-bg)',
-                        borderRadius: '6px',
-                        marginBottom: '8px',
-                        borderLeft: `3px solid ${isInbound ? 'var(--color-border)' : 'var(--color-accent)'}`,
-                      }}
-                    >
-                      {isInbound && (
-                        <p style={{ fontSize: '12px', fontWeight: '600', color: 'var(--color-text-muted)', margin: '0 0 6px' }}>
-                          {selectedMsg?.name}
-                        </p>
-                      )}
-                      <p style={{ lineHeight: 1.5, whiteSpace: 'pre-wrap', margin: '0 0 4px' }}>{r.body}</p>
-                      <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{new Date(r.created_at).toLocaleString()}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            {/* Reply form */}
-            <div>
-              <label htmlFor="reply-text" style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px' }}>
-                Reply to {selectedMsg.name}
-              </label>
-              <textarea
-                id="reply-text"
-                value={replyText}
-                onChange={e => setReplyText(e.target.value)}
-                rows={4}
-                maxLength={5000}
-                placeholder="Type your reply..."
-                style={{ width: '100%', padding: '12px', fontSize: '16px', borderRadius: '4px', border: '1px solid var(--color-border)', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }}
-              />
-              <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
-                Variables: <code>{'${BUSINESS_NAME}'}</code> · <code>{'${CONTACT_FORM}'}</code>
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
-                <button
-                  onClick={handleReply}
-                  disabled={!replyText.trim() || sending}
-                  style={{
-                    background: replyText.trim() ? 'var(--color-primary)' : '#ccc',
-                    color: 'var(--color-accent)',
-                    padding: '12px 24px',
-                    fontSize: '16px',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: replyText.trim() ? 'pointer' : 'not-allowed',
-                    minHeight: '48px',
-                  }}
-                >
-                  {sending ? 'Sending…' : 'Send Reply'}
-                </button>
-                {sendError && <span style={{ color: '#c05050', fontSize: '14px' }}>{sendError}</span>}
-              </div>
-            </div>
-          </div>
+          <ThreadView
+            message={selectedMsg}
+            replies={replies}
+            total={replyTotal}
+            page={replyPage}
+            perPage={PER_PAGE}
+            onPageChange={page => loadReplies(selected!, page)}
+            onBack={() => { setSelected(null); setReplies([]) }}
+            onDelete={handleDelete}
+            onSendReply={handleSendReply}
+            isMobile={isMobile}
+            newReplyIds={newReplyIds}
+          />
         )}
       </div>
-
-      {deleteId && (
-        <ConfirmDialog
-          message="Delete this message and all replies? This cannot be undone."
-          onConfirm={() => handleDelete(deleteId)}
-          onCancel={() => setDeleteId(null)}
-        />
-      )}
     </div>
   )
 }
