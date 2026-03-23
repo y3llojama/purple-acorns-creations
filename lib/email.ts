@@ -141,7 +141,7 @@ export async function sendContactNotification(name: string, email: string, messa
   })
 }
 
-export async function sendReply(to: string, toName: string, body: string) {
+export async function sendReply(to: string, toName: string, body: string, attachments?: string[]) {
   const settings = await getEmailSettings()
   const businessName = settings?.business_name ?? 'Purple Acorns Creations'
   const resolvedBody = interpolate(body, buildVars(businessName))
@@ -154,12 +154,20 @@ export async function sendReply(to: string, toName: string, body: string) {
   const safeBusinessName = escapeHtml(businessName)
   const safeFooter = escapeHtml(resolvedFooter)
 
+  // Build inline image HTML — URLs are already validated with isValidHttpsUrl before reaching here
+  const imagesHtml = attachments && attachments.length > 0
+    ? attachments
+        .map(url => `<img src="${escapeHtml(url)}" alt="" style="max-width:100%;display:block;margin:8px 0;">`)
+        .join('')
+    : ''
+
   return sendEmail({
     to,
     subject: `Reply from ${businessName}`,
     text: `Hi ${stripControlChars(toName)},\n\n${resolvedBody}\n\n— ${businessName}${resolvedFooter ? `\n\n---\n${resolvedFooter}` : ''}`,
     html: `<p>Hi ${safeName},</p>
 <p>${safeBody.replace(/\n/g, '<br />')}</p>
+${imagesHtml}
 <p>— ${safeBusinessName}</p>${safeFooter ? `<hr /><p style="font-size:12px;color:#888;">${safeFooter.replace(/\n/g, '<br />')}</p>` : ''}`,
   })
 }

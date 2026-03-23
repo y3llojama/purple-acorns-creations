@@ -3,7 +3,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server'
 import { requireAdminSession } from '@/lib/auth'
 import { sendReply } from '@/lib/email'
 import { sanitizeText } from '@/lib/sanitize'
-import { clampLength, isValidUuid } from '@/lib/validate'
+import { clampLength, isValidUuid, isValidHttpsUrl } from '@/lib/validate'
 
 export async function POST(request: Request) {
   const { error } = await requireAdminSession()
@@ -13,6 +13,13 @@ export async function POST(request: Request) {
   const messageId = String(body.message_id ?? '')
   const replyBody = sanitizeText(clampLength(String(body.body ?? ''), 5000))
 
+  // Validate attachments: array of https URLs, max 5
+  const rawAttachments = Array.isArray(body.attachments) ? body.attachments : []
+  if (rawAttachments.length > 5) {
+    return NextResponse.json({ error: 'Maximum 5 attachments allowed' }, { status: 400 })
+  }
+  const attachments: string[] = rawAttachments.map(String).filter(isValidHttpsUrl)
+
   if (!messageId || !isValidUuid(messageId)) {
     return NextResponse.json({ error: 'Valid message_id required' }, { status: 400 })
   }
@@ -20,7 +27,6 @@ export async function POST(request: Request) {
 
   const supabase = createServiceRoleClient()
 
-  // Get the original message to find the recipient
   const { data: message, error: msgError } = await supabase
     .from('messages')
     .select('email, name')
@@ -31,13 +37,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Message not found' }, { status: 404 })
   }
 
-  // Send the reply email
-  const emailResult = await sendReply(message.email, message.name, replyBody)
+  const emailResult = await sendReply(message.email, message.name, replyBody, attachments)
   if (!emailResult?.success) {
     return NextResponse.json({ error: emailResult?.error ?? 'Failed to send reply' }, { status: 500 })
   }
 
-  // Save reply to database
   const { data: reply, error: dbError } = await supabase
     .from('message_replies')
     .insert({
@@ -45,6 +49,7 @@ export async function POST(request: Request) {
       body: replyBody,
       direction: 'outbound',
       resend_message_id: emailResult.messageId ?? null,
+      attachments,
     })
     .select()
     .single()
@@ -53,7 +58,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Reply sent but failed to save record' }, { status: 500 })
   }
 
-  // Mark the message as read
   await supabase.from('messages').update({ is_read: true }).eq('id', messageId)
 
   return NextResponse.json(reply, { status: 201 })
