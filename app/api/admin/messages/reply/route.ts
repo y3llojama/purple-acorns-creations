@@ -65,18 +65,33 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url)
   const messageId = searchParams.get('message_id')
+  const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
+  const perPage = Math.min(100, Math.max(1, parseInt(searchParams.get('per_page') ?? '20', 10)))
 
   if (!messageId || !isValidUuid(messageId)) {
     return NextResponse.json({ error: 'Valid message_id required' }, { status: 400 })
   }
 
   const supabase = createServiceRoleClient()
+
+  // Get total count
+  const { count, error: countError } = await supabase
+    .from('message_replies')
+    .select('*', { count: 'exact', head: true })
+    .eq('message_id', messageId)
+
+  if (countError) return NextResponse.json({ error: 'Failed to count replies' }, { status: 500 })
+
+  const total = count ?? 0
+  const offset = (page - 1) * perPage
+
   const { data, error: dbError } = await supabase
     .from('message_replies')
     .select('*')
     .eq('message_id', messageId)
     .order('created_at', { ascending: true })
+    .range(offset, offset + perPage - 1)
 
   if (dbError) return NextResponse.json({ error: 'Failed to load replies' }, { status: 500 })
-  return NextResponse.json(data)
+  return NextResponse.json({ data, total, page, per_page: perPage })
 }
