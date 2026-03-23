@@ -1,7 +1,9 @@
 'use client'
 import { useDiscovery } from './DiscoveryProvider'
 
-export default function DiscoveryBanner() {
+interface Props { searchingMessage?: string }
+
+export default function DiscoveryBanner({ searchingMessage = 'Searching in the background — you can keep using the admin while this runs.' }: Props) {
   const { state, message, error, dismiss } = useDiscovery()
   if (state === 'idle') return null
 
@@ -25,25 +27,12 @@ export default function DiscoveryBanner() {
         color: error ? '#c05050' : 'var(--color-text)',
       }}
     >
-      <span>
-        {searching
-          ? 'Searching for events in the background — you can keep using the admin while this runs.'
-          : (error ?? message)}
-      </span>
+      <span>{searching ? searchingMessage : (error ?? message)}</span>
       {!searching && (
         <button
           onClick={dismiss}
           aria-label="Dismiss"
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '18px',
-            color: 'var(--color-text-muted)',
-            lineHeight: 1,
-            padding: '4px 8px',
-            minHeight: '36px',
-          }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--color-text-muted)', lineHeight: 1, padding: '4px 8px', minHeight: '36px' }}
         >
           ✕
         </button>

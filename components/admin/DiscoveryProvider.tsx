@@ -23,7 +23,14 @@ export function useDiscovery() {
   return useContext(DiscoveryContext)
 }
 
-export function DiscoveryProvider({ children }: { children: React.ReactNode }) {
+interface ProviderProps {
+  children: React.ReactNode
+  endpoint: string        // POST target, e.g. '/api/admin/events/discover'
+  pollEndpoint: string    // GET for count polling, must return a flat JSON array
+  noun?: string           // plural noun for success messages, default: 'item'
+}
+
+export function DiscoveryProvider({ children, endpoint, pollEndpoint, noun = 'item' }: ProviderProps) {
   const [state, setState] = useState<DiscoverState>('idle')
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -57,49 +64,45 @@ export function DiscoveryProvider({ children }: { children: React.ReactNode }) {
     setError(null)
     resolvedRef.current = false
 
-    // Snapshot current event count so we can detect additions via polling
     let baseCount = 0
     try {
-      const r = await fetch('/api/admin/events')
-      if (r.ok) { const ev = await r.json(); baseCount = Array.isArray(ev) ? ev.length : 0 }
+      const r = await fetch(pollEndpoint)
+      if (r.ok) { const data = await r.json(); baseCount = Array.isArray(data) ? data.length : 0 }
     } catch { /* best-effort */ }
 
-    // Fire the discovery request. keepalive: true keeps it alive even after navigation.
-    const discoverPromise = fetch('/api/admin/events/discover', { method: 'POST', keepalive: true })
+    const discoverPromise = fetch(endpoint, { method: 'POST', keepalive: true })
       .then(r => r.ok ? r.json() : r.json().then((d: { error?: string }) => ({ error: d.error ?? 'Discovery failed. Please try again.' })))
       .catch(() => ({ error: 'Discovery failed. Please try again.' }))
 
-    // Poll the events list every 5s so results show early if the user stays on the page
     let attempts = 0
     pollRef.current = setInterval(async () => {
       attempts++
       try {
-        const r = await fetch('/api/admin/events')
+        const r = await fetch(pollEndpoint)
         if (r.ok) {
-          const ev = await r.json()
-          const newCount = Array.isArray(ev) ? ev.length : 0
+          const data = await r.json()
+          const newCount = Array.isArray(data) ? data.length : 0
           if (newCount > baseCount) {
             const added = newCount - baseCount
-            resolve(`${added} event${added !== 1 ? 's' : ''} added!`, null)
+            resolve(`${added} ${noun}${added !== 1 ? 's' : ''} added!`, null)
             return
           }
         }
       } catch { /* best-effort */ }
-      if (attempts >= 20) stopPolling() // safety: stop after 100s
+      if (attempts >= 20) stopPolling()
     }, 5000)
 
-    // When the discover fetch resolves, use its result as the source of truth
     discoverPromise.then((data: { added?: number; skipped?: number; error?: string }) => {
       if (data.error) {
         resolve(null, data.error)
       } else if ((data.added ?? 0) > 0) {
         const added = data.added!
-        resolve(`${added} event${added !== 1 ? 's' : ''} added${data.skipped ? `, ${data.skipped} already in your list` : ''}!`, null)
+        resolve(`${added} ${noun}${added !== 1 ? 's' : ''} added${data.skipped ? `, ${data.skipped} already in your list` : ''}!`, null)
       } else {
-        resolve('No new events found.', null)
+        resolve('No new items found.', null)
       }
     })
-  }, [state, resolve])
+  }, [state, resolve, endpoint, pollEndpoint, noun])
 
   return (
     <DiscoveryContext.Provider value={{ state, message, error, startDiscovery, dismiss }}>
