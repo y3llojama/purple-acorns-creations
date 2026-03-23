@@ -49,14 +49,14 @@ export async function POST(request: Request) {
     if (!item.productId || typeof item.productId !== 'string') return NextResponse.json({ error: 'productId required' }, { status: 400 })
     if (!Number.isInteger(item.quantity) || item.quantity < 1) return NextResponse.json({ error: 'quantity must be positive integer' }, { status: 400 })
     if (typeof item.customPrice !== 'number' || item.customPrice <= 0) return NextResponse.json({ error: 'customPrice must be > 0' }, { status: 400 })
-    const cents = Math.round(item.customPrice * 100)
-    if (Math.abs(cents / 100 - item.customPrice) > 0.001) return NextResponse.json({ error: 'customPrice max 2 decimal places' }, { status: 400 })
+    if (!/^\d+(\.\d{1,2})?$/.test(String(item.customPrice))) return NextResponse.json({ error: 'customPrice max 2 decimal places' }, { status: 400 })
   }
 
   // Validate products exist and are active
   const supabase = createServiceRoleClient()
-  const { data: products } = await supabase
+  const { data: products, error: productsError } = await supabase
     .from('products').select('id,is_active').in('id', items.map(i => i.productId))
+  if (productsError) return NextResponse.json({ error: 'Failed to validate products' }, { status: 500 })
   for (const item of items) {
     const p = products?.find(p => p.id === item.productId)
     if (!p) return NextResponse.json({ error: `Product not found: ${item.productId}` }, { status: 400 })
