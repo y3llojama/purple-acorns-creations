@@ -41,6 +41,8 @@ export interface Settings {
   search_api_key: string | null
   messages_from_email: string | null
   reply_email_footer: string | null
+  shipping_mode: 'fixed' | 'percentage'
+  shipping_value: number
 }
 
 export interface Category {
@@ -129,6 +131,7 @@ export interface Product {
   price: number
   category_id: string | null
   stock_count: number
+  stock_reserved: number
   images: string[]
   is_active: boolean
   gallery_featured: boolean
@@ -139,6 +142,42 @@ export interface Product {
   pinterest_product_id: string | null
   created_at: string
   updated_at: string
+}
+
+export interface ShippingAddress {
+  name: string
+  address1: string
+  address2?: string
+  city: string
+  state: string
+  zip: string
+  country: string
+}
+
+export interface ShippingConfig {
+  mode: 'fixed' | 'percentage'
+  value: number
+}
+
+export interface PrivateSale {
+  id: string
+  token: string
+  created_by: string
+  expires_at: string
+  used_at: string | null
+  revoked_at: string | null
+  customer_note: string | null
+  created_at: string
+  items?: PrivateSaleItem[]
+}
+
+export interface PrivateSaleItem {
+  id: string
+  private_sale_id: string
+  product_id: string
+  quantity: number
+  custom_price: number
+  product?: Pick<Product, 'id' | 'name' | 'description' | 'price' | 'images' | 'is_active'>
 }
 
 export interface ChannelSyncLog {

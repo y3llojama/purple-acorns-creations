@@ -29,6 +29,8 @@ const DEFAULT_SETTINGS: Settings = {
   search_api_key: null,
   messages_from_email: null,
   reply_email_footer: null,
+  shipping_mode: 'fixed',
+  shipping_value: 0,
 }
 
 export async function getSettings(): Promise<Settings> {
