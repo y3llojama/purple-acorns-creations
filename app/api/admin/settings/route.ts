@@ -114,7 +114,7 @@ export async function POST(request: Request) {
   }
   if (body.shipping_value !== undefined) {
     const val = parseFloat(String(body.shipping_value))
-    if (isNaN(val) || val < 0) return NextResponse.json({ error: 'shipping_value must be >= 0' }, { status: 400 })
+    if (!isFinite(val) || val < 0 || val > 10000) return NextResponse.json({ error: 'shipping_value must be between 0 and 10000' }, { status: 400 })
     update.shipping_value = val.toFixed(2)
   }
 

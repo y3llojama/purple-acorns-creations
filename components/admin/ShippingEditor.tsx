@@ -9,8 +9,10 @@ interface Props {
 export default function ShippingEditor({ initialShippingMode, initialShippingValue }: Props) {
   const [shippingMode, setShippingMode] = useState<'fixed' | 'percentage'>(initialShippingMode)
   const [shippingValue, setShippingValue] = useState(initialShippingValue)
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
 
   async function saveShipping() {
+    setStatus('saving')
     const res = await fetch('/api/admin/settings', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ shipping_mode: shippingMode, shipping_value: parseFloat(shippingValue) || 0 }),
@@ -18,7 +20,11 @@ export default function ShippingEditor({ initialShippingMode, initialShippingVal
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       alert((data as { error?: string }).error ?? 'Failed to save shipping')
+      setStatus('idle')
+      return
     }
+    setStatus('saved')
+    setTimeout(() => setStatus('idle'), 3000)
   }
 
   return (
@@ -59,10 +65,14 @@ export default function ShippingEditor({ initialShippingMode, initialShippingVal
           </div>
           <button
             onClick={saveShipping}
-            style={{ padding: '10px 20px', background: 'var(--color-primary)', color: 'var(--color-accent)', border: 'none', borderRadius: '4px', fontSize: '14px', cursor: 'pointer', minHeight: '48px' }}
+            disabled={status === 'saving'}
+            style={{ padding: '10px 20px', background: 'var(--color-primary)', color: 'var(--color-accent)', border: 'none', borderRadius: '4px', fontSize: '14px', cursor: status === 'saving' ? 'not-allowed' : 'pointer', minHeight: '48px', opacity: status === 'saving' ? 0.7 : 1 }}
           >
-            Save Shipping
+            {status === 'saving' ? 'Saving...' : 'Save Shipping'}
           </button>
+          {status === 'saved' && (
+            <span style={{ fontSize: '13px', color: 'var(--color-success, green)' }}>Saved</span>
+          )}
         </div>
         <p style={{ marginTop: '8px', fontSize: '13px', color: 'var(--color-text-muted)' }}>
           Set to $0 / 0% to offer free shipping. Applies to all orders (shop checkout and private sale links).
