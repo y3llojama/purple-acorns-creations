@@ -133,10 +133,14 @@ export default function PrivateSaleCheckout({ sale, token }: { sale: SaleData; t
             },
           })
           verificationToken = verification.token
-        } catch {
-          // verifyBuyer throws if customer cancels the challenge dialog
-          setError('Verification was cancelled. Please try again.')
-          return
+        } catch (verifyErr: unknown) {
+          const msg = verifyErr instanceof Error ? verifyErr.message : String(verifyErr)
+          // Only block on explicit user cancellation; other errors let the payment attempt proceed
+          if (msg.toLowerCase().includes('cancel')) {
+            setError('Verification was cancelled. Please try again.')
+            return
+          }
+          console.warn('[verifyBuyer] non-cancellation error, proceeding without token:', msg)
         }
       }
 
