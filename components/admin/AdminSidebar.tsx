@@ -33,13 +33,16 @@ export default function AdminSidebar({ businessName }: Props) {
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
     setMounted(true)
+    const mobile = window.innerWidth < 768
+    setIsMobile(mobile)
     const saved = localStorage.getItem('admin-sidebar-collapsed')
     if (saved === 'true') {
       setCollapsed(true)
-    } else if (saved !== 'false' && window.innerWidth < 768) {
+    } else if (saved !== 'false' && mobile) {
       setCollapsed(true)
     }
   }, [])
@@ -57,10 +60,22 @@ export default function AdminSidebar({ businessName }: Props) {
   }
 
   const width = collapsed ? '56px' : '220px'
+  const mobileExpanded = isMobile && !collapsed
 
   return (
+    <>
+      {mobileExpanded && (
+        <>
+          <div style={{ width: '56px', flexShrink: 0 }} aria-hidden="true" />
+          <div
+            onClick={toggleCollapsed}
+            aria-hidden="true"
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 999 }}
+          />
+        </>
+      )}
     <aside
-      style={{ width, minHeight: '100vh', background: 'var(--color-primary)', color: 'var(--color-accent)', display: 'flex', flexDirection: 'column', flexShrink: 0, transition: mounted ? 'width 0.2s ease' : 'none', overflow: 'hidden', position: 'relative' }}
+      style={{ width, minHeight: '100vh', background: 'var(--color-primary)', color: 'var(--color-accent)', display: 'flex', flexDirection: 'column', flexShrink: 0, transition: mounted ? 'width 0.2s ease' : 'none', overflow: 'hidden', position: mobileExpanded ? 'fixed' : 'relative', top: mobileExpanded ? 0 : undefined, left: mobileExpanded ? 0 : undefined, height: mobileExpanded ? '100dvh' : undefined, zIndex: mobileExpanded ? 1000 : undefined }}
     >
       {/* Header */}
       <div style={{ padding: collapsed ? '20px 0' : '0 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', minHeight: '72px' }}>
@@ -87,6 +102,7 @@ export default function AdminSidebar({ businessName }: Props) {
               <li key={href}>
                 <Link
                   href={href}
+                  onClick={mobileExpanded ? toggleCollapsed : undefined}
                   aria-current={isActive ? 'page' : undefined}
                   aria-label={collapsed ? label : undefined}
                   title={collapsed ? label : undefined}
@@ -134,5 +150,6 @@ export default function AdminSidebar({ businessName }: Props) {
         </button>
       </div>
     </aside>
+    </>
   )
 }
