@@ -5,7 +5,15 @@
 // selecting this worker.
 export default {
   async email(message, env, ctx) {
-    await message.forward(env.DEST_GMAIL)
-    await message.forward(env.DEST_RESEND)
+    // Fan out to both destinations concurrently; both are attempted even if one fails.
+    const results = await Promise.allSettled([
+      message.forward(env.DEST_GMAIL),
+      message.forward(env.DEST_RESEND),
+    ])
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        console.error('[email-worker] forward failed:', result.reason)
+      }
+    }
   },
 }

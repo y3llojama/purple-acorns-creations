@@ -6,18 +6,32 @@ import { clampLength } from '@/lib/validate'
 import { decryptSettings } from '@/lib/crypto'
 import { parseFromEmail, verifyInboundHmac } from './helpers'
 
-export async function POST(request: Request) {
-  const webhookSecret = process.env.RESEND_WEBHOOK_SECRET
-  const rawBody = await request.text()
+// In-memory rate limiter: 60 requests per IP per 60 seconds
+const rateLimitMap = new Map<string, { count: number; reset: number }>()
 
-  if (webhookSecret) {
-    const header =
-      request.headers.get('svix-signature') ??
-      request.headers.get('resend-signature') ??
-      ''
-    if (!verifyInboundHmac(webhookSecret, header, rawBody)) {
-      return NextResponse.json({ error: 'Invalid signature.' }, { status: 401 })
-    }
+export async function POST(request: Request) {
+  const ip = (request.headers.get('x-forwarded-for') ?? 'unknown').split(',')[0].trim()
+  const now = Date.now()
+  const entry = rateLimitMap.get(ip) ?? { count: 0, reset: now + 60_000 }
+  if (now > entry.reset) { entry.count = 0; entry.reset = now + 60_000 }
+  entry.count++; rateLimitMap.set(ip, entry)
+  if (entry.count > 60) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
+
+  const webhookSecret = process.env.RESEND_WEBHOOK_SECRET
+  if (!webhookSecret) {
+    console.error('[inbound] RESEND_WEBHOOK_SECRET not configured — rejecting all requests')
+    return NextResponse.json({ error: 'Webhook not configured.' }, { status: 500 })
+  }
+
+  const rawBody = await request.text()
+  const header =
+    request.headers.get('svix-signature') ??
+    request.headers.get('resend-signature') ??
+    ''
+  if (!verifyInboundHmac(webhookSecret, header, rawBody)) {
+    return NextResponse.json({ error: 'Invalid signature.' }, { status: 401 })
   }
 
   let payload: { type: string; data: Record<string, unknown> }

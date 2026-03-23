@@ -43,6 +43,7 @@ export async function POST(request: Request) {
     .insert({
       message_id: messageId,
       body: replyBody,
+      direction: 'outbound',
       resend_message_id: emailResult.messageId ?? null,
     })
     .select()
