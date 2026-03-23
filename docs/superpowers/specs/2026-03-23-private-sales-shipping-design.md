@@ -90,9 +90,15 @@ ALTER TABLE settings
 
 ## New Database Functions
 
-### `reserve_private_sale_stock(items JSONB)`
+### `create_private_sale(sale JSONB, items JSONB) → private_sales`
 
-Atomically increments `stock_reserved` for each item in the list. Verifies `stock_count - stock_reserved >= quantity` before reserving each row (using `SELECT FOR UPDATE` to prevent races). If any item fails the check, the whole transaction rolls back and an error is returned. Called when admin creates a private sale link.
+Single-transaction function that creates a private sale atomically:
+1. Inserts the `private_sales` row from `sale` input
+2. Inserts `private_sale_items` rows from `items` input
+3. For each item, verifies `stock_count - stock_reserved >= quantity` using `SELECT FOR UPDATE` (rolls back entire transaction if any item fails)
+4. Increments `stock_reserved` for each item
+
+Returns the newly created `private_sales` row (including generated `id` and `token`). Any failure (insufficient stock, DB error) rolls back all three steps atomically — no partial state possible. Called by `POST /api/admin/private-sales` as a single `supabase.rpc('create_private_sale', ...)` call.
 
 ### `release_private_sale_stock(sale_id UUID)`
 
@@ -167,9 +173,8 @@ Request body:
 - Validates all products exist and are active
 - `customPrice` validated: positive number, max 2 decimal places
 - `expiresIn` mapped to UTC timestamp: `48h → NOW() + INTERVAL '48 hours'`, `7d → + INTERVAL '7 days'`, `14d → + INTERVAL '14 days'`
-- Calls `reserve_private_sale_stock()` — rolls back and returns 409 if any item has insufficient available stock
-- Inserts `private_sales` (with `created_by = user.email`) + `private_sale_items` rows
-- Returns: `{ id, token, expiresAt, url }` where `url` is constructed as `${process.env.NEXT_PUBLIC_SITE_URL}/private-sale/<token>`. `NEXT_PUBLIC_SITE_URL` must be set in `.env` / Vercel env vars (e.g. `https://purpleacornscreations.com`). Add it to `.env.example` with a placeholder value
+- Calls `supabase.rpc('create_private_sale', { sale: {...}, items: [...] })` — single atomic transaction that inserts both rows and reserves stock; returns 409 if any item has insufficient available stock
+- Returns: `{ id, token, expiresAt, url }` where `url = ${process.env.NEXT_PUBLIC_SITE_URL}/private-sale/<token>`. `NEXT_PUBLIC_SITE_URL` must be set in `.env` / Vercel env vars (e.g. `https://purpleacornscreations.com`). Add to `.env.example` with a placeholder value
 
 ### `GET /api/admin/private-sales`
 
@@ -379,7 +384,7 @@ supabase/migrations/XXX_private_sales_shipping.sql
 2. **Update `decrement_stock`** function: change condition to `stock_count - stock_reserved >= qty`
 3. Create `private_sales` table with RLS: service_role full access, no public access
 4. Create `private_sale_items` table with RLS: service_role full access, no public access
-5. Create `reserve_private_sale_stock`, `release_private_sale_stock`, `fulfill_private_sale` functions (SECURITY DEFINER, called via service_role)
+5. Create `create_private_sale`, `release_private_sale_stock`, `fulfill_private_sale` functions (SECURITY DEFINER, called via service_role)
 6. Add `shipping_mode`, `shipping_value` to `settings` with constraints
 
 ---
