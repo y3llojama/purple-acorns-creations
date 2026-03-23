@@ -30,7 +30,7 @@ export default function PrivateSaleForm() {
         return
       }
       const body = await res.json()
-      setProducts(body.data ?? body ?? [])
+      setProducts(body.products ?? [])
       setProductsLoading(false)
     }
     loadProducts()
