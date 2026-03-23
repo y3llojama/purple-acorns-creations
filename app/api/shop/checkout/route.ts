@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getSquareClient } from '@/lib/channels/square/client'
 import { pushInventoryToSquare } from '@/lib/channels/square/catalog'
+import { calculateShipping } from '@/lib/shipping'
+import { sanitizeText } from '@/lib/sanitize'
+import type { ShippingAddress } from '@/lib/supabase/types'
 
 const rateMap = new Map<string, { count: number; reset: number }>()
 function checkRate(ip: string): boolean {
@@ -24,23 +27,46 @@ export async function POST(request: Request) {
   if (!cart.length) return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
   if (!sourceId) return NextResponse.json({ error: 'sourceId required' }, { status: 400 })
 
+  const shipping: ShippingAddress | null = body.shipping && typeof body.shipping === 'object' ? body.shipping as ShippingAddress : null
+  const requiredFields: (keyof ShippingAddress)[] = ['name', 'address1', 'city', 'state', 'zip', 'country']
+  if (!shipping || requiredFields.some(f => !shipping[f])) {
+    return NextResponse.json({ error: 'Shipping address required' }, { status: 400 })
+  }
+  // Sanitize all shipping fields
+  const cleanShipping: ShippingAddress = {
+    name:     sanitizeText(shipping.name).slice(0, 100),
+    address1: sanitizeText(shipping.address1).slice(0, 200),
+    address2: shipping.address2 ? sanitizeText(shipping.address2).slice(0, 200) : undefined,
+    city:     sanitizeText(shipping.city).slice(0, 100),
+    state:    sanitizeText(shipping.state).slice(0, 100),
+    zip:      sanitizeText(shipping.zip).slice(0, 20),
+    country:  sanitizeText(shipping.country).slice(0, 10),
+  }
+
   const supabase = createServiceRoleClient()
 
-  // Step 1: Validate stock
-  const { data: products } = await supabase
-    .from('products').select('id,name,price,stock_count,square_variation_id').in('id', cart.map(i => i.productId))
+  // Step 1: Validate stock + fetch shipping settings in parallel
+  const [{ data: products }, { data: settingsRow }] = await Promise.all([
+    supabase.from('products').select('id,name,price,stock_count,stock_reserved,square_variation_id').in('id', cart.map(i => i.productId)),
+    supabase.from('settings').select('shipping_mode,shipping_value').limit(1).maybeSingle(),
+  ])
   if (!products) return NextResponse.json({ error: 'Failed to validate cart' }, { status: 500 })
   for (const item of cart) {
     const p = products.find(p => p.id === item.productId)
     if (!p) return NextResponse.json({ error: `Product not found: ${item.productId}` }, { status: 409 })
-    if (p.stock_count < item.quantity) return NextResponse.json({ error: `${p.name} is sold out`, soldOut: item.productId }, { status: 409 })
+    if (p.stock_count - (p.stock_reserved ?? 0) < item.quantity) {
+      return NextResponse.json({ error: `${p.name} is sold out`, soldOut: item.productId }, { status: 409 })
+    }
   }
 
   // Steps 2 + 3: Create Square order then charge
-  const totalCents = cart.reduce((sum, item) => {
+  const subtotal = cart.reduce((sum, item) => {
     const p = products.find(p => p.id === item.productId)!
-    return sum + Math.round(p.price * 100) * item.quantity
+    return sum + p.price * item.quantity
   }, 0)
+  const shippingCost = calculateShipping(subtotal, settingsRow ?? { shipping_mode: 'fixed', shipping_value: 0 })
+  const shippingCents = Math.round(shippingCost * 100)
+  const totalCents = Math.round(subtotal * 100) + shippingCents
 
   let orderId = ''
   let paymentId = ''
@@ -50,10 +76,30 @@ export async function POST(request: Request) {
     const orderResult = await client.orders.create({
       order: {
         locationId,
-        lineItems: cart.map(item => {
-          const p = products.find(p => p.id === item.productId)!
-          return { name: p.name, quantity: String(item.quantity), basePriceMoney: { amount: BigInt(Math.round(p.price * 100)), currency: 'USD' } }
-        }),
+        lineItems: [
+          ...cart.map(item => {
+            const p = products.find(p => p.id === item.productId)!
+            return { name: p.name, quantity: String(item.quantity), basePriceMoney: { amount: BigInt(Math.round(p.price * 100)), currency: 'USD' as const } }
+          }),
+          ...(shippingCents > 0 ? [{ name: 'Shipping & Handling', quantity: '1', basePriceMoney: { amount: BigInt(shippingCents), currency: 'USD' as const } }] : []),
+        ],
+        fulfillments: [{
+          type: 'SHIPMENT',
+          state: 'PROPOSED',
+          shipmentDetails: {
+            recipient: {
+              displayName: cleanShipping.name,
+              address: {
+                addressLine1: cleanShipping.address1,
+                addressLine2: cleanShipping.address2 || undefined,
+                locality: cleanShipping.city,
+                administrativeDistrictLevel1: cleanShipping.state,
+                postalCode: cleanShipping.zip,
+                country: cleanShipping.country as 'US',
+              },
+            },
+          },
+        }],
       },
       idempotencyKey: crypto.randomUUID(),
     })

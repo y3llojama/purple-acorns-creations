@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useCart } from './CartContext'
 import { useRouter } from 'next/navigation'
+import { calculateShipping } from '@/lib/shipping'
 
 interface SquareCard {
   attach: (container: HTMLElement) => Promise<void>
@@ -24,6 +25,20 @@ export default function CheckoutForm({ onSuccess }: { onSuccess?: () => void }) 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sdkReady, setSdkReady] = useState(false)
+  const [shipping, setShipping] = useState({
+    name: '', address1: '', address2: '', city: '', state: '', zip: '', country: 'US',
+  })
+  const [shippingCost, setShippingCost] = useState<number | null>(null)
+
+  useEffect(() => {
+    fetch('/api/shop/shipping-config')
+      .then(r => r.json())
+      .then(d => {
+        const cost = calculateShipping(total, d)
+        setShippingCost(cost)
+      })
+      .catch(() => setShippingCost(0))
+  }, [total])
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null
@@ -58,6 +73,16 @@ export default function CheckoutForm({ onSuccess }: { onSuccess?: () => void }) 
     return () => { cancelled = true; if (timeoutId) clearTimeout(timeoutId) }
   }, [])
 
+  function shippingField(field: keyof typeof shipping) {
+    return {
+      value: shipping[field],
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+        setShipping(prev => ({ ...prev, [field]: e.target.value })),
+      required: field !== 'address2',
+      style: { width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '4px', fontSize: '14px', marginBottom: '8px', minHeight: '48px', boxSizing: 'border-box' } as React.CSSProperties,
+    }
+  }
+
   async function handlePay() {
     if (!cardRef.current || !sdkReady) return
     setLoading(true); setError(null)
@@ -72,6 +97,15 @@ export default function CheckoutForm({ onSuccess }: { onSuccess?: () => void }) 
         body: JSON.stringify({
           cart: items.map(i => ({ productId: i.product.id, quantity: i.quantity })),
           sourceId: result.token,
+          shipping: {
+            name: shipping.name,
+            address1: shipping.address1,
+            address2: shipping.address2 || undefined,
+            city: shipping.city,
+            state: shipping.state,
+            zip: shipping.zip,
+            country: shipping.country,
+          },
         }),
       })
       const data = await res.json()
@@ -96,8 +130,29 @@ export default function CheckoutForm({ onSuccess }: { onSuccess?: () => void }) 
             <span>${(item.product.price * item.quantity).toFixed(2)}</span>
           </div>
         ))}
+        {shippingCost !== null && shippingCost > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px' }}>
+            <span>Shipping &amp; Handling</span>
+            <span>${shippingCost.toFixed(2)}</span>
+          </div>
+        )}
         <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '8px', fontWeight: '600', display: 'flex', justifyContent: 'space-between' }}>
-          <span>Total</span><span>${total.toFixed(2)}</span>
+          <span>Total</span>
+          <span>${(total + (shippingCost ?? 0)).toFixed(2)}</span>
+        </div>
+      </div>
+      <div style={{ marginBottom: '24px' }}>
+        <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: 'var(--color-primary)' }}>Shipping Address</h3>
+        <input placeholder="Full name" {...shippingField('name')} />
+        <input placeholder="Address line 1" {...shippingField('address1')} />
+        <input placeholder="Address line 2 (optional)" {...shippingField('address2')} required={false} />
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '8px' }}>
+          <input placeholder="City" {...shippingField('city')} />
+          <input placeholder="State" {...shippingField('state')} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <input placeholder="ZIP code" {...shippingField('zip')} />
+          <input placeholder="Country" {...shippingField('country')} />
         </div>
       </div>
       <div ref={containerRef} id="square-card-container" style={{ marginBottom: '24px', minHeight: '89px' }} />
@@ -107,7 +162,7 @@ export default function CheckoutForm({ onSuccess }: { onSuccess?: () => void }) 
         disabled={loading || !sdkReady}
         style={{ width: '100%', padding: '16px', background: 'var(--color-primary)', color: 'var(--color-accent)', border: 'none', borderRadius: '4px', fontSize: '18px', cursor: loading ? 'not-allowed' : 'pointer', minHeight: '48px', opacity: (!sdkReady || loading) ? 0.7 : 1 }}
       >
-        {loading ? 'Processing...' : `Pay $${total.toFixed(2)}`}
+        {loading ? 'Processing...' : `Pay $${(total + (shippingCost ?? 0)).toFixed(2)}`}
       </button>
     </div>
   )

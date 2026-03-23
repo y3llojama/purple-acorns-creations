@@ -31,4 +31,27 @@ describe('POST /api/shop/checkout', () => {
     })
     expect((await POST(req)).status).toBe(400)
   })
+
+  it('returns 400 when shipping address is missing', async () => {
+    const { POST } = await import('@/app/api/shop/checkout/route')
+    const req = new Request('http://localhost/api/shop/checkout', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cart: [{ productId: 'p1', quantity: 1 }], sourceId: 'tok_test' }),
+      // no shipping field
+    })
+    expect((await POST(req)).status).toBe(400)
+  })
+
+  it('returns 400 when shipping fields are incomplete', async () => {
+    const { POST } = await import('@/app/api/shop/checkout/route')
+    const req = new Request('http://localhost/api/shop/checkout', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cart: [{ productId: 'p1', quantity: 1 }],
+        sourceId: 'tok_test',
+        shipping: { name: 'Jane' }, // missing required fields
+      }),
+    })
+    expect((await POST(req)).status).toBe(400)
+  })
 })
