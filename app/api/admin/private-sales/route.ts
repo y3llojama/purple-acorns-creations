@@ -78,6 +78,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to create private sale' }, { status: 500 })
   }
 
-  const url = `${process.env.NEXT_PUBLIC_SITE_URL}/private-sale/${sale.token}`
+  const origin = new URL(request.url).origin
+  const url = `${origin}/private-sale/${sale.token}`
   return NextResponse.json({ id: sale.id, token: sale.token, expiresAt: sale.expires_at, url }, { status: 201 })
 }
