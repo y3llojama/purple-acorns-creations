@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { sanitizeText } from '@/lib/sanitize'
-import { clampLength } from '@/lib/validate'
+import { clampLength, isValidHttpsUrl } from '@/lib/validate'
 import { decryptSettings } from '@/lib/crypto'
 import { parseFromEmail, verifyInboundHmac } from './helpers'
 
@@ -25,7 +25,7 @@ async function uploadInboundAttachments(
         .upload(path, buffer, { contentType: att.content_type })
       if (error) continue
       const { data } = supabase.storage.from('messages').getPublicUrl(path)
-      urls.push(data.publicUrl)
+      if (isValidHttpsUrl(data.publicUrl)) urls.push(data.publicUrl)
     } catch {
       // skip malformed attachment silently
     }
