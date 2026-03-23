@@ -43,7 +43,21 @@ interface DiscoveredMarket {
   application_process?: string
 }
 
-type Discovered = DiscoveredFair | DiscoveredVenue | DiscoveredMarket
+interface DiscoveredFest {
+  type: 'fest'
+  name: string
+  location: string
+  website_url?: string
+  instagram_url?: string
+  years_in_operation?: string
+  avg_artists?: string
+  avg_shoppers?: string
+  typical_months?: string
+  fiber_focus?: string
+  accepts_non_fiber?: string
+}
+
+type Discovered = DiscoveredFair | DiscoveredVenue | DiscoveredMarket | DiscoveredFest
 
 const SEARCH_QUERIES = [
   'craft fair "New England" 2026 artists vendors Massachusetts Rhode Island Connecticut',
@@ -52,6 +66,7 @@ const SEARCH_QUERIES = [
   'craft market holiday 2025 2026 Massachusetts "vendor applications"',
   '"artist venue" OR "maker market" OR "pop-up market" Boston Providence Portland Maine',
   '"artisan market" OR "flea market" weekly monthly New England vendor application 2026',
+  'fiber festival "sheep and wool" OR "fiber arts" New England Massachusetts Vermont "vendor application"',
 ]
 
 async function tavilySearch(apiKey: string, query: string): Promise<SearchResult[]> {
@@ -145,6 +160,9 @@ Classify each result as one of three types:
 3. Recurring pop-up or outdoor markets (weekly/monthly markets, flea markets, artisan markets):
    { "type": "market", "name": "", "location": "city, state", "website_url": "https://...", "instagram_url": "https://...", "frequency": "weekly|monthly|bi-weekly|etc", "typical_months": "", "vendor_fee": "e.g. $50/day", "avg_vendors": "e.g. 60–80", "avg_shoppers": "e.g. 2,000+", "application_process": "brief description" }
 
+4. Fiber arts festivals (sheep & wool festivals, knitting/crochet events, fiber fests):
+   { "type": "fest", "name": "", "location": "city, state", "website_url": "https://...", "instagram_url": "https://...", "years_in_operation": "", "avg_artists": "", "avg_shoppers": "", "typical_months": "", "fiber_focus": "e.g. sheep & wool, knitting/crochet, all fiber arts", "accepts_non_fiber": "yes|no|jewelry ok|check with organizers" }
+
 Search results:
 ${snippets}
 
@@ -225,6 +243,20 @@ Return a single JSON array containing all found venues. Omit fields you have no 
         application_process: item.application_process ? sanitizeText(clampLength(item.application_process, 500)) || null : null,
       })
       if (insertError) { console.error('[markets-discovery] insert market error:', insertError); continue }
+      added++
+    } else if (item.type === 'fest') {
+      const { data: existing } = await supabase.from('fiber_festivals').select('id').ilike('name', name).maybeSingle()
+      if (existing) { skipped++; continue }
+      const { error: insertError } = await supabase.from('fiber_festivals').insert({
+        name, location, website_url, instagram_url,
+        years_in_operation: item.years_in_operation ? sanitizeText(clampLength(item.years_in_operation, 100)) || null : null,
+        avg_artists: item.avg_artists ? sanitizeText(clampLength(item.avg_artists, 100)) || null : null,
+        avg_shoppers: item.avg_shoppers ? sanitizeText(clampLength(item.avg_shoppers, 100)) || null : null,
+        typical_months: item.typical_months ? sanitizeText(clampLength(item.typical_months, 200)) || null : null,
+        fiber_focus: item.fiber_focus ? sanitizeText(clampLength(item.fiber_focus, 200)) || null : null,
+        accepts_non_fiber: item.accepts_non_fiber ? sanitizeText(clampLength(item.accepts_non_fiber, 200)) || null : null,
+      })
+      if (insertError) { console.error('[markets-discovery] insert fest error:', insertError); continue }
       added++
     }
   }

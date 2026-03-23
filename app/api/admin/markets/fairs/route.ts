@@ -8,10 +8,11 @@ export async function GET() {
   const { error } = await requireAdminSession()
   if (error) return error
   const supabase = createServiceRoleClient()
-  const [{ data: fairs }, { data: venues }, { data: markets }] = await Promise.all([
+  const [{ data: fairs }, { data: venues }, { data: markets }, { data: fests }] = await Promise.all([
     supabase.from('craft_fairs').select('id'),
     supabase.from('artist_venues').select('id'),
     supabase.from('recurring_markets').select('id'),
+    supabase.from('fiber_festivals').select('id'),
   ])
-  return NextResponse.json([...(fairs ?? []), ...(venues ?? []), ...(markets ?? [])])
+  return NextResponse.json([...(fairs ?? []), ...(venues ?? []), ...(markets ?? []), ...(fests ?? [])])
 }

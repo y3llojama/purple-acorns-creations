@@ -2,16 +2,17 @@ import { createServiceRoleClient } from '@/lib/supabase/server'
 import MarketsManager from '@/components/admin/MarketsManager'
 import { DiscoveryProvider } from '@/components/admin/DiscoveryProvider'
 import DiscoveryBanner from '@/components/admin/DiscoveryBanner'
-import type { CraftFair, ArtistVenue, RecurringMarket } from '@/lib/supabase/types'
+import type { CraftFair, ArtistVenue, RecurringMarket, FiberFestival } from '@/lib/supabase/types'
 
 export const metadata = { title: 'Admin — Markets' }
 
 export default async function MarketsAdminPage() {
   const supabase = createServiceRoleClient()
-  const [{ data: craft_fairs }, { data: artist_venues }, { data: recurring_markets }] = await Promise.all([
+  const [{ data: craft_fairs }, { data: artist_venues }, { data: recurring_markets }, { data: fiber_festivals }] = await Promise.all([
     supabase.from('craft_fairs').select('*').order('name'),
     supabase.from('artist_venues').select('*').order('name'),
     supabase.from('recurring_markets').select('*').order('name'),
+    supabase.from('fiber_festivals').select('*').order('name'),
   ])
   return (
     <DiscoveryProvider
@@ -24,6 +25,7 @@ export default async function MarketsAdminPage() {
         initialFairs={(craft_fairs ?? []) as CraftFair[]}
         initialVenues={(artist_venues ?? []) as ArtistVenue[]}
         initialMarkets={(recurring_markets ?? []) as RecurringMarket[]}
+        initialFests={(fiber_festivals ?? []) as FiberFestival[]}
       />
     </DiscoveryProvider>
   )

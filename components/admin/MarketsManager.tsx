@@ -3,9 +3,9 @@ import { useState, useMemo } from 'react'
 import ConfirmDialog from './ConfirmDialog'
 import { useDiscovery } from './DiscoveryProvider'
 import { isValidHttpsUrl } from '@/lib/validate'
-import type { CraftFair, ArtistVenue, RecurringMarket } from '@/lib/supabase/types'
+import type { CraftFair, ArtistVenue, RecurringMarket, FiberFestival } from '@/lib/supabase/types'
 
-type Tab = 'fairs' | 'venues' | 'markets'
+type Tab = 'fairs' | 'venues' | 'markets' | 'fests'
 type SortDir = 'asc' | 'desc'
 
 const emptyFairForm = {
@@ -20,15 +20,22 @@ const emptyMarketForm = {
   name: '', location: '', website_url: '', instagram_url: '',
   frequency: '', typical_months: '', vendor_fee: '', avg_vendors: '', avg_shoppers: '', application_process: '', notes: '',
 }
+const emptyFestForm = {
+  name: '', location: '', website_url: '', instagram_url: '',
+  years_in_operation: '', avg_artists: '', avg_shoppers: '', typical_months: '',
+  fiber_focus: '', accepts_non_fiber: '', notes: '',
+}
 
 type FairForm = typeof emptyFairForm
 type VenueForm = typeof emptyVenueForm
 type MarketForm = typeof emptyMarketForm
+type FestForm = typeof emptyFestForm
 
 interface Props {
   initialFairs: CraftFair[]
   initialVenues: ArtistVenue[]
   initialMarkets: RecurringMarket[]
+  initialFests: FiberFestival[]
 }
 
 function matches(obj: Record<string, unknown>, q: string): boolean {
@@ -52,6 +59,7 @@ function sortRows<T extends Record<string, unknown>>(rows: T[], col: keyof T | n
 const emptyFairFilters = { state: '', month: '', completeness: '' }
 const emptyVenueFilters = { state: '', model: '', completeness: '' }
 const emptyMarketFilters = { state: '', frequency: '', completeness: '' }
+const emptyFestFilters = { state: '', fiberFocus: '', completeness: '' }
 
 function fairCompleteness(f: CraftFair): 'complete' | 'sparse' {
   const filled = [f.years_in_operation, f.avg_artists, f.avg_shoppers, f.typical_months].filter(v => v?.trim()).length
@@ -65,23 +73,30 @@ function marketCompleteness(m: RecurringMarket): 'complete' | 'sparse' {
   const filled = [m.frequency, m.typical_months, m.vendor_fee, m.avg_vendors, m.avg_shoppers, m.application_process].filter(v => v?.trim()).length
   return filled >= 4 ? 'complete' : 'sparse'
 }
+function festCompleteness(f: FiberFestival): 'complete' | 'sparse' {
+  const filled = [f.years_in_operation, f.avg_artists, f.avg_shoppers, f.typical_months, f.fiber_focus, f.accepts_non_fiber].filter(v => v?.trim()).length
+  return filled >= 4 ? 'complete' : 'sparse'
+}
 
-export default function MarketsManager({ initialFairs, initialVenues, initialMarkets }: Props) {
+export default function MarketsManager({ initialFairs, initialVenues, initialMarkets, initialFests }: Props) {
   const [fairs, setFairs] = useState<CraftFair[]>(initialFairs)
   const [venues, setVenues] = useState<ArtistVenue[]>(initialVenues)
   const [markets, setMarkets] = useState<RecurringMarket[]>(initialMarkets)
+  const [fests, setFests] = useState<FiberFestival[]>(initialFests)
   const [tab, setTab] = useState<Tab>('fairs')
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [fairForm, setFairForm] = useState<FairForm>(emptyFairForm)
   const [venueForm, setVenueForm] = useState<VenueForm>(emptyVenueForm)
   const [marketForm, setMarketForm] = useState<MarketForm>(emptyMarketForm)
+  const [festForm, setFestForm] = useState<FestForm>(emptyFestForm)
   const [editId, setEditId] = useState<string | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; table: 'fairs' | 'venues' | 'markets' } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; table: 'fairs' | 'venues' | 'markets' | 'fests' } | null>(null)
   const [status, setStatus] = useState<'idle' | 'saving' | 'error'>('idle')
   const [fairFilters, setFairFilters] = useState(emptyFairFilters)
   const [venueFilters, setVenueFilters] = useState(emptyVenueFilters)
   const [marketFilters, setMarketFilters] = useState(emptyMarketFilters)
+  const [festFilters, setFestFilters] = useState(emptyFestFilters)
   const { state: discoverState, startDiscovery } = useDiscovery()
 
   // Unique filter options derived from full (unfiltered) arrays
@@ -112,6 +127,14 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
     () => [...new Set(markets.map(m => m.frequency ?? '').filter(Boolean))].sort(),
     [markets]
   )
+  const festStates = useMemo(
+    () => [...new Set(fests.map(f => f.location.split(', ').at(-1) ?? '').filter(Boolean))].sort(),
+    [fests]
+  )
+  const festFocuses = useMemo(
+    () => [...new Set(fests.map(f => f.fiber_focus ?? '').filter(Boolean))].sort(),
+    [fests]
+  )
 
   const filteredFairs = useMemo(() => fairs.filter(f => {
     if (!matches(f as unknown as Record<string, unknown>, search)) return false
@@ -137,11 +160,19 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
     return true
   }), [markets, search, marketFilters])
 
+  const filteredFests = useMemo(() => fests.filter(f => {
+    if (!matches(f as unknown as Record<string, unknown>, search)) return false
+    if (festFilters.state && f.location.split(', ').at(-1) !== festFilters.state) return false
+    if (festFilters.fiberFocus && f.fiber_focus !== festFilters.fiberFocus) return false
+    if (festFilters.completeness && festCompleteness(f) !== festFilters.completeness) return false
+    return true
+  }), [fests, search, festFilters])
+
   function switchTab(t: Tab) {
     setTab(t)
     setShowForm(false); setEditId(null)
-    setFairForm(emptyFairForm); setVenueForm(emptyVenueForm); setMarketForm(emptyMarketForm); setStatus('idle')
-    setFairFilters(emptyFairFilters); setVenueFilters(emptyVenueFilters); setMarketFilters(emptyMarketFilters)
+    setFairForm(emptyFairForm); setVenueForm(emptyVenueForm); setMarketForm(emptyMarketForm); setFestForm(emptyFestForm); setStatus('idle')
+    setFairFilters(emptyFairFilters); setVenueFilters(emptyVenueFilters); setMarketFilters(emptyMarketFilters); setFestFilters(emptyFestFilters)
   }
 
   function fairField(k: keyof FairForm) {
@@ -163,6 +194,13 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
       value: marketForm[k],
       onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
         setMarketForm(f => ({ ...f, [k]: e.target.value })),
+    }
+  }
+  function festField(k: keyof FestForm) {
+    return {
+      value: festForm[k],
+      onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+        setFestForm(f => ({ ...f, [k]: e.target.value })),
     }
   }
 
@@ -207,9 +245,23 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  function handleEditFest(fest: FiberFestival) {
+    setEditId(fest.id)
+    setFestForm({
+      name: fest.name, location: fest.location,
+      website_url: fest.website_url ?? '', instagram_url: fest.instagram_url ?? '',
+      years_in_operation: fest.years_in_operation ?? '', avg_artists: fest.avg_artists ?? '',
+      avg_shoppers: fest.avg_shoppers ?? '', typical_months: fest.typical_months ?? '',
+      fiber_focus: fest.fiber_focus ?? '', accepts_non_fiber: fest.accepts_non_fiber ?? '',
+      notes: fest.notes ?? '',
+    })
+    setShowForm(true); setStatus('idle')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   function handleCancelForm() {
     setShowForm(false); setEditId(null)
-    setFairForm(emptyFairForm); setVenueForm(emptyVenueForm); setMarketForm(emptyMarketForm); setStatus('idle')
+    setFairForm(emptyFairForm); setVenueForm(emptyVenueForm); setMarketForm(emptyMarketForm); setFestForm(emptyFestForm); setStatus('idle')
   }
 
   async function handleSaveFair(e: React.FormEvent) {
@@ -272,6 +324,26 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
     } catch { setStatus('error') }
   }
 
+  async function handleSaveFest(e: React.FormEvent) {
+    e.preventDefault(); setStatus('saving')
+    const website_url = festForm.website_url && isValidHttpsUrl(festForm.website_url) ? festForm.website_url : undefined
+    const instagram_url = festForm.instagram_url && isValidHttpsUrl(festForm.instagram_url) ? festForm.instagram_url : undefined
+    const body = { ...festForm, website_url, instagram_url }
+    try {
+      if (editId) {
+        const res = await fetch('/api/admin/markets?table=fests', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editId, ...body }) })
+        if (!res.ok) { setStatus('error'); return }
+        setFests(fs => fs.map(f => f.id === editId ? { ...f, ...festForm, website_url: website_url ?? null, instagram_url: instagram_url ?? null } : f))
+      } else {
+        const res = await fetch('/api/admin/markets?table=fests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        if (!res.ok) { setStatus('error'); return }
+        const newFest = await res.json()
+        setFests(fs => [...fs, newFest])
+      }
+      handleCancelForm()
+    } catch { setStatus('error') }
+  }
+
   async function handleDelete() {
     if (!deleteTarget) return
     try {
@@ -279,7 +351,8 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
       if (!res.ok) { setDeleteTarget(null); return }
       if (deleteTarget.table === 'fairs') setFairs(fs => fs.filter(f => f.id !== deleteTarget.id))
       else if (deleteTarget.table === 'venues') setVenues(vs => vs.filter(v => v.id !== deleteTarget.id))
-      else setMarkets(ms => ms.filter(m => m.id !== deleteTarget.id))
+      else if (deleteTarget.table === 'markets') setMarkets(ms => ms.filter(m => m.id !== deleteTarget.id))
+      else setFests(fs => fs.filter(f => f.id !== deleteTarget.id))
     } catch { /* keep in list */ }
     setDeleteTarget(null)
   }
@@ -292,11 +365,13 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
   const hasFairFilters = fairFilters.state !== '' || fairFilters.month !== '' || fairFilters.completeness !== ''
   const hasVenueFilters = venueFilters.state !== '' || venueFilters.model !== '' || venueFilters.completeness !== ''
   const hasMarketFilters = marketFilters.state !== '' || marketFilters.frequency !== '' || marketFilters.completeness !== ''
+  const hasFestFilters = festFilters.state !== '' || festFilters.fiberFocus !== '' || festFilters.completeness !== ''
 
   const tabLabel: Record<Tab, string> = {
     fairs: `Craft Fairs (${fairs.length})`,
     venues: `Stores & Collectives (${venues.length})`,
     markets: `Recurring Markets (${markets.length})`,
+    fests: `Fiber Festivals (${fests.length})`,
   }
 
   return (
@@ -323,7 +398,7 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
 
       {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: '2px solid var(--color-border)', marginBottom: '20px' }}>
-        {(['fairs', 'venues', 'markets'] as Tab[]).map(t => (
+        {(['fairs', 'venues', 'markets', 'fests'] as Tab[]).map(t => (
           <button key={t} onClick={() => switchTab(t)} style={{
             background: 'none', border: 'none',
             borderBottom: tab === t ? '3px solid var(--color-primary)' : '3px solid transparent',
@@ -401,6 +476,30 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
           {status === 'error' && <p role="alert" style={{ color: '#c05050', marginTop: '8px' }}>Error saving. Please try again.</p>}
           <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
             <button type="submit" disabled={status === 'saving'} style={btnPrimary}>{status === 'saving' ? 'Saving…' : 'Save Market'}</button>
+            <button type="button" onClick={handleCancelForm} style={btnOutline}>Cancel</button>
+          </div>
+        </form>
+      )}
+
+      {showForm && tab === 'fests' && (
+        <form onSubmit={handleSaveFest} style={{ background: 'var(--color-surface)', padding: '24px', borderRadius: '8px', marginBottom: '24px', border: '1px solid var(--color-border)' }}>
+          <h2 style={{ fontSize: '18px', marginBottom: '16px' }}>{editId ? 'Edit Fiber Festival' : 'New Fiber Festival'}</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div><label htmlFor="fest-name" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Name *</label><input id="fest-name" required {...festField('name')} style={inputStyle} /></div>
+            <div><label htmlFor="fest-location" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Location *</label><input id="fest-location" required {...festField('location')} placeholder="City, State" style={inputStyle} /></div>
+            <div><label htmlFor="fest-website" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Website (https://...)</label><input id="fest-website" {...festField('website_url')} placeholder="https://..." style={inputStyle} /></div>
+            <div><label htmlFor="fest-ig" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Instagram (https://...)</label><input id="fest-ig" {...festField('instagram_url')} placeholder="https://www.instagram.com/..." style={inputStyle} /></div>
+            <div><label htmlFor="fest-years" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Years in Operation</label><input id="fest-years" {...festField('years_in_operation')} placeholder="e.g. est. 1994" style={inputStyle} /></div>
+            <div><label htmlFor="fest-artists" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Avg Artists/Vendors</label><input id="fest-artists" {...festField('avg_artists')} placeholder="e.g. 100–150" style={inputStyle} /></div>
+            <div><label htmlFor="fest-shoppers" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Avg Shoppers</label><input id="fest-shoppers" {...festField('avg_shoppers')} placeholder="e.g. 10,000+" style={inputStyle} /></div>
+            <div><label htmlFor="fest-months" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Typical Month(s)</label><input id="fest-months" {...festField('typical_months')} placeholder="e.g. May, October" style={inputStyle} /></div>
+            <div><label htmlFor="fest-focus" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Fiber Focus</label><input id="fest-focus" {...festField('fiber_focus')} placeholder="e.g. sheep & wool, knitting/crochet, all fiber arts" style={inputStyle} /></div>
+            <div><label htmlFor="fest-non-fiber" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Accepts Non-Fiber?</label><input id="fest-non-fiber" {...festField('accepts_non_fiber')} placeholder="e.g. yes, no, jewelry ok" style={inputStyle} /></div>
+          </div>
+          <div style={{ marginTop: '16px' }}><label htmlFor="fest-notes" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Notes</label><textarea id="fest-notes" rows={3} {...festField('notes')} placeholder="Application notes, past experience, contact info…" style={inputStyle} /></div>
+          {status === 'error' && <p role="alert" style={{ color: '#c05050', marginTop: '8px' }}>Error saving. Please try again.</p>}
+          <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+            <button type="submit" disabled={status === 'saving'} style={btnPrimary}>{status === 'saving' ? 'Saving…' : 'Save Festival'}</button>
             <button type="button" onClick={handleCancelForm} style={btnOutline}>Cancel</button>
           </div>
         </form>
@@ -486,10 +585,38 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
         </div>
       )}
 
+      {tab === 'fests' && (
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '16px' }}>
+          {festStates.length > 0 && (
+            <select value={festFilters.state} onChange={e => setFestFilters(f => ({ ...f, state: e.target.value }))} style={selectStyle} aria-label="Filter by state">
+              <option value="">All states</option>
+              {festStates.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
+          {festFocuses.length > 0 && (
+            <select value={festFilters.fiberFocus} onChange={e => setFestFilters(f => ({ ...f, fiberFocus: e.target.value }))} style={selectStyle} aria-label="Filter by fiber focus">
+              <option value="">All fiber focus</option>
+              {festFocuses.map(fc => <option key={fc} value={fc}>{fc}</option>)}
+            </select>
+          )}
+          <select value={festFilters.completeness} onChange={e => setFestFilters(f => ({ ...f, completeness: e.target.value }))} style={selectStyle} aria-label="Filter by completeness">
+            <option value="">All info levels</option>
+            <option value="complete">Info complete</option>
+            <option value="sparse">Needs info</option>
+          </select>
+          {hasFestFilters && (
+            <button onClick={() => setFestFilters(emptyFestFilters)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', fontSize: '13px', cursor: 'pointer', padding: '4px 8px', textDecoration: 'underline' }}>
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Tables */}
       {tab === 'fairs' && <FairsTable fairs={filteredFairs} search={search} hasFilters={hasFairFilters} onEdit={handleEditFair} onDelete={id => setDeleteTarget({ id, table: 'fairs' })} />}
       {tab === 'venues' && <VenuesTable venues={filteredVenues} search={search} hasFilters={hasVenueFilters} onEdit={handleEditVenue} onDelete={id => setDeleteTarget({ id, table: 'venues' })} />}
       {tab === 'markets' && <RecurringMarketsTable markets={filteredMarkets} search={search} hasFilters={hasMarketFilters} onEdit={handleEditMarket} onDelete={id => setDeleteTarget({ id, table: 'markets' })} />}
+      {tab === 'fests' && <FiberFestivalsTable fests={filteredFests} search={search} hasFilters={hasFestFilters} onEdit={handleEditFest} onDelete={id => setDeleteTarget({ id, table: 'fests' })} />}
 
       {deleteTarget && (
         <ConfirmDialog
@@ -530,6 +657,7 @@ const actionBtnBase: React.CSSProperties = { background: 'none', padding: '6px 1
 type FairSortCol = keyof Pick<CraftFair, 'name' | 'location' | 'years_in_operation' | 'avg_artists' | 'avg_shoppers' | 'typical_months' | 'notes'>
 type VenueSortCol = keyof Pick<ArtistVenue, 'name' | 'location' | 'hosting_model' | 'commission_rate' | 'booth_fee' | 'avg_shoppers' | 'application_process' | 'notes'>
 type MarketSortCol = keyof Pick<RecurringMarket, 'name' | 'location' | 'frequency' | 'typical_months' | 'vendor_fee' | 'avg_vendors' | 'avg_shoppers' | 'application_process' | 'notes'>
+type FestSortCol = keyof Pick<FiberFestival, 'name' | 'location' | 'years_in_operation' | 'avg_artists' | 'avg_shoppers' | 'typical_months' | 'fiber_focus' | 'accepts_non_fiber' | 'notes'>
 
 function FairsTable({ fairs, search, hasFilters, onEdit, onDelete }: { fairs: CraftFair[]; search: string; hasFilters: boolean; onEdit: (f: CraftFair) => void; onDelete: (id: string) => void }) {
   const [sortCol, setSortCol] = useState<FairSortCol | null>(null)
@@ -636,6 +764,65 @@ function VenuesTable({ venues, search, hasFilters, onEdit, onDelete }: { venues:
               <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                 <button onClick={() => onEdit(v)} aria-label={`Edit ${v.name}`} style={{ ...actionBtnBase, border: '1px solid var(--color-primary)', color: 'var(--color-primary)', marginRight: '6px' }}>Edit</button>
                 <button onClick={() => onDelete(v.id)} aria-label={`Delete ${v.name}`} style={{ ...actionBtnBase, border: '1px solid #c05050', color: '#c05050' }}>Delete</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function FiberFestivalsTable({ fests, search, hasFilters, onEdit, onDelete }: { fests: FiberFestival[]; search: string; hasFilters: boolean; onEdit: (f: FiberFestival) => void; onDelete: (id: string) => void }) {
+  const [sortCol, setSortCol] = useState<FestSortCol | null>(null)
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  function handleSort(col: string) {
+    const c = col as FestSortCol
+    if (sortCol === c) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortCol(c); setSortDir('asc') }
+  }
+  const sorted = useMemo(
+    () => sortRows(fests as unknown as Record<string, unknown>[], sortCol, sortDir) as unknown as FiberFestival[],
+    [fests, sortCol, sortDir]
+  )
+  if (sorted.length === 0) return <p style={{ color: 'var(--color-text-muted)', fontSize: '16px' }}>{(search || hasFilters) ? 'No fiber festivals match your search or filters.' : 'No fiber festivals yet. Click "+ Add New" to add one.'}</p>
+  const thProps = { sortCol, sortDir, onSort: handleSort }
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+        <thead>
+          <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
+            <SortTh label="Name" col="name" {...thProps} />
+            <SortTh label="Location" col="location" {...thProps} />
+            <th style={{ padding: '8px 12px', fontWeight: '600' }}>Links</th>
+            <SortTh label="Est." col="years_in_operation" {...thProps} />
+            <SortTh label="Artists" col="avg_artists" {...thProps} />
+            <SortTh label="Shoppers" col="avg_shoppers" {...thProps} />
+            <SortTh label="Month(s)" col="typical_months" {...thProps} />
+            <SortTh label="Fiber Focus" col="fiber_focus" {...thProps} />
+            <SortTh label="Non-Fiber?" col="accepts_non_fiber" {...thProps} />
+            <SortTh label="Notes" col="notes" {...thProps} />
+            <th style={{ padding: '8px 12px', fontWeight: '600' }}>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map(f => (
+            <tr key={f.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+              <td style={{ padding: '10px 12px', fontWeight: '500', color: 'var(--color-primary)' }}>{f.name}</td>
+              <td style={{ padding: '10px 12px' }}>{f.location}</td>
+              <td style={{ padding: '10px 12px' }}><LinkButtons website_url={f.website_url} instagram_url={f.instagram_url} /></td>
+              <td style={{ padding: '10px 12px' }}>{f.years_in_operation ?? '—'}</td>
+              <td style={{ padding: '10px 12px' }}>{f.avg_artists ?? '—'}</td>
+              <td style={{ padding: '10px 12px' }}>{f.avg_shoppers ?? '—'}</td>
+              <td style={{ padding: '10px 12px' }}>{f.typical_months ?? '—'}</td>
+              <td style={{ padding: '10px 12px' }}>{f.fiber_focus ?? '—'}</td>
+              <td style={{ padding: '10px 12px' }}>{f.accepts_non_fiber ?? '—'}</td>
+              <td style={{ padding: '10px 12px', maxWidth: '160px' }}>
+                <span title={f.notes ?? undefined} style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{f.notes ?? '—'}</span>
+              </td>
+              <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                <button onClick={() => onEdit(f)} aria-label={`Edit ${f.name}`} style={{ ...actionBtnBase, border: '1px solid var(--color-primary)', color: 'var(--color-primary)', marginRight: '6px' }}>Edit</button>
+                <button onClick={() => onDelete(f.id)} aria-label={`Delete ${f.name}`} style={{ ...actionBtnBase, border: '1px solid #c05050', color: '#c05050' }}>Delete</button>
               </td>
             </tr>
           ))}

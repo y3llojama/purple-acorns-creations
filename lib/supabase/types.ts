@@ -173,6 +173,23 @@ export interface ArtistVenue {
   updated_at: string
 }
 
+export interface FiberFestival {
+  id: string
+  name: string
+  location: string
+  website_url: string | null
+  instagram_url: string | null
+  years_in_operation: string | null
+  avg_artists: string | null
+  avg_shoppers: string | null
+  typical_months: string | null
+  fiber_focus: string | null
+  accepts_non_fiber: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface RecurringMarket {
   id: string
   name: string
