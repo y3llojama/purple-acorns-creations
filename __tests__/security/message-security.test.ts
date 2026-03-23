@@ -100,4 +100,7 @@ describe('Image attachment validation', () => {
   it('rejects non-image', () => {
     expect(validateImageAttachment(makeFile('application/pdf', 100))).toMatch(/not allowed/)
   })
+  it('rejects file with no MIME type', () => {
+    expect(validateImageAttachment(makeFile('', 100))).toMatch(/not allowed/)
+  })
 })
