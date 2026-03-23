@@ -92,6 +92,7 @@ export interface MessageReply {
   direction: 'outbound' | 'inbound'
   from_email: string | null
   resend_message_id: string | null
+  attachments: string[]   // ← add this
   created_at: string
 }
 

@@ -1,5 +1,5 @@
 import { sanitizeText } from '@/lib/sanitize'
-import { stripControlChars, isValidUuid, isValidEmail, clampLength } from '@/lib/validate'
+import { stripControlChars, isValidUuid, isValidEmail, clampLength, validateImageAttachment, MESSAGE_ATTACHMENT_MAX_SIZE } from '@/lib/validate'
 
 describe('Message security — input sanitization', () => {
   describe('XSS prevention', () => {
@@ -77,5 +77,27 @@ describe('Message security — input sanitization', () => {
     it('clamps reply to 5000', () => {
       expect(clampLength('C'.repeat(100000), 5000).length).toBe(5000)
     })
+  })
+})
+
+describe('Image attachment validation', () => {
+  function makeFile(type: string, size: number): File {
+    return new File(['x'.repeat(size)], 'test.jpg', { type })
+  }
+
+  it('accepts JPEG under 5MB', () => {
+    expect(validateImageAttachment(makeFile('image/jpeg', 100))).toBeNull()
+  })
+  it('accepts PNG under 5MB', () => {
+    expect(validateImageAttachment(makeFile('image/png', 100))).toBeNull()
+  })
+  it('rejects SVG', () => {
+    expect(validateImageAttachment(makeFile('image/svg+xml', 100))).toMatch(/not allowed/)
+  })
+  it('rejects file over 5MB', () => {
+    expect(validateImageAttachment(makeFile('image/jpeg', MESSAGE_ATTACHMENT_MAX_SIZE + 1))).toMatch(/5MB/)
+  })
+  it('rejects non-image', () => {
+    expect(validateImageAttachment(makeFile('application/pdf', 100))).toMatch(/not allowed/)
   })
 })

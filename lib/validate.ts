@@ -26,3 +26,13 @@ export function stripControlChars(str: string): string {
 export function isValidUuid(str: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)
 }
+
+export const MESSAGE_ATTACHMENT_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+export const MESSAGE_ATTACHMENT_MAX_SIZE = 5 * 1024 * 1024 // 5 MB
+
+export function validateImageAttachment(file: File): string | null {
+  if (!MESSAGE_ATTACHMENT_ALLOWED_TYPES.includes(file.type))
+    return 'File type not allowed. Only JPEG, PNG, WebP, and GIF images are allowed.'
+  if (file.size > MESSAGE_ATTACHMENT_MAX_SIZE) return 'Image must be under 5MB.'
+  return null
+}

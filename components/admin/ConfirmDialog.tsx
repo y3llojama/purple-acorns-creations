@@ -1,9 +1,9 @@
 'use client'
 import { useEffect, useRef } from 'react'
 
-interface Props { message: string; onConfirm: () => void; onCancel: () => void }
+interface Props { message: string; onConfirm: () => void; onCancel: () => void; confirmLabel?: string }
 
-export default function ConfirmDialog({ message, onConfirm, onCancel }: Props) {
+export default function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
 
@@ -39,7 +39,7 @@ export default function ConfirmDialog({ message, onConfirm, onCancel }: Props) {
         <p id="confirm-msg" style={{ fontSize: '18px', marginBottom: '24px', color: 'var(--color-text)' }}>{message}</p>
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
           <button onClick={onCancel} style={{ padding: '12px 24px', fontSize: '18px', border: '2px solid var(--color-primary)', background: 'transparent', color: 'var(--color-primary)', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}>Cancel</button>
-          <button onClick={onConfirm} style={{ padding: '12px 24px', fontSize: '18px', border: 'none', background: '#c05050', color: '#fff', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}>Delete</button>
+          <button onClick={onConfirm} style={{ padding: '12px 24px', fontSize: '18px', border: 'none', background: '#c05050', color: '#fff', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}>{confirmLabel ?? 'Delete'}</button>
         </div>
       </div>
     </div>
