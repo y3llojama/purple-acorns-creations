@@ -104,9 +104,13 @@ export default function PrivateSaleForm() {
 
   async function handleCopyUrl() {
     if (!generatedUrl) return
-    await navigator.clipboard.writeText(generatedUrl)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      await navigator.clipboard.writeText(generatedUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setError('Could not copy URL — please copy it manually.')
+    }
   }
 
   const selectedIds = new Set(selectedProducts.map(s => s.product.id))
