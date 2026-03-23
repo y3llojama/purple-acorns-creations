@@ -141,3 +141,30 @@ export interface ChannelSyncLog {
   error: string | null
   created_at: string
 }
+
+export interface CraftFair {
+  id: string
+  name: string
+  location: string
+  website_url: string | null
+  instagram_url: string | null
+  years_in_operation: string | null
+  avg_artists: string | null
+  avg_shoppers: string | null
+  typical_months: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ArtistVenue {
+  id: string
+  name: string
+  location: string
+  website_url: string | null
+  instagram_url: string | null
+  hosting_model: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
