@@ -220,6 +220,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
         <ImageUploader
           bucket="products"
           label="Upload Product Image"
+          quickSnapLabel={name}
           onUpload={async (url) => { await handleUpload(url) }}
         />
       </div>
