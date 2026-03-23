@@ -164,6 +164,10 @@ export interface ArtistVenue {
   website_url: string | null
   instagram_url: string | null
   hosting_model: string | null
+  commission_rate: string | null
+  booth_fee: string | null
+  avg_shoppers: string | null
+  application_process: string | null
   notes: string | null
   created_at: string
   updated_at: string
@@ -177,6 +181,10 @@ export interface RecurringMarket {
   instagram_url: string | null
   frequency: string | null
   typical_months: string | null
+  vendor_fee: string | null
+  avg_vendors: string | null
+  avg_shoppers: string | null
+  application_process: string | null
   notes: string | null
   created_at: string
   updated_at: string

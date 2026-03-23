@@ -23,6 +23,10 @@ interface DiscoveredVenue {
   website_url?: string
   instagram_url?: string
   hosting_model?: string
+  commission_rate?: string
+  booth_fee?: string
+  avg_shoppers?: string
+  application_process?: string
 }
 
 interface DiscoveredMarket {
@@ -33,6 +37,10 @@ interface DiscoveredMarket {
   instagram_url?: string
   frequency?: string
   typical_months?: string
+  vendor_fee?: string
+  avg_vendors?: string
+  avg_shoppers?: string
+  application_process?: string
 }
 
 type Discovered = DiscoveredFair | DiscoveredVenue | DiscoveredMarket
@@ -132,10 +140,10 @@ Classify each result as one of three types:
    { "type": "fair", "name": "", "location": "city, state", "website_url": "https://...", "instagram_url": "https://...", "years_in_operation": "", "avg_artists": "", "avg_shoppers": "", "typical_months": "" }
 
 2. Stores or collectives that host artists permanently (consignment, booth rental):
-   { "type": "venue", "name": "", "location": "city, state", "website_url": "https://...", "instagram_url": "https://...", "hosting_model": "consignment|booth rental|pop-up|etc" }
+   { "type": "venue", "name": "", "location": "city, state", "website_url": "https://...", "instagram_url": "https://...", "hosting_model": "consignment|booth rental|pop-up|etc", "commission_rate": "e.g. 35%", "booth_fee": "e.g. $150/month", "avg_shoppers": "e.g. ~500/week", "application_process": "brief description" }
 
 3. Recurring pop-up or outdoor markets (weekly/monthly markets, flea markets, artisan markets):
-   { "type": "market", "name": "", "location": "city, state", "website_url": "https://...", "instagram_url": "https://...", "frequency": "weekly|monthly|bi-weekly|etc", "typical_months": "" }
+   { "type": "market", "name": "", "location": "city, state", "website_url": "https://...", "instagram_url": "https://...", "frequency": "weekly|monthly|bi-weekly|etc", "typical_months": "", "vendor_fee": "e.g. $50/day", "avg_vendors": "e.g. 60–80", "avg_shoppers": "e.g. 2,000+", "application_process": "brief description" }
 
 Search results:
 ${snippets}
@@ -197,6 +205,10 @@ Return a single JSON array containing all found venues. Omit fields you have no 
       const { error: insertError } = await supabase.from('artist_venues').insert({
         name, location, website_url, instagram_url,
         hosting_model: item.hosting_model ? sanitizeText(clampLength(item.hosting_model, 200)) || null : null,
+        commission_rate: item.commission_rate ? sanitizeText(clampLength(item.commission_rate, 100)) || null : null,
+        booth_fee: item.booth_fee ? sanitizeText(clampLength(item.booth_fee, 100)) || null : null,
+        avg_shoppers: item.avg_shoppers ? sanitizeText(clampLength(item.avg_shoppers, 100)) || null : null,
+        application_process: item.application_process ? sanitizeText(clampLength(item.application_process, 500)) || null : null,
       })
       if (insertError) { console.error('[markets-discovery] insert venue error:', insertError); continue }
       added++
@@ -207,6 +219,10 @@ Return a single JSON array containing all found venues. Omit fields you have no 
         name, location, website_url, instagram_url,
         frequency: item.frequency ? sanitizeText(clampLength(item.frequency, 100)) || null : null,
         typical_months: item.typical_months ? sanitizeText(clampLength(item.typical_months, 200)) || null : null,
+        vendor_fee: item.vendor_fee ? sanitizeText(clampLength(item.vendor_fee, 100)) || null : null,
+        avg_vendors: item.avg_vendors ? sanitizeText(clampLength(item.avg_vendors, 100)) || null : null,
+        avg_shoppers: item.avg_shoppers ? sanitizeText(clampLength(item.avg_shoppers, 100)) || null : null,
+        application_process: item.application_process ? sanitizeText(clampLength(item.application_process, 500)) || null : null,
       })
       if (insertError) { console.error('[markets-discovery] insert market error:', insertError); continue }
       added++

@@ -62,6 +62,10 @@ export async function POST(request: Request) {
     const { data, error: dbError } = await supabase.from('artist_venues').insert({
       ...shared,
       hosting_model: body.hosting_model ? sanitizeText(clampLength(String(body.hosting_model), 200)) || null : null,
+      commission_rate: body.commission_rate ? sanitizeText(clampLength(String(body.commission_rate), 100)) || null : null,
+      booth_fee: body.booth_fee ? sanitizeText(clampLength(String(body.booth_fee), 100)) || null : null,
+      avg_shoppers: body.avg_shoppers ? sanitizeText(clampLength(String(body.avg_shoppers), 100)) || null : null,
+      application_process: body.application_process ? sanitizeText(clampLength(String(body.application_process), 500)) || null : null,
     }).select().single()
     if (dbError) return NextResponse.json({ error: 'Failed to create venue' }, { status: 500 })
     return NextResponse.json(data, { status: 201 })
@@ -70,6 +74,10 @@ export async function POST(request: Request) {
       ...shared,
       frequency: body.frequency ? sanitizeText(clampLength(String(body.frequency), 100)) || null : null,
       typical_months: body.typical_months ? sanitizeText(clampLength(String(body.typical_months), 200)) || null : null,
+      vendor_fee: body.vendor_fee ? sanitizeText(clampLength(String(body.vendor_fee), 100)) || null : null,
+      avg_vendors: body.avg_vendors ? sanitizeText(clampLength(String(body.avg_vendors), 100)) || null : null,
+      avg_shoppers: body.avg_shoppers ? sanitizeText(clampLength(String(body.avg_shoppers), 100)) || null : null,
+      application_process: body.application_process ? sanitizeText(clampLength(String(body.application_process), 500)) || null : null,
     }).select().single()
     if (dbError) return NextResponse.json({ error: 'Failed to create market' }, { status: 500 })
     return NextResponse.json(data, { status: 201 })
@@ -97,9 +105,17 @@ export async function PUT(request: Request) {
     if (fields.typical_months !== undefined) update.typical_months = fields.typical_months ? sanitizeText(clampLength(String(fields.typical_months), 200)) || null : null
   } else if (table === 'artist_venues') {
     if (fields.hosting_model !== undefined) update.hosting_model = fields.hosting_model ? sanitizeText(clampLength(String(fields.hosting_model), 200)) || null : null
+    if (fields.commission_rate !== undefined) update.commission_rate = fields.commission_rate ? sanitizeText(clampLength(String(fields.commission_rate), 100)) || null : null
+    if (fields.booth_fee !== undefined) update.booth_fee = fields.booth_fee ? sanitizeText(clampLength(String(fields.booth_fee), 100)) || null : null
+    if (fields.avg_shoppers !== undefined) update.avg_shoppers = fields.avg_shoppers ? sanitizeText(clampLength(String(fields.avg_shoppers), 100)) || null : null
+    if (fields.application_process !== undefined) update.application_process = fields.application_process ? sanitizeText(clampLength(String(fields.application_process), 500)) || null : null
   } else {
     if (fields.frequency !== undefined) update.frequency = fields.frequency ? sanitizeText(clampLength(String(fields.frequency), 100)) || null : null
     if (fields.typical_months !== undefined) update.typical_months = fields.typical_months ? sanitizeText(clampLength(String(fields.typical_months), 200)) || null : null
+    if (fields.vendor_fee !== undefined) update.vendor_fee = fields.vendor_fee ? sanitizeText(clampLength(String(fields.vendor_fee), 100)) || null : null
+    if (fields.avg_vendors !== undefined) update.avg_vendors = fields.avg_vendors ? sanitizeText(clampLength(String(fields.avg_vendors), 100)) || null : null
+    if (fields.avg_shoppers !== undefined) update.avg_shoppers = fields.avg_shoppers ? sanitizeText(clampLength(String(fields.avg_shoppers), 100)) || null : null
+    if (fields.application_process !== undefined) update.application_process = fields.application_process ? sanitizeText(clampLength(String(fields.application_process), 500)) || null : null
   }
   const supabase = createServiceRoleClient()
   const { error: dbError } = await supabase.from(table).update(update).eq('id', id)

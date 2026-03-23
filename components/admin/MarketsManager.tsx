@@ -13,10 +13,12 @@ const emptyFairForm = {
   years_in_operation: '', avg_artists: '', avg_shoppers: '', typical_months: '', notes: '',
 }
 const emptyVenueForm = {
-  name: '', location: '', website_url: '', instagram_url: '', hosting_model: '', notes: '',
+  name: '', location: '', website_url: '', instagram_url: '',
+  hosting_model: '', commission_rate: '', booth_fee: '', avg_shoppers: '', application_process: '', notes: '',
 }
 const emptyMarketForm = {
-  name: '', location: '', website_url: '', instagram_url: '', frequency: '', typical_months: '', notes: '',
+  name: '', location: '', website_url: '', instagram_url: '',
+  frequency: '', typical_months: '', vendor_fee: '', avg_vendors: '', avg_shoppers: '', application_process: '', notes: '',
 }
 
 type FairForm = typeof emptyFairForm
@@ -166,7 +168,10 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
     setVenueForm({
       name: venue.name, location: venue.location,
       website_url: venue.website_url ?? '', instagram_url: venue.instagram_url ?? '',
-      hosting_model: venue.hosting_model ?? '', notes: venue.notes ?? '',
+      hosting_model: venue.hosting_model ?? '',
+      commission_rate: venue.commission_rate ?? '', booth_fee: venue.booth_fee ?? '',
+      avg_shoppers: venue.avg_shoppers ?? '', application_process: venue.application_process ?? '',
+      notes: venue.notes ?? '',
     })
     setShowForm(true); setStatus('idle')
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -178,6 +183,8 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
       name: market.name, location: market.location,
       website_url: market.website_url ?? '', instagram_url: market.instagram_url ?? '',
       frequency: market.frequency ?? '', typical_months: market.typical_months ?? '',
+      vendor_fee: market.vendor_fee ?? '', avg_vendors: market.avg_vendors ?? '',
+      avg_shoppers: market.avg_shoppers ?? '', application_process: market.application_process ?? '',
       notes: market.notes ?? '',
     })
     setShowForm(true); setStatus('idle')
@@ -344,7 +351,11 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
             <div><label htmlFor="venue-location" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Location *</label><input id="venue-location" required {...venueField('location')} placeholder="City, State" style={inputStyle} /></div>
             <div><label htmlFor="venue-website" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Website (https://...)</label><input id="venue-website" {...venueField('website_url')} placeholder="https://..." style={inputStyle} /></div>
             <div><label htmlFor="venue-ig" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Instagram (https://...)</label><input id="venue-ig" {...venueField('instagram_url')} placeholder="https://www.instagram.com/..." style={inputStyle} /></div>
-            <div style={{ gridColumn: '1 / -1' }}><label htmlFor="venue-model" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Hosting Model</label><input id="venue-model" {...venueField('hosting_model')} placeholder="e.g. consignment, booth rental, pop-up" style={inputStyle} /></div>
+            <div><label htmlFor="venue-model" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Hosting Model</label><input id="venue-model" {...venueField('hosting_model')} placeholder="e.g. consignment, booth rental, pop-up" style={inputStyle} /></div>
+            <div><label htmlFor="venue-commission" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Commission Rate</label><input id="venue-commission" {...venueField('commission_rate')} placeholder="e.g. 35%, 40% consignment" style={inputStyle} /></div>
+            <div><label htmlFor="venue-booth-fee" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Booth Fee</label><input id="venue-booth-fee" {...venueField('booth_fee')} placeholder="e.g. $150/month, $50/day" style={inputStyle} /></div>
+            <div><label htmlFor="venue-shoppers" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Avg Shoppers</label><input id="venue-shoppers" {...venueField('avg_shoppers')} placeholder="e.g. ~500/week" style={inputStyle} /></div>
+            <div style={{ gridColumn: '1 / -1' }}><label htmlFor="venue-apply" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Application Process</label><input id="venue-apply" {...venueField('application_process')} placeholder="e.g. Email owner, 2-week review" style={inputStyle} /></div>
           </div>
           <div style={{ marginTop: '16px' }}><label htmlFor="venue-notes" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Notes</label><textarea id="venue-notes" rows={3} {...venueField('notes')} placeholder="Current relationship, past experience, contact info…" style={inputStyle} /></div>
           {status === 'error' && <p role="alert" style={{ color: '#c05050', marginTop: '8px' }}>Error saving. Please try again.</p>}
@@ -365,8 +376,12 @@ export default function MarketsManager({ initialFairs, initialVenues, initialMar
             <div><label htmlFor="market-ig" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Instagram (https://...)</label><input id="market-ig" {...marketField('instagram_url')} placeholder="https://www.instagram.com/..." style={inputStyle} /></div>
             <div><label htmlFor="market-frequency" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Frequency</label><input id="market-frequency" {...marketField('frequency')} placeholder="e.g. Weekly (Sundays), Monthly" style={inputStyle} /></div>
             <div><label htmlFor="market-months" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Typical Month(s)</label><input id="market-months" {...marketField('typical_months')} placeholder="e.g. May–October, Year-round" style={inputStyle} /></div>
+            <div><label htmlFor="market-fee" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Vendor Fee</label><input id="market-fee" {...marketField('vendor_fee')} placeholder="e.g. $50/day, $75/weekend" style={inputStyle} /></div>
+            <div><label htmlFor="market-vendors" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Avg Vendors</label><input id="market-vendors" {...marketField('avg_vendors')} placeholder="e.g. 60–80" style={inputStyle} /></div>
+            <div><label htmlFor="market-shoppers" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Avg Shoppers</label><input id="market-shoppers" {...marketField('avg_shoppers')} placeholder="e.g. 2,000+" style={inputStyle} /></div>
+            <div><label htmlFor="market-apply" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Application Process</label><input id="market-apply" {...marketField('application_process')} placeholder="e.g. Online signup, rolling basis" style={inputStyle} /></div>
           </div>
-          <div style={{ marginTop: '16px' }}><label htmlFor="market-notes" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Notes</label><textarea id="market-notes" rows={3} {...marketField('notes')} placeholder="Application process, foot traffic, past experience…" style={inputStyle} /></div>
+          <div style={{ marginTop: '16px' }}><label htmlFor="market-notes" style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Notes</label><textarea id="market-notes" rows={3} {...marketField('notes')} placeholder="Past experience, foot traffic observations…" style={inputStyle} /></div>
           {status === 'error' && <p role="alert" style={{ color: '#c05050', marginTop: '8px' }}>Error saving. Please try again.</p>}
           <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
             <button type="submit" disabled={status === 'saving'} style={btnPrimary}>{status === 'saving' ? 'Saving…' : 'Save Market'}</button>
@@ -482,8 +497,8 @@ function SortTh({ label, col, sortCol, sortDir, onSort, style }: {
 const actionBtnBase: React.CSSProperties = { background: 'none', padding: '6px 12px', fontSize: '13px', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }
 
 type FairSortCol = keyof Pick<CraftFair, 'name' | 'location' | 'years_in_operation' | 'avg_artists' | 'avg_shoppers' | 'typical_months' | 'notes'>
-type VenueSortCol = keyof Pick<ArtistVenue, 'name' | 'location' | 'hosting_model' | 'notes'>
-type MarketSortCol = keyof Pick<RecurringMarket, 'name' | 'location' | 'frequency' | 'typical_months' | 'notes'>
+type VenueSortCol = keyof Pick<ArtistVenue, 'name' | 'location' | 'hosting_model' | 'commission_rate' | 'booth_fee' | 'avg_shoppers' | 'application_process' | 'notes'>
+type MarketSortCol = keyof Pick<RecurringMarket, 'name' | 'location' | 'frequency' | 'typical_months' | 'vendor_fee' | 'avg_vendors' | 'avg_shoppers' | 'application_process' | 'notes'>
 
 function FairsTable({ fairs, search, hasFilters, onEdit, onDelete }: { fairs: CraftFair[]; search: string; hasFilters: boolean; onEdit: (f: CraftFair) => void; onDelete: (id: string) => void }) {
   const [sortCol, setSortCol] = useState<FairSortCol | null>(null)
@@ -563,6 +578,10 @@ function VenuesTable({ venues, search, hasFilters, onEdit, onDelete }: { venues:
             <SortTh label="Location" col="location" {...thProps} />
             <th style={{ padding: '8px 12px', fontWeight: '600' }}>Links</th>
             <SortTh label="Hosting Model" col="hosting_model" {...thProps} />
+            <SortTh label="Commission" col="commission_rate" {...thProps} />
+            <SortTh label="Booth Fee" col="booth_fee" {...thProps} />
+            <SortTh label="Shoppers" col="avg_shoppers" {...thProps} />
+            <SortTh label="Application" col="application_process" {...thProps} />
             <SortTh label="Notes" col="notes" {...thProps} />
             <th style={{ padding: '8px 12px', fontWeight: '600' }}>Actions</th>
           </tr>
@@ -574,7 +593,13 @@ function VenuesTable({ venues, search, hasFilters, onEdit, onDelete }: { venues:
               <td style={{ padding: '10px 12px' }}>{v.location}</td>
               <td style={{ padding: '10px 12px' }}><LinkButtons website_url={v.website_url} instagram_url={v.instagram_url} /></td>
               <td style={{ padding: '10px 12px' }}>{v.hosting_model ?? '—'}</td>
-              <td style={{ padding: '10px 12px', maxWidth: '200px' }}>
+              <td style={{ padding: '10px 12px' }}>{v.commission_rate ?? '—'}</td>
+              <td style={{ padding: '10px 12px' }}>{v.booth_fee ?? '—'}</td>
+              <td style={{ padding: '10px 12px' }}>{v.avg_shoppers ?? '—'}</td>
+              <td style={{ padding: '10px 12px', maxWidth: '160px' }}>
+                <span title={v.application_process ?? undefined} style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{v.application_process ?? '—'}</span>
+              </td>
+              <td style={{ padding: '10px 12px', maxWidth: '160px' }}>
                 <span title={v.notes ?? undefined} style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{v.notes ?? '—'}</span>
               </td>
               <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
@@ -613,6 +638,10 @@ function RecurringMarketsTable({ markets, search, hasFilters, onEdit, onDelete }
             <th style={{ padding: '8px 12px', fontWeight: '600' }}>Links</th>
             <SortTh label="Frequency" col="frequency" {...thProps} />
             <SortTh label="Month(s)" col="typical_months" {...thProps} />
+            <SortTh label="Vendor Fee" col="vendor_fee" {...thProps} />
+            <SortTh label="Vendors" col="avg_vendors" {...thProps} />
+            <SortTh label="Shoppers" col="avg_shoppers" {...thProps} />
+            <SortTh label="Application" col="application_process" {...thProps} />
             <SortTh label="Notes" col="notes" {...thProps} />
             <th style={{ padding: '8px 12px', fontWeight: '600' }}>Actions</th>
           </tr>
@@ -625,7 +654,13 @@ function RecurringMarketsTable({ markets, search, hasFilters, onEdit, onDelete }
               <td style={{ padding: '10px 12px' }}><LinkButtons website_url={m.website_url} instagram_url={m.instagram_url} /></td>
               <td style={{ padding: '10px 12px' }}>{m.frequency ?? '—'}</td>
               <td style={{ padding: '10px 12px' }}>{m.typical_months ?? '—'}</td>
-              <td style={{ padding: '10px 12px', maxWidth: '200px' }}>
+              <td style={{ padding: '10px 12px' }}>{m.vendor_fee ?? '—'}</td>
+              <td style={{ padding: '10px 12px' }}>{m.avg_vendors ?? '—'}</td>
+              <td style={{ padding: '10px 12px' }}>{m.avg_shoppers ?? '—'}</td>
+              <td style={{ padding: '10px 12px', maxWidth: '160px' }}>
+                <span title={m.application_process ?? undefined} style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{m.application_process ?? '—'}</span>
+              </td>
+              <td style={{ padding: '10px 12px', maxWidth: '160px' }}>
                 <span title={m.notes ?? undefined} style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{m.notes ?? '—'}</span>
               </td>
               <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
