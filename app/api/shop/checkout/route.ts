@@ -30,6 +30,9 @@ export async function POST(request: Request) {
   const verificationToken: string | undefined = typeof body.verificationToken === 'string' ? body.verificationToken : undefined
 
   if (!cart.length) return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
+  if (cart.some(i => !Number.isInteger(i.quantity) || i.quantity < 1)) {
+    return NextResponse.json({ error: 'Invalid cart' }, { status: 400 })
+  }
   if (!sourceId) return NextResponse.json({ error: 'sourceId required' }, { status: 400 })
 
   // Require 3DS buyer verification — do not process payments without it
@@ -89,12 +92,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to reserve stock. Please try again.' }, { status: 500 })
     }
     if (Array.isArray(rows) && rows.length === 0) {
-      const p = products.find(p => p.id === item.productId)!
       for (const done of decremented) {
         await supabase.rpc('increment_stock', { product_id: done.productId, qty: done.quantity })
           .then(({ error }) => { if (error) console.error('[checkout] increment_stock rollback failed for', done.productId) })
       }
-      return NextResponse.json({ error: `${p.name} is sold out`, soldOut: item.productId }, { status: 409 })
+      const label = products.find(p => p.id === item.productId)?.name ?? item.productId
+      return NextResponse.json({ error: `${label} is sold out`, soldOut: item.productId }, { status: 409 })
     }
     decremented.push(item)
   }
