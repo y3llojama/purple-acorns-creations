@@ -129,7 +129,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       sourceId, orderId, locationId,
       amountMoney: { amount: BigInt(totalCents), currency: 'USD' as const },
       idempotencyKey: `pay-${idem}`,
-      ...(verificationToken ? { verificationToken } : {}),
+      verificationToken,
     })
     paymentId = paymentResult.payment?.id ?? ''
   } catch (err) {

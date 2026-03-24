@@ -36,8 +36,8 @@ describe('POST /api/shop/checkout', () => {
     const { POST } = await import('@/app/api/shop/checkout/route')
     const req = new Request('http://localhost/api/shop/checkout', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cart: [{ productId: 'p1', quantity: 1 }], sourceId: 'tok_test' }),
-      // no shipping field
+      body: JSON.stringify({ cart: [{ productId: 'p1', quantity: 1 }], sourceId: 'tok_test', verificationToken: 'tok_verify' }),
+      // no shipping field — verificationToken present so we reach shipping validation
     })
     expect((await POST(req)).status).toBe(400)
   })
@@ -49,6 +49,7 @@ describe('POST /api/shop/checkout', () => {
       body: JSON.stringify({
         cart: [{ productId: 'p1', quantity: 1 }],
         sourceId: 'tok_test',
+        verificationToken: 'tok_verify', // present so we reach shipping validation
         shipping: { name: 'Jane' }, // missing required fields
       }),
     })
