@@ -1,5 +1,6 @@
 'use client'
 import { createContext, useContext, useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 
 const POLL_INTERVAL = 45_000
@@ -20,7 +21,7 @@ export function useUnreadCount() {
 
 interface Props {
   initialCount: number
-  children: React.ReactNode
+  children: ReactNode
 }
 
 export function UnreadCountProvider({ initialCount, children }: Props) {
@@ -34,6 +35,9 @@ export function UnreadCountProvider({ initialCount, children }: Props) {
       navigator.setAppBadge(unreadCount)
     } else if ('clearAppBadge' in navigator) {
       navigator.clearAppBadge()
+    }
+    return () => {
+      if ('clearAppBadge' in navigator) navigator.clearAppBadge()
     }
   }, [unreadCount])
 
