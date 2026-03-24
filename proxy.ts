@@ -34,7 +34,21 @@ export async function proxy(request: NextRequest) {
   // Also refreshes the session token and writes updated cookies to the response
   const { data: { user } } = await supabase.auth.getUser()
 
-  // For API routes: let the route handler return 401/403 — don't redirect
+  // Guard /api/admin/* routes — defense-in-depth before handlers run
+  // OAuth callbacks are initiated by external redirects so are excluded here;
+  // requireAdminSession() inside each callback handler still applies.
+  if (pathname.startsWith('/api/admin/')) {
+    const isOAuthCallback =
+      pathname.includes('/channels/square/callback') ||
+      pathname.includes('/channels/pinterest/callback')
+
+    if (!isOAuthCallback && !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    return response
+  }
+
+  // For other API routes: let the route handler return 401/403 — don't redirect
   if (pathname.startsWith('/api/')) return response
 
   // For admin pages: redirect unauthenticated users to login
@@ -42,7 +56,7 @@ export async function proxy(request: NextRequest) {
 
   if (!user) return NextResponse.redirect(new URL('/admin/login', request.url))
 
-  const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim())
+  const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim()).filter(Boolean)
   if (!adminEmails.includes(user.email ?? '')) {
     await supabase.auth.signOut()
     // Copy session-clearing cookies from response (written by signOut) to redirect
