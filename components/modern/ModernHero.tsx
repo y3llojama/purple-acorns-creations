@@ -104,15 +104,16 @@ export default function ModernHero({ tagline, subtext, heroImageUrl }: Props) {
         </div>
 
         {/* Right panel */}
-        <div className="modern-hero-image-panel" style={{ position: 'relative', minHeight: '400px' }}>
+        <div className="modern-hero-image-panel">
           {heroImageUrl ? (
             <Image
               src={heroImageUrl}
               alt=""
-              fill
+              width={1440}
+              height={960}
               priority
               sizes="(max-width: 768px) 100vw, 50vw"
-              style={{ objectFit: 'cover' }}
+              style={{ width: '100%', height: 'auto', display: 'block' }}
             />
           ) : (
             <div
