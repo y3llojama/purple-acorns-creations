@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { verifySquareSignature, handleInventoryUpdate, handleCatalogConflict } from '@/lib/channels/square/webhook'
+import { getClientIp } from '@/lib/get-client-ip'
 
 // In-memory rate limiter: 120 requests per IP per 60 seconds (Square uses shared egress IPs)
 const rateLimitMap = new Map<string, { count: number; reset: number }>()
 
 export async function POST(request: Request) {
-  const ip = (request.headers.get('x-forwarded-for') ?? 'unknown').split(',')[0].trim()
+  const ip = getClientIp(request)
   const now = Date.now()
   const entry = rateLimitMap.get(ip) ?? { count: 0, reset: now + 60_000 }
   if (now > entry.reset) { entry.count = 0; entry.reset = now + 60_000 }

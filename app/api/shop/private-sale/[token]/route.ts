@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
+import { getClientIp } from '@/lib/get-client-ip'
 
 const rateMap = new Map<string, { count: number; reset: number }>()
 function checkRate(ip: string): boolean {
@@ -11,7 +12,7 @@ function checkRate(ip: string): boolean {
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
-  const ip = (request.headers.get('x-forwarded-for') ?? 'unknown').split(',')[0].trim()
+  const ip = getClientIp(request)
   if (!checkRate(ip)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 
   const { token } = await params

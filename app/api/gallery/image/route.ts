@@ -5,6 +5,7 @@ import path from 'node:path'
 import { isValidHttpsUrl } from '@/lib/validate'
 import { getSettings } from '@/lib/theme'
 import { interpolate, buildVars } from '@/lib/variables'
+import { getClientIp } from '@/lib/get-client-ip'
 
 // Inter Medium — clean sans-serif matching the site nav aesthetic, bundled via outputFileTracingIncludes.
 const FONT_PATH = path.join(process.cwd(), 'public', 'fonts', 'Inter-Medium.ttf')
@@ -27,7 +28,7 @@ function pruneRateLimitMap() {
 
 export async function GET(request: NextRequest) {
   pruneRateLimitMap()
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ?? 'unknown'
+  const ip = getClientIp(request)
   const now = Date.now()
   const entry = rateLimitMap.get(ip)
   if (entry && now - entry.windowStart < RATE_WINDOW) {

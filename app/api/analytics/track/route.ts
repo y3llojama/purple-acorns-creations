@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { hashIp, parseDeviceType, isAllowedEventType } from '@/lib/analytics'
 import { clampLength } from '@/lib/validate'
+import { getClientIp } from '@/lib/get-client-ip'
 
 // Rate limiter: max 30 events per IP per 60 seconds (higher than contact form since page views are frequent)
 const rateLimitMap = new Map<string, { count: number; windowStart: number }>()
@@ -24,7 +25,7 @@ function pruneRateLimitMap() {
 export async function POST(request: Request) {
   pruneRateLimitMap()
 
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const ip = getClientIp(request)
   const now = Date.now()
   const entry = rateLimitMap.get(ip)
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
+import { getClientIp } from '@/lib/get-client-ip'
 
 const VALID_SORTS = ['new', 'popular', 'price_asc', 'price_desc']
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -14,7 +15,7 @@ function checkRate(ip: string): boolean {
 }
 
 export async function GET(request: Request) {
-  const ip = (request.headers.get('x-forwarded-for') ?? 'unknown').split(',')[0].trim()
+  const ip = getClientIp(request)
   if (!checkRate(ip)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
   const { searchParams } = new URL(request.url)
   const categoryId = searchParams.get('category_id')

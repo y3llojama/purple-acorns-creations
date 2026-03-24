@@ -6,6 +6,7 @@ import { calculateShipping } from '@/lib/shipping'
 import { sanitizeText } from '@/lib/sanitize'
 import type { ShippingAddress } from '@/lib/supabase/types'
 import { squarePaymentError } from '@/lib/square/payment-errors'
+import { getClientIp } from '@/lib/get-client-ip'
 
 const rateMap = new Map<string, { count: number; reset: number }>()
 function checkRate(ip: string): boolean {
@@ -19,7 +20,7 @@ function checkRate(ip: string): boolean {
 interface LineItem { productId: string; quantity: number }
 
 export async function POST(request: Request) {
-  const ip = (request.headers.get('x-forwarded-for') ?? 'unknown').split(',')[0].trim()
+  const ip = getClientIp(request)
   if (!checkRate(ip)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 
   const body = await request.json().catch(() => ({}))

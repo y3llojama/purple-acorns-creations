@@ -5,6 +5,7 @@ import { sanitizeText } from '@/lib/sanitize'
 import { clampLength, isValidHttpsUrl, MESSAGE_ATTACHMENT_ALLOWED_TYPES } from '@/lib/validate'
 import { decryptSettings } from '@/lib/crypto'
 import { parseFromEmail, verifyInboundHmac } from './helpers'
+import { getClientIp } from '@/lib/get-client-ip'
 
 async function uploadInboundAttachments(
   emailId: string,
@@ -51,7 +52,7 @@ async function uploadInboundAttachments(
 const rateLimitMap = new Map<string, { count: number; reset: number }>()
 
 export async function POST(request: Request) {
-  const ip = (request.headers.get('x-forwarded-for') ?? 'unknown').split(',')[0].trim()
+  const ip = getClientIp(request)
   const now = Date.now()
   const entry = rateLimitMap.get(ip) ?? { count: 0, reset: now + 60_000 }
   if (now > entry.reset) { entry.count = 0; entry.reset = now + 60_000 }

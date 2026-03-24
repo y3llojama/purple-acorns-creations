@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
+import { getClientIp } from '@/lib/get-client-ip'
 
 // Simple in-memory rate limit — 60 requests/min per IP
 const rateLimitMap = new Map<string, number>()
@@ -18,7 +19,7 @@ function pruneRateLimitMap() {
 
 export async function GET(request: Request) {
   pruneRateLimitMap()
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ?? 'unknown'
+  const ip = getClientIp(request)
   const now = Date.now()
   const last = rateLimitMap.get(ip) ?? 0
   if (now - last < RATE_WINDOW) {

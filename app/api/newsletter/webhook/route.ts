@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import crypto from 'crypto'
+import { getClientIp } from '@/lib/get-client-ip'
 
 const rateLimitMap = new Map<string, { count: number; windowStart: number }>()
 const RATE_LIMIT_MAX = 100
 const RATE_LIMIT_WINDOW = 60_000
 
 export async function POST(request: Request) {
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ?? 'unknown'
+  const ip = getClientIp(request)
   const now = Date.now()
   const entry = rateLimitMap.get(ip)
   if (entry && now - entry.windowStart < RATE_LIMIT_WINDOW) {

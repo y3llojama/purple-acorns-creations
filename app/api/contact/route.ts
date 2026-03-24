@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { isValidEmail, clampLength, stripControlChars } from '@/lib/validate'
 import { sanitizeText } from '@/lib/sanitize'
+import { getClientIp } from '@/lib/get-client-ip'
 
 // Rate limiter: 1 submission per IP per 60 seconds
 const rateLimitMap = new Map<string, number>()
@@ -22,7 +23,7 @@ function pruneRateLimitMap() {
 export async function POST(request: Request) {
   pruneRateLimitMap()
 
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ?? 'unknown'
+  const ip = getClientIp(request)
   const now = Date.now()
   if ((rateLimitMap.get(ip) ?? 0) + RATE_WINDOW > now) {
     return NextResponse.json({ error: 'Too many requests. Please wait a minute.' }, { status: 429 })

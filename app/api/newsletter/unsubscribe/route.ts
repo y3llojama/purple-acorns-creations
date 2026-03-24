@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
+import { getClientIp } from '@/lib/get-client-ip'
 
 const rateLimitMap = new Map<string, number>()
 
 export async function POST(request: Request) {
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ?? 'unknown'
+  const ip = getClientIp(request)
   const now = Date.now()
   if (now - (rateLimitMap.get(ip) ?? 0) < 60_000) {
     return NextResponse.json({ error: 'Too many requests. Please wait a minute.' }, { status: 429 })
