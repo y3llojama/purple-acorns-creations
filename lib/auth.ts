@@ -13,7 +13,10 @@ export async function requireAdminSession(): Promise<
     return { user: null, error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
   }
 
-  const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim())
+  const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim()).filter(Boolean)
+  if (!adminEmails.length) {
+    console.error('[auth] ADMIN_EMAILS is not configured — all admin access denied')
+  }
   if (!adminEmails.includes(user.email ?? '')) {
     return { user: null, error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
