@@ -16,6 +16,9 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
+              // KNOWN TRADE-OFF (I-16): 'unsafe-inline' in script-src is required by Next.js for hydration
+              // and RSC payload scripts. Removing it breaks the app without nonce infrastructure.
+              // Future work: migrate to nonce-based CSP via middleware once framework scripts support nonces.
               "script-src 'self' 'unsafe-inline' https://w.behold.so https://web.squarecdn.com https://sandbox.web.squarecdn.com https://assets.pinterest.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://web.squarecdn.com https://sandbox.web.squarecdn.com",
               "font-src 'self' https://fonts.gstatic.com https://square-fonts-production-f.squarecdn.com https://d1g145x70srn7h.cloudfront.net",
