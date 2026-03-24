@@ -32,11 +32,11 @@ export async function GET(request: Request) {
   }
 
   // Fetch settings once
-  const { data: rawSettings } = await supabase.from('settings').select('resend_api_key, newsletter_from_name, newsletter_from_email').single()
+  const { data: rawSettings } = await supabase.from('settings').select('resend_api_key, newsletter_from_name, newsletter_from_email, business_name').single()
   const settings = rawSettings ? decryptSettings(rawSettings) : null
   const resendApiKey = process.env.RESEND_API_KEY ?? settings?.resend_api_key
   const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? settings?.newsletter_from_email
-  const fromName = process.env.NEWSLETTER_FROM_NAME ?? settings?.newsletter_from_name ?? 'Purple Acorns Creations'
+  const fromName = process.env.NEWSLETTER_FROM_NAME ?? settings?.newsletter_from_name ?? settings?.business_name ?? 'Purple Acorns Creations'
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://purpleacornz.com'
 
   if (!resendApiKey || !fromEmail) {

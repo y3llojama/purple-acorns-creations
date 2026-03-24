@@ -31,7 +31,7 @@ export async function POST(request: Request, { params }: RouteContext) {
 
   // Parallel fetch settings + newsletter + subscriber count
   const [settingsResult, newsletterResult, countResult] = await Promise.all([
-    supabase.from('settings').select('resend_api_key, newsletter_from_name, newsletter_from_email, newsletter_admin_emails').single(),
+    supabase.from('settings').select('resend_api_key, newsletter_from_name, newsletter_from_email, newsletter_admin_emails, business_name').single(),
     supabase.from('newsletters').select('*').eq('id', id).single(),
     supabase.from('newsletter_subscribers').select('*', { count: 'exact', head: true }).eq('status', 'active'),
   ])
@@ -48,7 +48,7 @@ export async function POST(request: Request, { params }: RouteContext) {
   const settings = settingsResult.data ? decryptSettings(settingsResult.data) : null
   const resendApiKey = process.env.RESEND_API_KEY ?? settings?.resend_api_key
   const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? settings?.newsletter_from_email
-  const fromName = process.env.NEWSLETTER_FROM_NAME ?? settings?.newsletter_from_name ?? 'Purple Acorns Creations'
+  const fromName = process.env.NEWSLETTER_FROM_NAME ?? settings?.newsletter_from_name ?? settings?.business_name ?? 'Purple Acorns Creations'
 
   if (!resendApiKey || !fromEmail) {
     return NextResponse.json(
