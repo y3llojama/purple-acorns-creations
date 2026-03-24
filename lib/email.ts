@@ -50,7 +50,7 @@ async function sendViaResend(
     subject: stripControlChars(options.subject),
     text: options.text,
     html: options.html,
-    replyTo: options.replyTo,
+    replyTo: options.replyTo ? stripControlChars(options.replyTo) : undefined,
   })
 
   if (result.error) {
@@ -87,7 +87,7 @@ async function sendViaSmtp(
       subject: stripControlChars(options.subject),
       text: options.text,
       html: options.html,
-      replyTo: options.replyTo,
+      replyTo: options.replyTo ? stripControlChars(options.replyTo) : undefined,
     })
     return { success: true }
   } catch (err) {
