@@ -20,47 +20,42 @@ export async function POST(request: Request) {
     rateLimitMap.set(ip, { count: 1, windowStart: now })
   }
 
-  // HMAC signature validation
-  // Resend header format: "t=<unix_ts>,v1=<hex_signature>"
-  // Signed payload: "<timestamp>.<rawBody>"
+  // HMAC signature validation — required, no unauthenticated fallback
   const webhookSecret = process.env.RESEND_WEBHOOK_SECRET
-  if (webhookSecret) {
-    const svixHeader = request.headers.get('svix-signature') ?? request.headers.get('resend-signature') ?? ''
-    const rawBody = await request.text()
-
-    // Parse t= and v1= from header
-    const parts = Object.fromEntries(svixHeader.split(',').map((p) => p.split('=', 2) as [string, string]))
-    const timestamp = parts['t'] ?? ''
-    const receivedSig = parts['v1'] ?? ''
-
-    let valid = false
-    if (timestamp && receivedSig) {
-      const expected = crypto
-        .createHmac('sha256', webhookSecret)
-        .update(`${timestamp}.${rawBody}`)
-        .digest('hex')
-      try {
-        const a = Buffer.from(receivedSig, 'utf8')
-        const b = Buffer.from(expected, 'utf8')
-        valid = a.length === b.length && crypto.timingSafeEqual(a, b)
-      } catch {
-        valid = false
-      }
-    }
-    if (!valid) return NextResponse.json({ error: 'Invalid signature.' }, { status: 401 })
-
-    let body: Record<string, unknown>
-    try {
-      body = JSON.parse(rawBody)
-    } catch {
-      return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 })
-    }
-    return handleEvent(body)
+  if (!webhookSecret) {
+    console.error('[newsletter-webhook] RESEND_WEBHOOK_SECRET is not configured — rejecting all requests')
+    return NextResponse.json({ error: 'Webhook not configured.' }, { status: 500 })
   }
 
-  // No webhook secret configured (dev) — parse body directly
-  const body = await request.json().catch(() => null)
-  if (!body) return NextResponse.json({ error: 'Invalid body.' }, { status: 400 })
+  const svixHeader = request.headers.get('svix-signature') ?? request.headers.get('resend-signature') ?? ''
+  const rawBody = await request.text()
+
+  const parts = Object.fromEntries(svixHeader.split(',').map((p) => p.split('=', 2) as [string, string]))
+  const timestamp = parts['t'] ?? ''
+  const receivedSig = parts['v1'] ?? ''
+
+  let valid = false
+  if (timestamp && receivedSig) {
+    const expected = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(`${timestamp}.${rawBody}`)
+      .digest('hex')
+    try {
+      const a = Buffer.from(receivedSig, 'utf8')
+      const b = Buffer.from(expected, 'utf8')
+      valid = a.length === b.length && crypto.timingSafeEqual(a, b)
+    } catch {
+      valid = false
+    }
+  }
+  if (!valid) return NextResponse.json({ error: 'Invalid signature.' }, { status: 401 })
+
+  let body: Record<string, unknown>
+  try {
+    body = JSON.parse(rawBody)
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 })
+  }
   return handleEvent(body)
 }
 
