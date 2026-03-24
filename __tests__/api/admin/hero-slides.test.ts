@@ -182,4 +182,24 @@ describe('PATCH /api/admin/hero-slides/reorder', () => {
     expect(res.status).toBe(200)
     expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
   })
+
+  it('rejects empty ids array', async () => {
+    const { PATCH } = await import('@/app/api/admin/hero-slides/reorder/route')
+    const req = new Request('http://localhost/api/admin/hero-slides/reorder', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [] }),
+    })
+    expect((await PATCH(req)).status).toBe(400)
+  })
+
+  it('rejects missing ids field', async () => {
+    const { PATCH } = await import('@/app/api/admin/hero-slides/reorder/route')
+    const req = new Request('http://localhost/api/admin/hero-slides/reorder', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    })
+    expect((await PATCH(req)).status).toBe(400)
+  })
 })
