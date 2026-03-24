@@ -54,7 +54,14 @@ export async function POST(request: Request) {
   const deviceType = parseDeviceType(userAgent)
   const sessionId = clampLength(String(body.session_id ?? ''), 64) || null
   const ipHash = hashIp(ip)
-  const metadata = body.metadata && typeof body.metadata === 'object' ? body.metadata : null
+  // Cap metadata size to prevent DB abuse — silently drop oversized objects
+  let metadata: Record<string, unknown> | null = null
+  if (body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata)) {
+    const metaStr = JSON.stringify(body.metadata)
+    if (metaStr.length <= 500) {
+      metadata = body.metadata as Record<string, unknown>
+    }
+  }
 
   const supabase = createServiceRoleClient()
   const { error: dbError } = await supabase.from('analytics_events').insert({
