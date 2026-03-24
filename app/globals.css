@@ -80,6 +80,10 @@
   /* HeroCarousel dot indicators */
   --carousel-dot-active: #fff;
   --carousel-dot-inactive: rgba(255, 255, 255, 0.45);
+  /* Image overlay badges / buttons */
+  --color-overlay-dark: rgba(0, 0, 0, 0.55);
+  --color-overlay-light: rgba(255, 255, 255, 0.85);
+  --color-overlay-destructive: rgba(192, 57, 43, 0.85);
 }
 
 *, *::before, *::after {

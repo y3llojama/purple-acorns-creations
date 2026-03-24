@@ -5,6 +5,7 @@ import ImageUploader from './ImageUploader'
 import HeroSlideList from './HeroSlideList'
 import SiteMap from './SiteMap'
 import { deriveCustomThemeVars } from '@/lib/color'
+import { isValidHttpsUrl } from '@/lib/validate'
 import type { ThemeVars } from '@/lib/color'
 import type { Settings } from '@/lib/supabase/types'
 
@@ -76,6 +77,7 @@ export default function BrandingEditor({ settings }: Props) {
   const [announcementLinkUrl, setAnnouncementLinkUrl]     = useState(settings.announcement_link_url ?? '')
   const [announcementLinkLabel, setAnnouncementLinkLabel] = useState(settings.announcement_link_label ?? '')
   const [announcementSaved, setAnnouncementSaved]         = useState(false)
+  const [announcementError, setAnnouncementError]         = useState<string | null>(null)
 
   function applyThemePreview(preset: Preset) {
     const html = document.documentElement
@@ -168,6 +170,7 @@ export default function BrandingEditor({ settings }: Props) {
 
   async function saveAnnouncement(e: React.FormEvent) {
     e.preventDefault()
+    setAnnouncementError(null)
     const res = await fetch('/api/admin/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -178,7 +181,12 @@ export default function BrandingEditor({ settings }: Props) {
         announcement_link_label: announcementLinkLabel,
       }),
     })
-    if (res.ok) setAnnouncementSaved(true)
+    if (res.ok) {
+      setAnnouncementSaved(true)
+    } else {
+      const data = await res.json().catch(() => ({}))
+      setAnnouncementError(`Save failed (${res.status}): ${data.error ?? res.statusText}`)
+    }
   }
 
   async function saveHeroSettings() {
@@ -270,13 +278,13 @@ export default function BrandingEditor({ settings }: Props) {
                 }}
               >
                 <div style={{
-                  border: `3px solid ${isActive ? preset.primary : '#ddd'}`,
+                  border: `3px solid ${isActive ? preset.primary : 'var(--color-border)'}`,
                   borderRadius: '8px', overflow: 'hidden', marginBottom: '4px',
                 }}>
                   <div style={{ height: '28px', background: preset.primary }} />
                   <div style={{ height: '28px', background: preset.accent }} />
                 </div>
-                <span style={{ fontSize: '10px', color: isActive ? preset.primary : '#888', fontWeight: isActive ? 700 : 400 }}>
+                <span style={{ fontSize: '10px', color: isActive ? preset.primary : 'var(--color-text-muted)', fontWeight: isActive ? 700 : 400 }}>
                   {preset.name}{isActive ? <span aria-hidden="true"> ✓</span> : ''}
                 </span>
               </button>
@@ -320,7 +328,7 @@ export default function BrandingEditor({ settings }: Props) {
                     <div
                       key={key}
                       title={key}
-                      style={{ width: '24px', height: '44px', borderRadius: '3px', background: previewVars[key], border: '1px solid #ddd' }}
+                      style={{ width: '24px', height: '44px', borderRadius: '3px', background: previewVars[key], border: '1px solid var(--color-border)' }}
                     />
                   ))}
                 </div>
@@ -346,10 +354,10 @@ export default function BrandingEditor({ settings }: Props) {
       <section style={{ marginBottom: '40px' }}>
         <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Logo</h2>
         <SiteMap highlight="header" label="Site Header" description="Your logo appears in the top-left corner of every page." />
-        {logoPreview && (
+        {logoPreview && isValidHttpsUrl(logoPreview) && (
           <div style={{ marginBottom: '12px' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logoPreview} alt="Current logo" style={{ maxHeight: '64px', maxWidth: '240px', objectFit: 'contain', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '8px', background: '#fff' }} />
+            <img src={logoPreview} alt="Current logo" style={{ maxHeight: '64px', maxWidth: '240px', objectFit: 'contain', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '8px', background: 'var(--color-surface)' }} />
           </div>
         )}
         <ImageUploader bucket="branding" onUpload={handleLogoUpload} label="Upload Logo" />
@@ -437,6 +445,7 @@ export default function BrandingEditor({ settings }: Props) {
             Save Announcement
           </button>
           {announcementSaved && <span role="status" aria-live="polite" style={{ marginLeft: '12px', color: 'green' }}>Saved ✓</span>}
+          {announcementError && <span role="alert" style={{ display: 'block', marginTop: '8px', color: 'red' }}>{announcementError}</span>}
         </form>
       </section>
     </div>

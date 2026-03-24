@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import ImageUploader from './ImageUploader'
 import HeroCarouselPreviewModal from './HeroCarouselPreviewModal'
+import { isValidHttpsUrl } from '@/lib/validate'
 import type { HeroSlide } from '@/lib/supabase/types'
 
 interface Props {
@@ -17,9 +18,8 @@ export default function HeroSlideList({ initialSlides, transition, intervalMs }:
   const [error, setError] = useState<string | null>(null)
   const previewBtnRef = useRef<HTMLButtonElement>(null)
 
-  // Fetch slides from the API on mount (initialSlides is [] when called from BrandingEditor)
+  // Fetch slides from the API on mount
   useEffect(() => {
-    if (initialSlides.length > 0) return
     fetch('/api/admin/hero-slides')
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
@@ -27,7 +27,8 @@ export default function HeroSlideList({ initialSlides, transition, intervalMs }:
       })
       .then((data: HeroSlide[]) => setSlides(data))
       .catch(() => setError('Failed to load slides.'))
-  }, [initialSlides.length])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function handleUpload(url: string, altText: string) {
     const res = await fetch('/api/admin/hero-slides', {
@@ -50,6 +51,7 @@ export default function HeroSlideList({ initialSlides, transition, intervalMs }:
   }
 
   async function handleMove(index: number, direction: -1 | 1) {
+    const prevSlides = slides  // snapshot before optimistic update for revert on failure
     const newSlides = [...slides]
     const target = index + direction
     if (target < 0 || target >= newSlides.length) return
@@ -60,7 +62,7 @@ export default function HeroSlideList({ initialSlides, transition, intervalMs }:
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids: newSlides.map(s => s.id) }),
     })
-    if (!res.ok) { setError('Failed to save order.'); setSlides(slides) }
+    if (!res.ok) { setError('Failed to save order.'); setSlides(prevSlides) }
   }
 
   return (
@@ -74,9 +76,9 @@ export default function HeroSlideList({ initialSlides, transition, intervalMs }:
         {slides.map((slide, i) => (
           <div key={slide.id} style={{ border: '2px solid var(--color-border)', borderRadius: '6px', overflow: 'hidden', position: 'relative', background: 'var(--color-surface)' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={slide.url} alt={slide.alt_text} style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', display: 'block' }} />
+            {isValidHttpsUrl(slide.url) && <img src={slide.url} alt={slide.alt_text} style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', display: 'block' }} />}
             {/* Position badge */}
-            <span style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(0,0,0,0.55)', color: 'var(--color-on-primary)', fontSize: '11px', padding: '2px 7px', borderRadius: '10px' }}>
+            <span style={{ position: 'absolute', top: 6, left: 6, background: 'var(--color-overlay-dark)', color: 'var(--color-on-primary)', fontSize: '11px', padding: '2px 7px', borderRadius: '10px' }}>
               {i + 1}
             </span>
             {/* Remove button — 48×48 touch target, visual circle via inner span */}
@@ -85,18 +87,18 @@ export default function HeroSlideList({ initialSlides, transition, intervalMs }:
               aria-label={`Remove slide ${i + 1}`}
               style={{ position: 'absolute', top: 0, right: 0, width: 48, height: 48, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', padding: '6px 6px 0 0' }}
             >
-              <span style={{ background: 'rgba(192,57,43,0.85)', color: 'var(--color-on-primary)', borderRadius: '50%', width: 22, height: 22, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>×</span>
+              <span style={{ background: 'var(--color-overlay-destructive)', color: 'var(--color-on-primary)', borderRadius: '50%', width: 22, height: 22, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>×</span>
             </button>
             {/* Up/Down reorder — 48×48 touch targets */}
             <div style={{ position: 'absolute', bottom: 28, right: 0, display: 'flex', flexDirection: 'column' }}>
               {i > 0 && (
                 <button onClick={() => handleMove(i, -1)} aria-label={`Move slide ${i + 1} earlier`} style={{ background: 'transparent', border: 'none', cursor: 'pointer', width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 8 }}>
-                  <span style={{ background: 'rgba(255,255,255,0.85)', borderRadius: '3px', width: 22, height: 22, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>↑</span>
+                  <span style={{ background: 'var(--color-overlay-light)', borderRadius: '3px', width: 22, height: 22, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>↑</span>
                 </button>
               )}
               {i < slides.length - 1 && (
                 <button onClick={() => handleMove(i, 1)} aria-label={`Move slide ${i + 1} later`} style={{ background: 'transparent', border: 'none', cursor: 'pointer', width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 8 }}>
-                  <span style={{ background: 'rgba(255,255,255,0.85)', borderRadius: '3px', width: 22, height: 22, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>↓</span>
+                  <span style={{ background: 'var(--color-overlay-light)', borderRadius: '3px', width: 22, height: 22, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>↓</span>
                 </button>
               )}
             </div>
@@ -126,7 +128,7 @@ export default function HeroSlideList({ initialSlides, transition, intervalMs }:
         </div>
       )}
 
-      {error && <p role="alert" style={{ color: '#c05050', fontSize: '13px', marginBottom: '8px' }}>{error}</p>}
+      {error && <p role="alert" style={{ color: 'var(--color-error)', fontSize: '13px', marginBottom: '8px' }}>{error}</p>}
 
       {slides.length > 0 && (
         <button
