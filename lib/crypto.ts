@@ -58,8 +58,8 @@ export function decryptValue(value: string): string {
     decipher.setAuthTag(tag)
     return decipher.update(encrypted).toString('utf8') + decipher.final('utf8')
   } catch {
-    console.error('[crypto] decryptValue failed — returning raw value')
-    return value
+    console.error('[crypto] decryptValue failed — returning empty string')
+    return ''
   }
 }
 
