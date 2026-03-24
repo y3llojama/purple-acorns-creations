@@ -12,6 +12,7 @@
   --color-border: #e8d9c5;
   --color-focus: #d4a853;
   --color-danger: #c0392b;
+  --color-badge-text: #ffffff;
   --color-error: #c05050;
   --color-error-text: #ffffff;
   --color-success-bg: #d4edda;
@@ -32,6 +33,7 @@
   --color-border: #e0d4ec;
   --color-focus: #9b7bb8;
   --color-danger: #b03060;
+  --color-badge-text: #ffffff;
   --color-error: #c05050;
   --color-error-text: #ffffff;
   --color-success-bg: #d4edda;
@@ -52,6 +54,7 @@
   --color-border: #e8e0f0;
   --color-focus: #7b5ea7;
   --color-danger: #c0392b;
+  --color-badge-text: #ffffff;
   --color-announce-bg: #b09dce;
   --color-announce-text: #ffffff;
   --font-display: 'Jost', 'DM Sans', sans-serif;

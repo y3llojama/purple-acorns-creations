@@ -108,7 +108,7 @@ export default function AdminSidebar({ businessName }: Props) {
                   href={href}
                   onClick={mobileExpanded ? toggleCollapsed : undefined}
                   aria-current={isActive ? 'page' : undefined}
-                  aria-label={collapsed ? label : undefined}
+                  aria-label={collapsed ? (href === '/admin/messages' && unreadCount > 0 ? `${label}, ${unreadCount > 99 ? '99+' : unreadCount} unread` : label) : undefined}
                   title={collapsed ? label : undefined}
                   style={{
                     display: 'flex',
@@ -129,12 +129,12 @@ export default function AdminSidebar({ businessName }: Props) {
                     <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
                       <Icon size={20} style={{ flexShrink: 0 }} />
                       {unreadCount > 0 && (
-                        <span style={{
+                        <span aria-hidden="true" style={{
                           position: 'absolute',
                           top: '-8px',
                           right: '-10px',
                           background: 'var(--color-danger)',
-                          color: 'white',
+                          color: 'var(--color-badge-text)',
                           fontSize: '9px',
                           fontWeight: '700',
                           minWidth: '16px',

@@ -43,12 +43,14 @@ export default async function AdminDashboard() {
             style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '12px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '24px', textDecoration: 'none', transition: 'box-shadow 0.2s' }}
           >
             {href === '/admin/messages' && unreadCount > 0 && (
-              <span style={{
+              <span
+                aria-label={`${unreadCount > 99 ? '99+' : unreadCount} unread messages`}
+                style={{
                 position: 'absolute',
                 top: '-8px',
                 right: '-8px',
                 background: 'var(--color-danger)',
-                color: 'white',
+                color: 'var(--color-badge-text)',
                 fontSize: '11px',
                 fontWeight: '700',
                 minWidth: '20px',
@@ -58,7 +60,7 @@ export default async function AdminDashboard() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 padding: '0 5px',
-                border: '2px solid white',
+                border: '2px solid var(--color-surface)',
                 boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
                 lineHeight: 1,
               }}>
