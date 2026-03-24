@@ -1,8 +1,13 @@
+import type { Metadata } from 'next'
 import AdminSidebar from '@/components/admin/AdminSidebar'
 import { getSettings } from '@/lib/theme'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { UnreadCountProvider } from '@/lib/contexts/unread-count-context'
 import styles from './layout.module.css'
+
+export const metadata: Metadata = {
+  manifest: '/admin-manifest.json',
+}
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = createServiceRoleClient()

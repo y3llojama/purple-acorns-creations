@@ -1,0 +1,9 @@
+{
+  "name": "Purple Acorns Admin",
+  "short_name": "PA Admin",
+  "description": "Purple Acorns Creations admin console.",
+  "start_url": "/admin",
+  "display": "standalone",
+  "background_color": "#f5ede0",
+  "theme_color": "#2d1b4e"
+}
