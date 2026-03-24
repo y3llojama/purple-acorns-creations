@@ -107,7 +107,13 @@ export default function ProductGrid({ watermark }: Props) {
       )}
 
       {!loading && !error && data && data.products.length === 0 && (
-        <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 0' }}>No products found.</p>
+        <div style={{ textAlign: 'center', padding: '40px 0' }}>
+          <img
+            src="/shop-coming-soon.svg"
+            alt="Shop coming soon — something beautiful is on its way"
+            style={{ maxWidth: '100%', width: '960px', height: 'auto', borderRadius: '8px' }}
+          />
+        </div>
       )}
 
       {!loading && !error && data && data.products.length > 0 && (
