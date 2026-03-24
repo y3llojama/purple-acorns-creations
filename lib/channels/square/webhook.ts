@@ -22,9 +22,14 @@ export async function handleInventoryUpdate(payload: unknown): Promise<void> {
   const counts = p?.data?.object?.inventory_counts ?? []
   const supabase = createServiceRoleClient()
   for (const count of counts) {
+    const qty = parseInt(count.quantity, 10)
+    if (!Number.isFinite(qty) || qty < 0) {
+      console.warn('[square-webhook] invalid inventory quantity, skipping:', count.quantity)
+      continue
+    }
     await supabase
       .from('products')
-      .update({ stock_count: parseInt(count.quantity, 10) })
+      .update({ stock_count: qty })
       .eq('square_variation_id', count.catalog_object_id)
   }
 }
