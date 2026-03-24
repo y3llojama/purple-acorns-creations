@@ -43,7 +43,7 @@ export default function HeroCarouselPreviewModal({ slides, transition, intervalM
 
   return (
     <div
-      role="presentation"
+      role="none"
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
@@ -58,7 +58,7 @@ export default function HeroCarouselPreviewModal({ slides, transition, intervalM
           <span style={{ fontSize: '13px', fontWeight: 600, letterSpacing: '0.05em' }}>Hero Carousel Preview</span>
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', color: 'var(--color-accent)', fontSize: '20px', cursor: 'pointer', lineHeight: 1, padding: 0, minHeight: 'unset' }}
+            style={{ background: 'none', border: 'none', color: 'var(--color-accent)', fontSize: '20px', cursor: 'pointer', lineHeight: 1, padding: 0, width: 48, height: 48, minHeight: 48 }}
             aria-label="Close preview"
           >×</button>
         </div>
