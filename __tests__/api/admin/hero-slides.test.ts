@@ -13,8 +13,7 @@ function makeChain(resolvedValue: unknown) {
   const methods = ['select','insert','update','delete','eq','order','limit','single']
   methods.forEach(m => { chain[m] = jest.fn().mockReturnValue(chain) })
   chain['single'] = jest.fn().mockResolvedValue(resolvedValue)
-  chain['then'] = jest.fn().mockImplementation((r: (v: unknown) => unknown) => Promise.resolve(resolvedValue).then(r))
-  chain['catch'] = jest.fn().mockImplementation(() => Promise.resolve(resolvedValue))
+  chain['order'] = jest.fn().mockResolvedValue(resolvedValue)
   return chain
 }
 
@@ -92,5 +91,6 @@ describe('POST /api/admin/hero-slides', () => {
     const res = await POST(req)
     expect(res.status).toBe(201)
     expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
+    expect(await res.json()).toEqual(slide)
   })
 })
