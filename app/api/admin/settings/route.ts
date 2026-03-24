@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   const { error } = await requireAdminSession()
   if (error) return error
   const body = await request.json().catch(() => ({} as Record<string, unknown>))
-  const update: Record<string, string | boolean | null> = {}
+  const update: Record<string, string | boolean | number | null> = {}
 
   if (body.theme !== undefined) {
     if (!ALLOWED_THEMES.includes(String(body.theme) as Theme)) return NextResponse.json({ error: 'Invalid theme' }, { status: 400 })
@@ -116,6 +116,16 @@ export async function POST(request: Request) {
     const val = parseFloat(String(body.shipping_value))
     if (!isFinite(val) || val < 0 || val > 10000) return NextResponse.json({ error: 'shipping_value must be between 0 and 10000' }, { status: 400 })
     update.shipping_value = val.toFixed(2)
+  }
+  if (body.hero_transition !== undefined) {
+    const val = String(body.hero_transition ?? '')
+    if (!['crossfade', 'slide'].includes(val)) return NextResponse.json({ error: 'hero_transition must be crossfade or slide' }, { status: 400 })
+    update.hero_transition = val
+  }
+  if (body.hero_interval_ms !== undefined) {
+    const val = parseInt(String(body.hero_interval_ms), 10)
+    if (isNaN(val) || val < 2000 || val > 30000) return NextResponse.json({ error: 'hero_interval_ms must be between 2000 and 30000' }, { status: 400 })
+    update.hero_interval_ms = val
   }
 
   update.updated_at = new Date().toISOString()
