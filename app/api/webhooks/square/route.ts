@@ -18,7 +18,11 @@ export async function POST(request: Request) {
   const signature = request.headers.get('x-square-hmacsha256-signature') ?? ''
   const webhookKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY ?? ''
 
-  if (!verifySquareSignature(request.url, rawBody, signature, webhookKey)) {
+  if (!process.env.SQUARE_WEBHOOK_URL) {
+    console.warn('[square-webhook] SQUARE_WEBHOOK_URL not set — falling back to request.url for signature verification')
+  }
+  const webhookUrl = process.env.SQUARE_WEBHOOK_URL ?? request.url
+  if (!verifySquareSignature(webhookUrl, rawBody, signature, webhookKey)) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
