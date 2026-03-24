@@ -16,6 +16,11 @@ jest.mock('@/components/admin/ImageUploader', () => ({
   ),
 }))
 
+jest.mock('@/components/admin/HeroSlideList', () => ({
+  __esModule: true,
+  default: () => <div data-testid="hero-slide-list" />,
+}))
+
 jest.mock('@/components/admin/SiteMap', () => ({
   __esModule: true,
   default: ({ label }: { label: string }) => (
@@ -42,6 +47,8 @@ const mockSettings: Partial<Settings> = {
   custom_primary: null,
   custom_accent: null,
   hero_image_url: null,
+  hero_transition: 'crossfade',
+  hero_interval_ms: 5000,
   announcement_enabled: false,
   announcement_text: null,
   announcement_link_url: null,
@@ -147,14 +154,14 @@ describe('BrandingEditor', () => {
     expect(screen.getByTestId('sitemap-hero-section')).toBeInTheDocument()
   })
 
-  it('hero image upload posts hero_image_url to settings', async () => {
+  it('Save Settings button posts hero_transition and hero_interval_ms to settings', async () => {
     render(<BrandingEditor settings={mockSettings as Settings} />)
-    fireEvent.click(screen.getByText('Upload Hero Image'))
+    fireEvent.click(screen.getByRole('button', { name: /save settings/i }))
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
       '/api/admin/settings',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ hero_image_url: 'https://example.com/img.jpg' }),
+        body: JSON.stringify({ hero_transition: 'crossfade', hero_interval_ms: 5000 }),
       })
     ))
   })

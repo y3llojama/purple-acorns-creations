@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import ImageUploader from './ImageUploader'
+import HeroSlideList from './HeroSlideList'
 import SiteMap from './SiteMap'
 import { deriveCustomThemeVars } from '@/lib/color'
 import type { ThemeVars } from '@/lib/color'
@@ -60,6 +61,14 @@ export default function BrandingEditor({ settings }: Props) {
   const [businessNameError, setBusinessNameError]         = useState<string | null>(null)
 
   const [logoPreview, setLogoPreview] = useState(settings.logo_url ?? null)
+
+  const [heroTransition, setHeroTransition] = useState<'crossfade' | 'slide'>(
+    (settings.hero_transition as 'crossfade' | 'slide') ?? 'crossfade'
+  )
+  const [heroIntervalSecs, setHeroIntervalSecs] = useState(
+    Math.round((settings.hero_interval_ms ?? 5000) / 1000)
+  )
+  const [heroSettingsSaved, setHeroSettingsSaved] = useState(false)
 
   const [announcementEnabled, setAnnouncementEnabled]     = useState(settings.announcement_enabled)
   const [announcementText, setAnnouncementText]           = useState(settings.announcement_text ?? '')
@@ -171,6 +180,18 @@ export default function BrandingEditor({ settings }: Props) {
     if (res.ok) setAnnouncementSaved(true)
   }
 
+  async function saveHeroSettings() {
+    const res = await fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        hero_transition: heroTransition,
+        hero_interval_ms: heroIntervalSecs * 1000,
+      }),
+    })
+    if (res.ok) { setHeroSettingsSaved(true); router.refresh() }
+  }
+
   async function handleLogoUpload(url: string, _altText: string) {
     const res = await fetch('/api/admin/settings', {
       method: 'POST',
@@ -179,16 +200,6 @@ export default function BrandingEditor({ settings }: Props) {
     })
     if (res.ok) { setLogoPreview(url); router.refresh() }
     else console.error('[BrandingEditor] Failed to save logo URL')
-  }
-
-  async function handleHeroUpload(url: string, _altText: string) {
-    const res = await fetch('/api/admin/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hero_image_url: url }),
-    })
-    if (res.ok) router.refresh()
-    else console.error('[BrandingEditor] Failed to save hero image URL')
   }
 
   return (
@@ -336,14 +347,49 @@ export default function BrandingEditor({ settings }: Props) {
         <ImageUploader bucket="branding" onUpload={handleLogoUpload} label="Upload Logo" />
       </section>
 
-      {/* Hero Image */}
+      {/* Hero Images */}
       <section style={{ marginBottom: '40px' }}>
-        <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Hero Image</h2>
-        <SiteMap highlight="hero" label="Hero Section" description="Full-width background image on the homepage hero." />
-        {settings.hero_image_url && (
-          <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginBottom: '12px' }}>Current hero image set. Upload a new one to replace it.</p>
-        )}
-        <ImageUploader bucket="branding" onUpload={handleHeroUpload} label="Upload Hero Image" />
+        <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Hero Images</h2>
+        <SiteMap highlight="hero" label="Hero Section" description="Images cycling in the homepage hero panel." />
+        <HeroSlideList
+          initialSlides={[]}
+          transition={heroTransition}
+          intervalMs={heroIntervalSecs * 1000}
+        />
+        <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '16px', marginTop: '16px', display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div>
+            <label htmlFor="hero-transition" style={{ display: 'block', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-muted)', marginBottom: '5px' }}>Transition</label>
+            <select
+              id="hero-transition"
+              value={heroTransition}
+              onChange={e => { setHeroTransition(e.target.value as 'crossfade' | 'slide'); setHeroSettingsSaved(false) }}
+              style={{ border: '1px solid var(--color-border)', borderRadius: '4px', padding: '8px 12px', fontSize: '14px', minHeight: '48px' }}
+            >
+              <option value="crossfade">Crossfade</option>
+              <option value="slide">Slide</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="hero-interval" style={{ display: 'block', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-muted)', marginBottom: '5px' }}>Interval (seconds)</label>
+            <input
+              id="hero-interval"
+              type="number"
+              min={2}
+              max={30}
+              value={heroIntervalSecs}
+              onChange={e => { setHeroIntervalSecs(Number(e.target.value)); setHeroSettingsSaved(false) }}
+              style={{ border: '1px solid var(--color-border)', borderRadius: '4px', padding: '8px 12px', fontSize: '14px', width: '80px', minHeight: '48px' }}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={saveHeroSettings}
+            style={{ background: 'var(--color-primary)', color: 'var(--color-accent)', padding: '12px 24px', fontSize: '16px', border: 'none', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}
+          >
+            Save Settings
+          </button>
+          {heroSettingsSaved && <span role="status" aria-live="polite" style={{ color: 'green', fontSize: '14px' }}>Saved ✓</span>}
+        </div>
       </section>
 
       {/* Announcement banner */}
