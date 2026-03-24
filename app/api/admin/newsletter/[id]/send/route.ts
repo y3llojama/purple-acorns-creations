@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
 import { createServiceRoleClient } from '@/lib/supabase/server'
-import { getResendClient, buildNewsletterEmail, sendNewsletterBatch } from '@/lib/resend'
+import { getResendClient, sendNewsletterBatch } from '@/lib/resend'
 import { decryptSettings } from '@/lib/crypto'
 
 type RouteContext = { params: Promise<{ id: string }> }
