@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import MessageList from './MessageList'
 import ThreadView from './ThreadView'
 import { useIsMobile } from '@/lib/hooks/useIsMobile'
+import { useUnreadCount } from '@/lib/contexts/unread-count-context'
 import type { Message, MessageReply } from '@/lib/supabase/types'
 
 const POLL_INTERVAL = 45_000
@@ -114,6 +115,7 @@ export default function MessagesInbox({ initialMessages, initialTotal }: Props) 
   const [newReplyIds, setNewReplyIds] = useState<Set<string>>(new Set())
 
   const isMobile = useIsMobile()
+  const { markRead } = useUnreadCount()
   const knownIdsRef = useRef(new Set(initialMessages.map(m => m.id)))
   const selectedRef = useRef<string | null>(null)
   const replyPageRef = useRef(1)
@@ -253,6 +255,7 @@ export default function MessagesInbox({ initialMessages, initialTotal }: Props) 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, is_read: true }),
       })
+      markRead()
     }
 
     const firstRes = await fetch(`/api/admin/messages/reply?message_id=${id}&page=1&per_page=${REPLY_PER_PAGE}&sort=${replySort}`)
