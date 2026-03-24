@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { createServiceRoleClient } from '@/lib/supabase/server'
 import {
   Calendar, Image, FileText, Palette, BarChart2,
   Package, MessageSquare, Plug, Radio, Mail, ClipboardList,
@@ -20,7 +21,15 @@ const TILES = [
 
 export const metadata = { title: 'Admin Dashboard' }
 
-export default function AdminDashboard() {
+export default async function AdminDashboard() {
+  const supabase = createServiceRoleClient()
+  const { count } = await supabase
+    .from('messages')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_read', false)
+
+  const unreadCount = count ?? 0
+
   return (
     <div>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '32px', color: 'var(--color-primary)', marginBottom: '32px' }}>
@@ -31,8 +40,31 @@ export default function AdminDashboard() {
           <Link
             key={href}
             href={href}
-            style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '24px', textDecoration: 'none', transition: 'box-shadow 0.2s' }}
+            style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '12px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '24px', textDecoration: 'none', transition: 'box-shadow 0.2s' }}
           >
+            {href === '/admin/messages' && unreadCount > 0 && (
+              <span style={{
+                position: 'absolute',
+                top: '-8px',
+                right: '-8px',
+                background: 'var(--color-danger)',
+                color: 'white',
+                fontSize: '11px',
+                fontWeight: '700',
+                minWidth: '20px',
+                height: '20px',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0 5px',
+                border: '2px solid white',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
+                lineHeight: 1,
+              }}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
             <Icon size={24} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
             <div>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: '18px', color: 'var(--color-primary)', marginBottom: '4px', fontWeight: '600' }}>
