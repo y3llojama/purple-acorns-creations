@@ -13,6 +13,21 @@ export async function POST(request: Request) {
 
   if (!key) return NextResponse.json({ error: 'key required' }, { status: 400 })
 
+  const ALLOWED_CONTENT_KEYS = new Set([
+    'hero_tagline',
+    'hero_subtext',
+    'story_teaser',
+    'story_full',
+    'story_full__format',
+    'privacy_policy',
+    'privacy_policy__format',
+    'terms_of_service',
+    'terms_of_service__format',
+  ])
+  if (!ALLOWED_CONTENT_KEYS.has(key)) {
+    return NextResponse.json({ error: 'Unknown content key' }, { status: 400 })
+  }
+
   const supabase = createServiceRoleClient()
   const { error: dbError } = await supabase
     .from('content')
