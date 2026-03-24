@@ -12,7 +12,7 @@ import ModernHero from '@/components/modern/ModernHero'
 import ModernFeaturedGrid from '@/components/modern/ModernFeaturedGrid'
 import ModernStorySection from '@/components/modern/ModernStorySection'
 import ModernEventSection from '@/components/modern/ModernEventSection'
-import type { Product } from '@/lib/supabase/types'
+import type { Product, HeroSlide } from '@/lib/supabase/types'
 
 // Shown when no featured gallery items exist in the DB yet.
 // Disappears automatically once items are marked as featured in the admin panel.
@@ -35,13 +35,18 @@ export default async function HomePage() {
   const proto = hdrs.get('x-forwarded-proto') ?? 'https'
   const siteBase = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_SITE_URL ?? '')
 
-  const [content, settings, featured, gallery, eventResult, followAlongResult] = await Promise.all([
+  const [content, settings, featured, gallery, eventResult, followAlongResult, heroSlides] = await Promise.all([
     getAllContent(),
     getSettings(),
     supabase.from('products').select('*').eq('is_active', true).eq('gallery_featured', true).order('gallery_sort_order').limit(8).then(r => r.data ?? []),
     supabase.from('gallery').select('*').eq('is_featured', false).order('sort_order').limit(8).then(r => r.data ?? []),
     supabase.from('events').select('*').gte('date', today).order('date').limit(1).single(),
     supabase.from('follow_along_photos').select('*').order('display_order').then(r => r.data ?? []),
+    supabase
+      .from('hero_slides')
+      .select('id, url, alt_text, sort_order')
+      .order('sort_order')
+      .then(r => r.data ?? []),
   ])
 
   if (eventResult.error && eventResult.error.code !== 'PGRST116') {
@@ -64,7 +69,9 @@ export default async function HomePage() {
       <ModernHero
         tagline={sanitizeText(interpolate(content.hero_tagline ?? '', vars))}
         subtext={sanitizeText(interpolate(content.hero_subtext ?? '', vars))}
-        heroImageUrl={settings.hero_image_url}
+        slides={heroSlides as HeroSlide[]}
+        transition={(settings.hero_transition ?? 'crossfade') as 'crossfade' | 'slide'}
+        intervalMs={settings.hero_interval_ms ?? 5000}
       />
       <ModernFeaturedGrid
         items={(() => {
