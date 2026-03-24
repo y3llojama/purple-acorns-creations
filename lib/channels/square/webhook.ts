@@ -27,10 +27,11 @@ export async function handleInventoryUpdate(payload: unknown): Promise<void> {
       console.warn('[square-webhook] invalid inventory quantity, skipping:', count.quantity)
       continue
     }
-    await supabase
+    const { error } = await supabase
       .from('products')
       .update({ stock_count: qty })
       .eq('square_variation_id', count.catalog_object_id)
+    if (error) console.error('[square-webhook] failed to update stock for', count.catalog_object_id, error.message)
   }
 }
 

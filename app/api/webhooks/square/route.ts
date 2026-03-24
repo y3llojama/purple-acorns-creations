@@ -18,6 +18,10 @@ export async function POST(request: Request) {
   const signature = request.headers.get('x-square-hmacsha256-signature') ?? ''
   const webhookKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY ?? ''
 
+  if (!webhookKey) {
+    console.error('[square-webhook] SQUARE_WEBHOOK_SIGNATURE_KEY is not configured — rejecting all requests')
+    return NextResponse.json({ error: 'Webhook not configured.' }, { status: 500 })
+  }
   if (!process.env.SQUARE_WEBHOOK_URL) {
     console.warn('[square-webhook] SQUARE_WEBHOOK_URL not set — falling back to request.url for signature verification')
   }
