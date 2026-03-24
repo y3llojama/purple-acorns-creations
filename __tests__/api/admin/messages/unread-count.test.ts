@@ -67,6 +67,9 @@ describe('GET /api/admin/messages/unread-count', () => {
   })
 
   it('returns 500 on database error', async () => {
+    jest.doMock('@/lib/auth', () => ({
+      requireAdminSession: jest.fn().mockResolvedValue({ error: null }),
+    }))
     jest.doMock('@/lib/supabase/server', () => ({
       createServiceRoleClient: jest.fn(() => ({
         from: jest.fn(() => ({
