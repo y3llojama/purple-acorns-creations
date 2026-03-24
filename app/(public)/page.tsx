@@ -3,6 +3,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getAllContent } from '@/lib/content'
 import { getSettings } from '@/lib/theme'
 import { sanitizeText } from '@/lib/sanitize'
+import { isValidHttpsUrl } from '@/lib/validate'
 import { interpolate, buildVars } from '@/lib/variables'
 import { JsonLd, buildOrganizationSchema } from '@/lib/seo'
 import InstagramFeed from '@/components/home/InstagramFeed'
@@ -69,7 +70,7 @@ export default async function HomePage() {
       <ModernHero
         tagline={sanitizeText(interpolate(content.hero_tagline ?? '', vars))}
         subtext={sanitizeText(interpolate(content.hero_subtext ?? '', vars))}
-        slides={heroSlides as HeroSlide[]}
+        slides={(heroSlides as HeroSlide[]).filter(s => isValidHttpsUrl(s.url))}
         transition={(settings.hero_transition ?? 'crossfade') as 'crossfade' | 'slide'}
         intervalMs={settings.hero_interval_ms ?? 5000}
       />

@@ -76,6 +76,7 @@
   --color-success-text: #155724;
   --color-danger-bg: #f8d7da;
   --color-danger-text: #721c24;
+  --color-on-primary: #fff;
   /* HeroCarousel dot indicators */
   --carousel-dot-active: #fff;
   --carousel-dot-inactive: rgba(255, 255, 255, 0.45);

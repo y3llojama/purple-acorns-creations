@@ -62,7 +62,7 @@ export default function ModernHero({ tagline, subtext, slides, transition, inter
             </p>
             <h1
               style={{
-                color: '#fff',
+                color: 'var(--color-on-primary)',
                 fontFamily: 'var(--font-display)',
                 fontSize: 'clamp(28px, 4vw, 52px)',
                 fontWeight: 700,
@@ -75,7 +75,7 @@ export default function ModernHero({ tagline, subtext, slides, transition, inter
             </h1>
             <p
               style={{
-                color: '#fff',
+                color: 'var(--color-on-primary)',
                 opacity: 0.7,
                 fontSize: 'clamp(15px, 1.8vw, 18px)',
                 marginTop: '16px',

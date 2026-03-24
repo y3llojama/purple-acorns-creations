@@ -88,9 +88,9 @@ export default function HeroCarousel({ slides, transition, intervalMs }: Props) 
             style={{
               position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
               background: 'rgba(255,255,255,0.82)', border: 'none', borderRadius: '50%',
-              width: 40, height: 40, fontSize: 20, cursor: 'pointer', zIndex: 2,
+              width: 48, height: 48, fontSize: 20, cursor: 'pointer', zIndex: 2,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.2)', minHeight: 40,
+              boxShadow: '0 2px 6px rgba(0,0,0,0.2)', minHeight: 48,
             }}
           >‹</button>
           <button
@@ -99,9 +99,9 @@ export default function HeroCarousel({ slides, transition, intervalMs }: Props) 
             style={{
               position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
               background: 'rgba(255,255,255,0.82)', border: 'none', borderRadius: '50%',
-              width: 40, height: 40, fontSize: 20, cursor: 'pointer', zIndex: 2,
+              width: 48, height: 48, fontSize: 20, cursor: 'pointer', zIndex: 2,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.2)', minHeight: 40,
+              boxShadow: '0 2px 6px rgba(0,0,0,0.2)', minHeight: 48,
             }}
           >›</button>
           <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 8, zIndex: 2 }}>
@@ -112,13 +112,17 @@ export default function HeroCarousel({ slides, transition, intervalMs }: Props) 
                 aria-current={i === current ? 'true' : undefined}
                 onClick={() => goTo(i)}
                 style={{
-                  width: 9, height: 9, borderRadius: '50%', border: 'none', padding: 0, cursor: 'pointer',
+                  width: 48, height: 48, border: 'none', padding: 0, cursor: 'pointer',
+                  background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <span style={{
+                  width: 9, height: 9, borderRadius: '50%', display: 'block',
                   background: i === current ? 'var(--carousel-dot-active)' : 'var(--carousel-dot-inactive)',
                   transform: i === current ? 'scale(1.2)' : 'scale(1)',
                   transition: 'background 0.2s, transform 0.2s',
-                  minHeight: 'unset',
-                }}
-              />
+                }} />
+              </button>
             ))}
           </div>
         </>
