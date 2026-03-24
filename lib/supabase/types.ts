@@ -11,7 +11,7 @@ export interface Settings {
   custom_primary: string | null
   custom_accent: string | null
   hero_image_url: string | null
-  hero_transition: string | null
+  hero_transition: 'crossfade' | 'slide' | null
   hero_interval_ms: number | null
   gallery_watermark: string | null
   follow_along_mode: 'gallery' | 'widget' | null
