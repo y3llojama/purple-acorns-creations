@@ -123,8 +123,8 @@ export async function POST(request: Request) {
     update.hero_transition = val
   }
   if (body.hero_interval_ms !== undefined) {
-    const val = parseInt(String(body.hero_interval_ms), 10)
-    if (isNaN(val) || val < 2000 || val > 30000) return NextResponse.json({ error: 'hero_interval_ms must be between 2000 and 30000' }, { status: 400 })
+    const val = Number(body.hero_interval_ms)
+    if (!Number.isInteger(val) || val < 2000 || val > 30000) return NextResponse.json({ error: 'hero_interval_ms must be an integer between 2000 and 30000' }, { status: 400 })
     update.hero_interval_ms = val
   }
 
