@@ -48,7 +48,8 @@ export async function POST(request: Request, { params }: RouteContext) {
   const settings = settingsResult.data ? decryptSettings(settingsResult.data) : null
   const resendApiKey = process.env.RESEND_API_KEY ?? settings?.resend_api_key
   const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? settings?.newsletter_from_email
-  const fromName = process.env.NEWSLETTER_FROM_NAME ?? settings?.newsletter_from_name ?? settings?.business_name ?? 'Purple Acorns Creations'
+  const fromName = (process.env.NEWSLETTER_FROM_NAME ?? settings?.newsletter_from_name ?? settings?.business_name ?? 'Purple Acorns Creations')
+    .replace(/\$\{BUSINESS_NAME\}/g, settings?.business_name ?? '')
 
   if (!resendApiKey || !fromEmail) {
     return NextResponse.json(
