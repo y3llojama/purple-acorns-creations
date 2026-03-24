@@ -21,7 +21,10 @@ export default function HeroSlideList({ initialSlides, transition, intervalMs }:
   useEffect(() => {
     if (initialSlides.length > 0) return
     fetch('/api/admin/hero-slides')
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
       .then((data: HeroSlide[]) => setSlides(data))
       .catch(() => setError('Failed to load slides.'))
   }, [initialSlides.length])
@@ -76,20 +79,25 @@ export default function HeroSlideList({ initialSlides, transition, intervalMs }:
             <span style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(0,0,0,0.55)', color: 'var(--color-on-primary)', fontSize: '11px', padding: '2px 7px', borderRadius: '10px' }}>
               {i + 1}
             </span>
-            {/* Remove button */}
+            {/* Remove button — 48×48 touch target, visual circle via inner span */}
             <button
               onClick={() => handleRemove(slide.id)}
-              title="Remove slide"
-              style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(192,57,43,0.85)', color: 'var(--color-on-primary)', border: 'none', borderRadius: '50%', width: 24, height: 24, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'unset' }}
               aria-label={`Remove slide ${i + 1}`}
-            >×</button>
-            {/* Up/Down reorder */}
-            <div style={{ position: 'absolute', bottom: 30, right: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              style={{ position: 'absolute', top: 0, right: 0, width: 48, height: 48, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', padding: '6px 6px 0 0' }}
+            >
+              <span style={{ background: 'rgba(192,57,43,0.85)', color: 'var(--color-on-primary)', borderRadius: '50%', width: 22, height: 22, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>×</span>
+            </button>
+            {/* Up/Down reorder — 48×48 touch targets */}
+            <div style={{ position: 'absolute', bottom: 28, right: 0, display: 'flex', flexDirection: 'column' }}>
               {i > 0 && (
-                <button onClick={() => handleMove(i, -1)} title="Move up" style={{ background: 'rgba(255,255,255,0.85)', border: 'none', borderRadius: '3px', width: 22, height: 22, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'unset' }} aria-label={`Move slide ${i + 1} earlier`}>↑</button>
+                <button onClick={() => handleMove(i, -1)} aria-label={`Move slide ${i + 1} earlier`} style={{ background: 'transparent', border: 'none', cursor: 'pointer', width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 8 }}>
+                  <span style={{ background: 'rgba(255,255,255,0.85)', borderRadius: '3px', width: 22, height: 22, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>↑</span>
+                </button>
               )}
               {i < slides.length - 1 && (
-                <button onClick={() => handleMove(i, 1)} title="Move down" style={{ background: 'rgba(255,255,255,0.85)', border: 'none', borderRadius: '3px', width: 22, height: 22, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'unset' }} aria-label={`Move slide ${i + 1} later`}>↓</button>
+                <button onClick={() => handleMove(i, 1)} aria-label={`Move slide ${i + 1} later`} style={{ background: 'transparent', border: 'none', cursor: 'pointer', width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 8 }}>
+                  <span style={{ background: 'rgba(255,255,255,0.85)', borderRadius: '3px', width: 22, height: 22, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>↓</span>
+                </button>
               )}
             </div>
             {/* Alt text */}

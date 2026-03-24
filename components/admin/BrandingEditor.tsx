@@ -69,6 +69,7 @@ export default function BrandingEditor({ settings }: Props) {
     Math.round((settings.hero_interval_ms ?? 5000) / 1000)
   )
   const [heroSettingsSaved, setHeroSettingsSaved] = useState(false)
+  const [heroSettingsError, setHeroSettingsError] = useState<string | null>(null)
 
   const [announcementEnabled, setAnnouncementEnabled]     = useState(settings.announcement_enabled)
   const [announcementText, setAnnouncementText]           = useState(settings.announcement_text ?? '')
@@ -181,6 +182,7 @@ export default function BrandingEditor({ settings }: Props) {
   }
 
   async function saveHeroSettings() {
+    setHeroSettingsError(null)
     const res = await fetch('/api/admin/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -189,7 +191,13 @@ export default function BrandingEditor({ settings }: Props) {
         hero_interval_ms: heroIntervalSecs * 1000,
       }),
     })
-    if (res.ok) { setHeroSettingsSaved(true); router.refresh() }
+    if (res.ok) {
+      setHeroSettingsSaved(true)
+      router.refresh()
+    } else {
+      const data = await res.json().catch(() => ({}))
+      setHeroSettingsError(`Save failed (${res.status}): ${data.error ?? res.statusText}`)
+    }
   }
 
   async function handleLogoUpload(url: string, _altText: string) {
@@ -362,7 +370,7 @@ export default function BrandingEditor({ settings }: Props) {
             <select
               id="hero-transition"
               value={heroTransition}
-              onChange={e => { setHeroTransition(e.target.value as 'crossfade' | 'slide'); setHeroSettingsSaved(false) }}
+              onChange={e => { setHeroTransition(e.target.value as 'crossfade' | 'slide'); setHeroSettingsSaved(false); setHeroSettingsError(null) }}
               style={{ border: '1px solid var(--color-border)', borderRadius: '4px', padding: '8px 12px', fontSize: '14px', minHeight: '48px' }}
             >
               <option value="crossfade">Crossfade</option>
@@ -377,7 +385,7 @@ export default function BrandingEditor({ settings }: Props) {
               min={2}
               max={30}
               value={heroIntervalSecs}
-              onChange={e => { setHeroIntervalSecs(Number(e.target.value)); setHeroSettingsSaved(false) }}
+              onChange={e => { setHeroIntervalSecs(Number(e.target.value)); setHeroSettingsSaved(false); setHeroSettingsError(null) }}
               style={{ border: '1px solid var(--color-border)', borderRadius: '4px', padding: '8px 12px', fontSize: '14px', width: '80px', minHeight: '48px' }}
             />
           </div>
@@ -389,6 +397,7 @@ export default function BrandingEditor({ settings }: Props) {
             Save Settings
           </button>
           {heroSettingsSaved && <span role="status" aria-live="polite" style={{ color: 'green', fontSize: '14px' }}>Saved ✓</span>}
+          {heroSettingsError && <span role="alert" style={{ color: 'red', fontSize: '14px' }}>{heroSettingsError}</span>}
         </div>
       </section>
 
