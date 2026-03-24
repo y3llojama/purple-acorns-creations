@@ -16,6 +16,11 @@ export async function POST(request: Request) {
   const token = ((body as { token?: string }).token ?? '').toString().trim()
   if (!token) return NextResponse.json({ error: 'Invalid token.' }, { status: 400 })
 
+  // Token is generated as encode(gen_random_bytes(24), 'hex') — 48-char hex string
+  if (!/^[0-9a-f]{48}$/.test(token)) {
+    return NextResponse.json({ error: 'Invalid token.' }, { status: 400 })
+  }
+
   const supabase = createServiceRoleClient()
   const { error } = await supabase
     .from('newsletter_subscribers')

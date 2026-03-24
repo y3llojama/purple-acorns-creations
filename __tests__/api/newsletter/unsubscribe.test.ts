@@ -16,8 +16,17 @@ function req(body: unknown) {
 }
 beforeEach(() => jest.clearAllMocks())
 
+// Valid token: 48-char hex string (matches gen_random_bytes(24) encoded as hex)
+const VALID_TOKEN = 'a'.repeat(48)
+const FAIL_TOKEN  = 'b'.repeat(48)
+
 it('400 when token is missing', async () => {
   const res = await POST(req({}))
+  expect(res.status).toBe(400)
+})
+
+it('400 when token has invalid format', async () => {
+  const res = await POST(req({ token: 'invalid-token' }))
   expect(res.status).toBe(400)
 })
 
@@ -28,7 +37,7 @@ it('200 on successful unsubscribe', async () => {
   ;(createServiceRoleClient as jest.Mock).mockReturnValue({
     from: () => ({ update: mockUpdate }),
   })
-  const res = await POST(req({ token: 'valid-token' }))
+  const res = await POST(req({ token: VALID_TOKEN }))
   expect(res.status).toBe(200)
   expect(mockUpdate).toHaveBeenCalledWith(
     expect.objectContaining({ status: 'unsubscribed' })
@@ -41,6 +50,6 @@ it('500 on DB error', async () => {
   ;(createServiceRoleClient as jest.Mock).mockReturnValue({
     from: () => ({ update: () => ({ eq: mockEq1 }) }),
   })
-  const res = await POST(req({ token: 'fail-token' }))
+  const res = await POST(req({ token: FAIL_TOKEN }))
   expect(res.status).toBe(500)
 })
