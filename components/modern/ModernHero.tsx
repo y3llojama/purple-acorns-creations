@@ -1,13 +1,16 @@
-import Image from 'next/image'
 import Link from 'next/link'
+import HeroCarousel from './HeroCarousel'
+import type { HeroSlide } from '@/lib/supabase/types'
 
 interface Props {
   tagline: string
   subtext: string
-  heroImageUrl: string | null | undefined
+  slides: HeroSlide[]
+  transition: 'crossfade' | 'slide'
+  intervalMs: number
 }
 
-export default function ModernHero({ tagline, subtext, heroImageUrl }: Props) {
+export default function ModernHero({ tagline, subtext, slides, transition, intervalMs }: Props) {
   return (
     <section>
       <style>{`
@@ -59,7 +62,7 @@ export default function ModernHero({ tagline, subtext, heroImageUrl }: Props) {
             </p>
             <h1
               style={{
-                color: '#fff',
+                color: 'var(--color-on-primary)',
                 fontFamily: 'var(--font-display)',
                 fontSize: 'clamp(28px, 4vw, 52px)',
                 fontWeight: 700,
@@ -72,7 +75,7 @@ export default function ModernHero({ tagline, subtext, heroImageUrl }: Props) {
             </h1>
             <p
               style={{
-                color: '#fff',
+                color: 'var(--color-on-primary)',
                 opacity: 0.7,
                 fontSize: 'clamp(15px, 1.8vw, 18px)',
                 marginTop: '16px',
@@ -105,39 +108,7 @@ export default function ModernHero({ tagline, subtext, heroImageUrl }: Props) {
 
         {/* Right panel */}
         <div className="modern-hero-image-panel">
-          {heroImageUrl ? (
-            <Image
-              src={heroImageUrl}
-              alt=""
-              width={1440}
-              height={960}
-              priority
-              sizes="(max-width: 768px) 100vw, 50vw"
-              style={{ width: '100%', height: 'auto', display: 'block' }}
-            />
-          ) : (
-            <div
-              style={{
-                background: 'linear-gradient(135deg, var(--color-accent) 0%, #e8d5a0 50%, var(--color-secondary) 100%)',
-                minHeight: '400px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <p
-                style={{
-                  fontStyle: 'italic',
-                  color: 'var(--color-primary)',
-                  opacity: 0.4,
-                  fontSize: '24px',
-                  margin: 0,
-                }}
-              >
-                Handmade with love
-              </p>
-            </div>
-          )}
+          <HeroCarousel slides={slides} transition={transition} intervalMs={intervalMs} />
         </div>
       </div>
     </section>

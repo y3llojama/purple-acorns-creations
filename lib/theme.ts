@@ -12,7 +12,7 @@ const DEFAULT_SETTINGS: Settings = {
   announcement_link_url: null, announcement_link_label: null,
   social_instagram: 'purpleacornz', social_facebook: null, social_tiktok: null,
   social_pinterest: null, social_x: null, behold_widget_id: null,
-  custom_primary: null, custom_accent: null, hero_image_url: null, gallery_watermark: null, follow_along_mode: 'widget',
+  custom_primary: null, custom_accent: null, hero_image_url: null, hero_transition: null, hero_interval_ms: null, gallery_watermark: null, follow_along_mode: 'widget',
   smtp_host: 'smtp.gmail.com', smtp_port: 587, smtp_user: null, smtp_pass: null,
   business_name: 'Purple Acorns Creations',
   square_access_token: null, square_refresh_token: null, square_location_id: null,

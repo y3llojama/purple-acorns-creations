@@ -2,8 +2,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import ImageUploader from './ImageUploader'
+import HeroSlideList from './HeroSlideList'
 import SiteMap from './SiteMap'
 import { deriveCustomThemeVars } from '@/lib/color'
+import { isValidHttpsUrl } from '@/lib/validate'
 import type { ThemeVars } from '@/lib/color'
 import type { Settings } from '@/lib/supabase/types'
 
@@ -61,11 +63,21 @@ export default function BrandingEditor({ settings }: Props) {
 
   const [logoPreview, setLogoPreview] = useState(settings.logo_url ?? null)
 
+  const [heroTransition, setHeroTransition] = useState<'crossfade' | 'slide'>(
+    (settings.hero_transition as 'crossfade' | 'slide') ?? 'crossfade'
+  )
+  const [heroIntervalSecs, setHeroIntervalSecs] = useState(
+    Math.round((settings.hero_interval_ms ?? 5000) / 1000)
+  )
+  const [heroSettingsSaved, setHeroSettingsSaved] = useState(false)
+  const [heroSettingsError, setHeroSettingsError] = useState<string | null>(null)
+
   const [announcementEnabled, setAnnouncementEnabled]     = useState(settings.announcement_enabled)
   const [announcementText, setAnnouncementText]           = useState(settings.announcement_text ?? '')
   const [announcementLinkUrl, setAnnouncementLinkUrl]     = useState(settings.announcement_link_url ?? '')
   const [announcementLinkLabel, setAnnouncementLinkLabel] = useState(settings.announcement_link_label ?? '')
   const [announcementSaved, setAnnouncementSaved]         = useState(false)
+  const [announcementError, setAnnouncementError]         = useState<string | null>(null)
 
   function applyThemePreview(preset: Preset) {
     const html = document.documentElement
@@ -158,6 +170,7 @@ export default function BrandingEditor({ settings }: Props) {
 
   async function saveAnnouncement(e: React.FormEvent) {
     e.preventDefault()
+    setAnnouncementError(null)
     const res = await fetch('/api/admin/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -168,7 +181,31 @@ export default function BrandingEditor({ settings }: Props) {
         announcement_link_label: announcementLinkLabel,
       }),
     })
-    if (res.ok) setAnnouncementSaved(true)
+    if (res.ok) {
+      setAnnouncementSaved(true)
+    } else {
+      const data = await res.json().catch(() => ({}))
+      setAnnouncementError(`Save failed (${res.status}): ${data.error ?? res.statusText}`)
+    }
+  }
+
+  async function saveHeroSettings() {
+    setHeroSettingsError(null)
+    const res = await fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        hero_transition: heroTransition,
+        hero_interval_ms: heroIntervalSecs * 1000,
+      }),
+    })
+    if (res.ok) {
+      setHeroSettingsSaved(true)
+      router.refresh()
+    } else {
+      const data = await res.json().catch(() => ({}))
+      setHeroSettingsError(`Save failed (${res.status}): ${data.error ?? res.statusText}`)
+    }
   }
 
   async function handleLogoUpload(url: string, _altText: string) {
@@ -179,16 +216,6 @@ export default function BrandingEditor({ settings }: Props) {
     })
     if (res.ok) { setLogoPreview(url); router.refresh() }
     else console.error('[BrandingEditor] Failed to save logo URL')
-  }
-
-  async function handleHeroUpload(url: string, _altText: string) {
-    const res = await fetch('/api/admin/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hero_image_url: url }),
-    })
-    if (res.ok) router.refresh()
-    else console.error('[BrandingEditor] Failed to save hero image URL')
   }
 
   return (
@@ -251,13 +278,13 @@ export default function BrandingEditor({ settings }: Props) {
                 }}
               >
                 <div style={{
-                  border: `3px solid ${isActive ? preset.primary : '#ddd'}`,
+                  border: `3px solid ${isActive ? preset.primary : 'var(--color-border)'}`,
                   borderRadius: '8px', overflow: 'hidden', marginBottom: '4px',
                 }}>
                   <div style={{ height: '28px', background: preset.primary }} />
                   <div style={{ height: '28px', background: preset.accent }} />
                 </div>
-                <span style={{ fontSize: '10px', color: isActive ? preset.primary : '#888', fontWeight: isActive ? 700 : 400 }}>
+                <span style={{ fontSize: '10px', color: isActive ? preset.primary : 'var(--color-text-muted)', fontWeight: isActive ? 700 : 400 }}>
                   {preset.name}{isActive ? <span aria-hidden="true"> ✓</span> : ''}
                 </span>
               </button>
@@ -301,7 +328,7 @@ export default function BrandingEditor({ settings }: Props) {
                     <div
                       key={key}
                       title={key}
-                      style={{ width: '24px', height: '44px', borderRadius: '3px', background: previewVars[key], border: '1px solid #ddd' }}
+                      style={{ width: '24px', height: '44px', borderRadius: '3px', background: previewVars[key], border: '1px solid var(--color-border)' }}
                     />
                   ))}
                 </div>
@@ -327,23 +354,59 @@ export default function BrandingEditor({ settings }: Props) {
       <section style={{ marginBottom: '40px' }}>
         <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Logo</h2>
         <SiteMap highlight="header" label="Site Header" description="Your logo appears in the top-left corner of every page." />
-        {logoPreview && (
+        {logoPreview && isValidHttpsUrl(logoPreview) && (
           <div style={{ marginBottom: '12px' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logoPreview} alt="Current logo" style={{ maxHeight: '64px', maxWidth: '240px', objectFit: 'contain', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '8px', background: '#fff' }} />
+            <img src={logoPreview} alt="Current logo" style={{ maxHeight: '64px', maxWidth: '240px', objectFit: 'contain', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '8px', background: 'var(--color-surface)' }} />
           </div>
         )}
         <ImageUploader bucket="branding" onUpload={handleLogoUpload} label="Upload Logo" />
       </section>
 
-      {/* Hero Image */}
+      {/* Hero Images */}
       <section style={{ marginBottom: '40px' }}>
-        <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Hero Image</h2>
-        <SiteMap highlight="hero" label="Hero Section" description="Full-width background image on the homepage hero." />
-        {settings.hero_image_url && (
-          <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginBottom: '12px' }}>Current hero image set. Upload a new one to replace it.</p>
-        )}
-        <ImageUploader bucket="branding" onUpload={handleHeroUpload} label="Upload Hero Image" />
+        <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Hero Images</h2>
+        <SiteMap highlight="hero" label="Hero Section" description="Images cycling in the homepage hero panel." />
+        <HeroSlideList
+          initialSlides={[]}
+          transition={heroTransition}
+          intervalMs={heroIntervalSecs * 1000}
+        />
+        <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '16px', marginTop: '16px', display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div>
+            <label htmlFor="hero-transition" style={{ display: 'block', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-muted)', marginBottom: '5px' }}>Transition</label>
+            <select
+              id="hero-transition"
+              value={heroTransition}
+              onChange={e => { setHeroTransition(e.target.value as 'crossfade' | 'slide'); setHeroSettingsSaved(false); setHeroSettingsError(null) }}
+              style={{ border: '1px solid var(--color-border)', borderRadius: '4px', padding: '8px 12px', fontSize: '14px', minHeight: '48px' }}
+            >
+              <option value="crossfade">Crossfade</option>
+              <option value="slide">Slide</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="hero-interval" style={{ display: 'block', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-muted)', marginBottom: '5px' }}>Interval (seconds)</label>
+            <input
+              id="hero-interval"
+              type="number"
+              min={2}
+              max={30}
+              value={heroIntervalSecs}
+              onChange={e => { setHeroIntervalSecs(Number(e.target.value)); setHeroSettingsSaved(false); setHeroSettingsError(null) }}
+              style={{ border: '1px solid var(--color-border)', borderRadius: '4px', padding: '8px 12px', fontSize: '14px', width: '80px', minHeight: '48px' }}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={saveHeroSettings}
+            style={{ background: 'var(--color-primary)', color: 'var(--color-accent)', padding: '12px 24px', fontSize: '16px', border: 'none', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}
+          >
+            Save Settings
+          </button>
+          {heroSettingsSaved && <span role="status" aria-live="polite" style={{ color: 'green', fontSize: '14px' }}>Saved ✓</span>}
+          {heroSettingsError && <span role="alert" style={{ color: 'red', fontSize: '14px' }}>{heroSettingsError}</span>}
+        </div>
       </section>
 
       {/* Announcement banner */}
@@ -382,6 +445,7 @@ export default function BrandingEditor({ settings }: Props) {
             Save Announcement
           </button>
           {announcementSaved && <span role="status" aria-live="polite" style={{ marginLeft: '12px', color: 'green' }}>Saved ✓</span>}
+          {announcementError && <span role="alert" style={{ display: 'block', marginTop: '8px', color: 'red' }}>{announcementError}</span>}
         </form>
       </section>
     </div>

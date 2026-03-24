@@ -11,6 +11,8 @@ export interface Settings {
   custom_primary: string | null
   custom_accent: string | null
   hero_image_url: string | null
+  hero_transition: 'crossfade' | 'slide' | null
+  hero_interval_ms: number | null
   gallery_watermark: string | null
   follow_along_mode: 'gallery' | 'widget' | null
   smtp_host: string | null
@@ -248,4 +250,11 @@ export interface RecurringMarket {
   notes: string | null
   created_at: string
   updated_at: string
+}
+
+export interface HeroSlide {
+  id: string
+  url: string
+  alt_text: string
+  sort_order: number
 }
