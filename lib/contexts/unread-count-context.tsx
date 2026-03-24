@@ -32,9 +32,9 @@ export function UnreadCountProvider({ initialCount, children }: Props) {
   useEffect(() => {
     if (!('setAppBadge' in navigator)) return
     if (unreadCount > 0) {
-      navigator.setAppBadge(unreadCount)
+      navigator.setAppBadge(unreadCount).catch((err: unknown) => console.error('[badge] setAppBadge failed:', err))
     } else if ('clearAppBadge' in navigator) {
-      navigator.clearAppBadge()
+      navigator.clearAppBadge().catch((err: unknown) => console.error('[badge] clearAppBadge failed:', err))
     }
   }, [unreadCount])
 
