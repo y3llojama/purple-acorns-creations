@@ -9,6 +9,7 @@ import {
   ChevronLeft, ChevronRight, ExternalLink, LogOut,
   Package, Radio, MapPin, Settings, Tag,
 } from 'lucide-react'
+import { useUnreadCount } from '@/lib/contexts/unread-count-context'
 
 const NAV_ITEMS = [
   { href: '/admin', label: 'Dashboard', Icon: LayoutDashboard },
@@ -36,6 +37,7 @@ export default function AdminSidebar({ businessName }: Props) {
   const [collapsed, setCollapsed] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const { unreadCount } = useUnreadCount()
 
   useEffect(() => {
     setMounted(true)
@@ -123,7 +125,35 @@ export default function AdminSidebar({ businessName }: Props) {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  <Icon size={20} style={{ flexShrink: 0 }} />
+                  {href === '/admin/messages' ? (
+                    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                      <Icon size={20} style={{ flexShrink: 0 }} />
+                      {unreadCount > 0 && (
+                        <span style={{
+                          position: 'absolute',
+                          top: '-8px',
+                          right: '-10px',
+                          background: 'var(--color-danger)',
+                          color: 'white',
+                          fontSize: '9px',
+                          fontWeight: '700',
+                          minWidth: '16px',
+                          height: '16px',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '0 3px',
+                          border: '1.5px solid var(--color-primary)',
+                          lineHeight: 1,
+                        }}>
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <Icon size={20} style={{ flexShrink: 0 }} />
+                  )}
                   {!collapsed && label}
                 </Link>
               </li>
