@@ -40,14 +40,27 @@ describe('POST /api/shop/private-sale/[token]/checkout', () => {
 
   const validBody = {
     sourceId: 'sq_tok',
+    verificationToken: 'test-verification-token',
     shipping: { name: 'Jane', address1: '123 Main', city: 'Portland', state: 'OR', zip: '97201', country: 'US' },
   }
+
+  it('returns 400 when verificationToken is missing', async () => {
+    const { POST } = await import('@/app/api/shop/private-sale/[token]/checkout/route')
+    const req = new Request('http://localhost/', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceId: 'sq_tok', shipping: { name: 'Jane', address1: '123 Main', city: 'Portland', state: 'OR', zip: '97201', country: 'US' } }),
+    })
+    const res = await POST(req, { params: Promise.resolve({ token: 'tok-uuid' }) })
+    expect(res.status).toBe(400)
+    const data = await res.json()
+    expect(data.error).toBe('Buyer verification required.')
+  })
 
   it('returns 400 when shipping address missing', async () => {
     const { POST } = await import('@/app/api/shop/private-sale/[token]/checkout/route')
     const req = new Request('http://localhost/', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sourceId: 'sq_tok' }),
+      body: JSON.stringify({ sourceId: 'sq_tok', verificationToken: 'test-verification-token' }),
     })
     const res = await POST(req, { params: Promise.resolve({ token: 'tok-uuid' }) })
     expect(res.status).toBe(400)

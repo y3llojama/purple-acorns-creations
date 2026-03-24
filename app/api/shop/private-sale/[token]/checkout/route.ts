@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getSquareClient } from '@/lib/channels/square/client'
@@ -25,6 +26,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   const sourceId: string = typeof body.sourceId === 'string' ? body.sourceId : ''
   if (!sourceId) return NextResponse.json({ error: 'sourceId required' }, { status: 400 })
   const verificationToken: string | undefined = typeof body.verificationToken === 'string' ? body.verificationToken : undefined
+
+  // Require 3DS buyer verification — do not process payments without it
+  if (!verificationToken) {
+    return NextResponse.json({ error: 'Buyer verification required.' }, { status: 400 })
+  }
 
   const shippingRaw = body.shipping
   const requiredFields: (keyof ShippingAddress)[] = ['name', 'address1', 'city', 'state', 'zip', 'country']
@@ -62,6 +68,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     if (releaseErr) console.error('[private-sale checkout] release_private_sale_stock failed for sale_id:', sale.id, releaseErr.message)
     return NextResponse.json({ error: 'This link is no longer available' }, { status: 410 })
   }
+
+  const idem = crypto.randomUUID()
 
   // Calculate totals
   const { data: settings } = await supabase.from('settings').select('shipping_mode,shipping_value').limit(1).maybeSingle()
@@ -105,14 +113,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
           },
         }],
       },
-      idempotencyKey: `order-${sale.id}-${sourceId.slice(-12)}`,
+      idempotencyKey: `order-${idem}`,
     })
     orderId = orderResult.order?.id ?? ''
     if (!orderId) throw new Error('Square order created but returned no ID')
   } catch (err) {
     const { message, detail } = squarePaymentError(err)
     console.error('[private-sale checkout] Square order creation error:', detail)
-    return NextResponse.json({ error: message, detail }, { status: 402 })
+    return NextResponse.json({ error: message }, { status: 402 })
   }
 
   // Charge the card
@@ -120,14 +128,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     const paymentResult = await client.payments.create({
       sourceId, orderId, locationId,
       amountMoney: { amount: BigInt(totalCents), currency: 'USD' as const },
-      idempotencyKey: `pay-${sale.id}-${sourceId.slice(-12)}`,
+      idempotencyKey: `pay-${idem}`,
       ...(verificationToken ? { verificationToken } : {}),
     })
     paymentId = paymentResult.payment?.id ?? ''
   } catch (err) {
     const { message, detail } = squarePaymentError(err)
     console.error('[private-sale checkout] Square payment error:', detail)
-    return NextResponse.json({ error: message, detail }, { status: 402 })
+    return NextResponse.json({ error: message }, { status: 402 })
   }
 
   // Fulfill atomically — refund if DB fails
