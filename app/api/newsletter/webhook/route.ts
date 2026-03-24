@@ -3,21 +3,18 @@ import { createServiceRoleClient } from '@/lib/supabase/server'
 import crypto from 'crypto'
 import { getClientIp } from '@/lib/get-client-ip'
 
-const rateLimitMap = new Map<string, { count: number; windowStart: number }>()
+const rateLimitMap = new Map<string, { count: number; reset: number }>()
 const RATE_LIMIT_MAX = 100
 const RATE_LIMIT_WINDOW = 60_000
 
 export async function POST(request: Request) {
   const ip = getClientIp(request)
   const now = Date.now()
-  const entry = rateLimitMap.get(ip)
-  if (entry && now - entry.windowStart < RATE_LIMIT_WINDOW) {
-    if (entry.count >= RATE_LIMIT_MAX) {
-      return NextResponse.json({ error: 'Too many requests.' }, { status: 429 })
-    }
-    entry.count++
-  } else {
-    rateLimitMap.set(ip, { count: 1, windowStart: now })
+  const entry = rateLimitMap.get(ip) ?? { count: 0, reset: now + RATE_LIMIT_WINDOW }
+  if (now > entry.reset) { entry.count = 0; entry.reset = now + RATE_LIMIT_WINDOW }
+  entry.count++; rateLimitMap.set(ip, entry)
+  if (entry.count > RATE_LIMIT_MAX) {
+    return NextResponse.json({ error: 'Too many requests.' }, { status: 429 })
   }
 
   // HMAC signature validation — required, no unauthenticated fallback
