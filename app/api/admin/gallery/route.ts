@@ -29,6 +29,7 @@ export async function PATCH(request: Request) {
   if (error) return error
   const body = await request.json().catch(() => ({} as Record<string, unknown>))
   if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+  if (!UUID_RE.test(String(body.id))) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
   const update: Record<string, string | boolean | number | null> = {}
   if (body.url !== undefined) {
     const url = String(body.url)
@@ -63,6 +64,7 @@ export async function DELETE(request: Request) {
   if (error) return error
   const body = await request.json().catch(() => ({} as Record<string, unknown>))
   if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+  if (!UUID_RE.test(String(body.id))) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
   const supabase = createServiceRoleClient()
   const { error: dbError } = await supabase.from('gallery').delete().eq('id', String(body.id))
   if (dbError) return NextResponse.json({ error: 'Failed to delete gallery item' }, { status: 500 })
