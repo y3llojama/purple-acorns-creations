@@ -13,8 +13,8 @@ export function buildNewsletterEmail(
   unsubscribeToken: string,
   siteUrl: string
 ): string {
-  const newsletterUrl = addUtmParams(`${siteUrl}/newsletter/${newsletter.slug}`, newsletter.slug)
-  const unsubscribeUrl = `${siteUrl}/newsletter/unsubscribe?token=${unsubscribeToken}`
+  const newsletterUrl = addUtmParams(`${siteUrl}/newsletter/${encodeURIComponent(newsletter.slug)}`, newsletter.slug)
+  const unsubscribeUrl = `${siteUrl}/newsletter/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`
 
   const heroBlock = newsletter.hero_image_url && isValidHttpsUrl(newsletter.hero_image_url)
     ? `<img src="${newsletter.hero_image_url}" alt="" style="width:100%;max-width:600px;height:auto;display:block;border-radius:4px;margin:0 auto 24px;" />`
