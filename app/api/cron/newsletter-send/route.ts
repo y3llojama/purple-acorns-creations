@@ -39,6 +39,11 @@ export async function GET(request: Request) {
   const fromName = process.env.NEWSLETTER_FROM_NAME ?? settings?.newsletter_from_name ?? 'Purple Acorns Creations'
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://purpleacornz.com'
 
+  if (!resendApiKey || !fromEmail) {
+    console.error('[newsletter-cron] Resend credentials not configured')
+    return NextResponse.json({ error: 'Resend not configured' }, { status: 500 })
+  }
+
   let processed = 0
 
   for (const newsletter of newsletters) {
@@ -73,11 +78,6 @@ export async function GET(request: Request) {
         // All already sent — just mark as sent
         await supabase.from('newsletters').update({ status: 'sent', sent_at: now }).eq('id', newsletter.id)
         processed++
-        continue
-      }
-
-      if (!resendApiKey || !fromEmail) {
-        console.error(`[cron] Resend not configured, cannot send newsletter ${newsletter.id}`)
         continue
       }
 
