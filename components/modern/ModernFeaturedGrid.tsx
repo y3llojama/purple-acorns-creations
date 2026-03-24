@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import HeartButton from '@/components/ui/HeartButton'
 import { isValidHttpsUrl } from '@/lib/validate'
 
@@ -133,11 +134,12 @@ export default function ModernFeaturedGrid({ items, watermark }: Props) {
                   {/* Image area */}
                   <div style={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
                     {item.image_url && isValidHttpsUrl(item.image_url) ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <Image
                         src={watermark && item.image_url ? `/api/gallery/image?url=${encodeURIComponent(item.image_url)}` : (item.image_url ?? '')}
                         alt={item.title ?? ''}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        fill
+                        sizes="(max-width: 480px) 100vw, (max-width: 768px) 50vw, 25vw"
+                        style={{ objectFit: 'cover' }}
                       />
                     ) : (
                       <div

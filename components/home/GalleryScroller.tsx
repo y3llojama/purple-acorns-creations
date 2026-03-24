@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { isValidHttpsUrl } from '@/lib/validate'
 import Link from 'next/link'
@@ -58,11 +59,12 @@ export default async function GalleryScroller({ prefetchedFeatured, maxItems: ma
               <figure style={{ margin: 0, background: 'var(--color-bg)', borderRadius: '8px', overflow: 'hidden' }}>
                 <div style={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
                   {product.images[0] && isValidHttpsUrl(product.images[0]) ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <Image
                       src={watermark ? `/api/gallery/image?url=${encodeURIComponent(product.images[0])}` : product.images[0]}
                       alt={product.name}
-                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      fill
+                      sizes="(max-width: 600px) 50vw, (max-width: 1200px) 25vw, 200px"
+                      style={{ objectFit: 'cover' }}
                     />
                   ) : (
                     <div style={{ width: '100%', height: '100%', background: 'var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', fontSize: '12px' }}>No image</div>

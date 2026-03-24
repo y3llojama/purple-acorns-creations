@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 
 interface Props {
@@ -103,13 +104,15 @@ export default function ModernHero({ tagline, subtext, heroImageUrl }: Props) {
         </div>
 
         {/* Right panel */}
-        <div className="modern-hero-image-panel">
+        <div className="modern-hero-image-panel" style={{ position: 'relative', minHeight: '400px' }}>
           {heroImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={heroImageUrl}
               alt=""
-              style={{ width: '100%', height: '100%', objectFit: 'cover', minHeight: '400px', display: 'block' }}
+              fill
+              priority
+              sizes="(max-width: 768px) 100vw, 50vw"
+              style={{ objectFit: 'cover' }}
             />
           ) : (
             <div
