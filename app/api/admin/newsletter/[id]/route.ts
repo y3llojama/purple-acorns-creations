@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { isValidNewsletterSection } from '@/lib/newsletter'
-import { sanitizeContent } from '@/lib/sanitize'
+import { sanitizeContent, sanitizeText } from '@/lib/sanitize'
 import { isValidHttpsUrl } from '@/lib/validate'
 import type { NewsletterSection } from '@/lib/supabase/types'
 
@@ -36,6 +36,19 @@ export async function PUT(request: Request, { params }: RouteContext) {
 
   for (const key of allowed) {
     if (key in body) updates[key] = body[key]
+  }
+
+  // Sanitize plain-text string fields
+  const textFields = ['title', 'subject_line', 'teaser_text', 'tone', 'ai_brief'] as const
+  for (const field of textFields) {
+    if (typeof updates[field] === 'string') {
+      updates[field] = sanitizeText(updates[field] as string)
+    }
+  }
+
+  // Validate slug format
+  if (typeof updates.slug === 'string' && !/^[a-z0-9-]+$/.test(updates.slug)) {
+    return NextResponse.json({ error: 'slug must contain only lowercase letters, numbers, and hyphens.' }, { status: 400 })
   }
 
   // Validate and sanitize
