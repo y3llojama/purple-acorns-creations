@@ -28,16 +28,13 @@ export function UnreadCountProvider({ initialCount, children }: Props) {
   const [unreadCount, setUnreadCount] = useState(initialCount)
   const pathname = usePathname()
 
-  // Sync app badge on every count change
+  // Sync app badge on every count change — no cleanup, badge must persist after app closes
   useEffect(() => {
     if (!('setAppBadge' in navigator)) return
     if (unreadCount > 0) {
       navigator.setAppBadge(unreadCount)
     } else if ('clearAppBadge' in navigator) {
       navigator.clearAppBadge()
-    }
-    return () => {
-      if ('clearAppBadge' in navigator) navigator.clearAppBadge()
     }
   }, [unreadCount])
 
