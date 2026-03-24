@@ -124,3 +124,62 @@ describe('DELETE /api/admin/hero-slides/[id]', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
   })
 })
+
+describe('PATCH /api/admin/hero-slides/reorder', () => {
+  beforeEach(() => jest.clearAllMocks())
+
+  const validIds = [
+    '123e4567-e89b-12d3-a456-426614174000',
+    '223e4567-e89b-12d3-a456-426614174001',
+  ]
+
+  it('rejects unauthenticated request', async () => {
+    requireAdminSession.mockResolvedValueOnce({ error: new Response(null, { status: 401 }) })
+    const { PATCH } = await import('@/app/api/admin/hero-slides/reorder/route')
+    const req = new Request('http://localhost/api/admin/hero-slides/reorder', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: validIds }),
+    })
+    expect((await PATCH(req)).status).toBe(401)
+  })
+
+  it('rejects ids array exceeding 100 elements', async () => {
+    const { PATCH } = await import('@/app/api/admin/hero-slides/reorder/route')
+    const ids = Array.from({ length: 101 }, (_, i) =>
+      `123e4567-e89b-12d3-a456-4266141740${String(i).padStart(2, '0')}`
+    )
+    const req = new Request('http://localhost/api/admin/hero-slides/reorder', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    })
+    expect((await PATCH(req)).status).toBe(400)
+  })
+
+  it('rejects array containing a non-UUID element', async () => {
+    const { PATCH } = await import('@/app/api/admin/hero-slides/reorder/route')
+    const req = new Request('http://localhost/api/admin/hero-slides/reorder', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: ['not-a-uuid', validIds[0]] }),
+    })
+    expect((await PATCH(req)).status).toBe(400)
+  })
+
+  it('updates sort_order and calls revalidatePath', async () => {
+    const chain = makeChain({ data: null, error: null })
+    chain['eq'] = jest.fn().mockResolvedValue({ data: null, error: null })
+    mockFrom.mockReturnValue(chain)
+    const { revalidatePath } = require('next/cache') as { revalidatePath: jest.Mock }
+    const { PATCH } = await import('@/app/api/admin/hero-slides/reorder/route')
+    const req = new Request('http://localhost/api/admin/hero-slides/reorder', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: validIds }),
+    })
+    const res = await PATCH(req)
+    expect(res.status).toBe(200)
+    expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
+  })
+})
