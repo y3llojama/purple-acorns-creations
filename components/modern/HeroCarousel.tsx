@@ -10,10 +10,8 @@ interface Props {
 
 export default function HeroCarousel({ slides, transition, intervalMs }: Props) {
   const [current, setCurrent] = useState(0)
+  const [reducedMotion, setReducedMotion] = useState(false)
   const pausedRef = useRef(false)
-  const reducedMotion = typeof window !== 'undefined'
-    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    : false
 
   const total = slides.length
   const multi = total > 1
@@ -21,6 +19,14 @@ export default function HeroCarousel({ slides, transition, intervalMs }: Props) 
   const goTo = useCallback((n: number) => setCurrent(((n % total) + total) % total), [total])
   const next = useCallback(() => goTo(current + 1), [goTo, current])
   const prev = useCallback(() => goTo(current - 1), [goTo, current])
+
+  useEffect(() => {
+    const mql = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setReducedMotion(mql.matches)
+    const handler = (e: MediaQueryListEvent) => setReducedMotion(e.matches)
+    mql.addEventListener('change', handler)
+    return () => mql.removeEventListener('change', handler)
+  }, [])
 
   useEffect(() => {
     if (!multi || reducedMotion) return
@@ -107,7 +113,7 @@ export default function HeroCarousel({ slides, transition, intervalMs }: Props) 
                 onClick={() => goTo(i)}
                 style={{
                   width: 9, height: 9, borderRadius: '50%', border: 'none', padding: 0, cursor: 'pointer',
-                  background: i === current ? '#fff' : 'rgba(255,255,255,0.45)',
+                  background: i === current ? 'var(--carousel-dot-active)' : 'var(--carousel-dot-inactive)',
                   transform: i === current ? 'scale(1.2)' : 'scale(1)',
                   transition: 'background 0.2s, transform 0.2s',
                   minHeight: 'unset',

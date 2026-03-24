@@ -11,6 +11,8 @@ beforeAll(() => {
       matches: false,
       addListener: jest.fn(),
       removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
     })),
   })
 })
@@ -80,18 +82,26 @@ describe('HeroCarousel — multiple slides', () => {
 })
 
 describe('HeroCarousel — prefers-reduced-motion', () => {
+  let originalMatchMedia: typeof window.matchMedia
+
   beforeEach(() => {
     jest.useFakeTimers()
+    originalMatchMedia = window.matchMedia
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: jest.fn().mockImplementation((query: string) => ({
         matches: query === '(prefers-reduced-motion: reduce)',
         addListener: jest.fn(),
         removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
       })),
     })
   })
-  afterEach(() => jest.useRealTimers())
+  afterEach(() => {
+    jest.useRealTimers()
+    Object.defineProperty(window, 'matchMedia', { writable: true, value: originalMatchMedia })
+  })
 
   it('does not auto-cycle when prefers-reduced-motion is set', () => {
     render(<HeroCarousel slides={[slide1, slide2]} transition="crossfade" intervalMs={2000} />)
