@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
 import { createServiceRoleClient } from '@/lib/supabase/server'
+import crypto from 'crypto'
 
 export async function GET(request: Request) {
   const { error } = await requireAdminSession()
@@ -30,12 +31,23 @@ export async function GET(request: Request) {
     'PAYMENTS_READ', 'PAYMENTS_WRITE',
   ].join(' ')
 
+  const state = crypto.randomUUID()
+
   const url = new URL(`${baseUrl}/oauth2/authorize`)
   url.searchParams.set('client_id', appId as string)
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('scope', scope)
   url.searchParams.set('redirect_uri', redirectUri)
   url.searchParams.set('session', 'false')
+  url.searchParams.set('state', state)
 
-  return NextResponse.redirect(url.toString())
+  const response = NextResponse.redirect(url.toString())
+  response.cookies.set('__Host-square_oauth_state', state, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 600,
+  })
+  return response
 }

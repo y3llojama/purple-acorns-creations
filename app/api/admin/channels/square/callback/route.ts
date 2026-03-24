@@ -10,8 +10,25 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
+  const stateParam = searchParams.get('state')
+
+  // Verify CSRF state
+  const cookies = request.headers.get('cookie') ?? ''
+  const stateCookie = cookies
+    .split(';')
+    .map(c => c.trim().split('=', 2))
+    .find(([k]) => k === '__Host-square_oauth_state')?.[1]
+
+  if (!stateParam || !stateCookie || stateParam !== stateCookie) {
+    return NextResponse.redirect(
+      `${process.env.NEXT_PUBLIC_APP_URL}/admin/channels?error=square_csrf`
+    )
+  }
+
   if (!code) {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/admin/channels?error=square_denied`)
+    return NextResponse.redirect(
+      `${process.env.NEXT_PUBLIC_APP_URL}/admin/channels?error=square_denied`
+    )
   }
 
   const supabase = createServiceRoleClient()
@@ -25,7 +42,6 @@ export async function GET(request: Request) {
   const rawSecret = settings?.square_application_secret
   const appSecret = rawSecret ? decryptValue(rawSecret) : (process.env.SQUARE_APPLICATION_SECRET ?? '')
   const environment = settings?.square_environment ?? process.env.SQUARE_ENVIRONMENT
-  console.log('[square/callback] appId:', !!appId, 'secretDecrypted:', !!appSecret && !appSecret.startsWith('enc:'), 'env:', environment)
 
   const baseUrl = environment === 'production'
     ? 'https://connect.squareup.com'
@@ -46,12 +62,12 @@ export async function GET(request: Request) {
   if (!tokenRes.ok) {
     const tokenErr = await tokenRes.json().catch(() => ({}))
     console.error('[square/callback] token exchange failed:', tokenRes.status, JSON.stringify(tokenErr))
-    const detail = encodeURIComponent(tokenErr?.message ?? tokenErr?.error ?? String(tokenRes.status))
-    return NextResponse.redirect(`${(process.env.NEXT_PUBLIC_APP_URL ?? '').trim()}/admin/channels?error=square_token&detail=${detail}`)
+    return NextResponse.redirect(
+      `${(process.env.NEXT_PUBLIC_APP_URL ?? '').trim()}/admin/channels?error=square_token`
+    )
   }
 
   const tokens = await tokenRes.json()
-  console.log('[square/callback] token exchange ok, hasAccessToken:', !!tokens.access_token)
 
   const client = new SquareClient({
     token: tokens.access_token,
@@ -64,10 +80,11 @@ export async function GET(request: Request) {
   try {
     const locResult = await client.locations.list()
     locationId = locResult.locations?.[0]?.id ?? ''
-    console.log('[square/callback] location fetch ok, locationId:', locationId)
   } catch (e) {
     console.error('[square/callback] location fetch failed:', e)
-    return NextResponse.redirect(`${(process.env.NEXT_PUBLIC_APP_URL ?? '').trim()}/admin/channels?error=square_location`)
+    return NextResponse.redirect(
+      `${(process.env.NEXT_PUBLIC_APP_URL ?? '').trim()}/admin/channels?error=square_location`
+    )
   }
 
   const { error: dbError } = await supabase.from('settings').update({
@@ -75,7 +92,14 @@ export async function GET(request: Request) {
     square_refresh_token: tokens.refresh_token ? encryptToken(tokens.refresh_token) : null,
     square_location_id: locationId,
   }).eq('id', settings!.id)
-  console.log('[square/callback] db update error:', dbError?.message ?? 'none')
 
-  return NextResponse.redirect(`${(process.env.NEXT_PUBLIC_APP_URL ?? '').trim()}/admin/channels?connected=square`)
+  if (dbError) {
+    console.error('[square/callback] db update failed:', dbError.code)
+  }
+
+  const response = NextResponse.redirect(
+    `${(process.env.NEXT_PUBLIC_APP_URL ?? '').trim()}/admin/channels?connected=square`
+  )
+  response.cookies.set('__Host-square_oauth_state', '', { maxAge: 0, path: '/', secure: true })
+  return response
 }
