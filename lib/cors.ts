@@ -10,20 +10,18 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL
  */
 export function corsHeaders(requestOrigin?: string | null): HeadersInit {
   const headers: HeadersInit = {
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Credentials': 'true',
     'Vary': 'Origin',
   }
 
   if (APP_URL) {
-    // Echo back the request origin only if it matches the allowed app URL
     const origin = requestOrigin ?? ''
     if (origin === APP_URL) {
       headers['Access-Control-Allow-Origin'] = origin
+      headers['Access-Control-Allow-Credentials'] = 'true'
     }
   }
-  // If APP_URL is unset, omit the header entirely (browser same-origin enforcement)
 
   return headers
 }
