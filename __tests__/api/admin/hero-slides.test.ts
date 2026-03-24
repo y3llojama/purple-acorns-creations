@@ -94,3 +94,33 @@ describe('POST /api/admin/hero-slides', () => {
     expect(await res.json()).toEqual(slide)
   })
 })
+
+describe('DELETE /api/admin/hero-slides/[id]', () => {
+  beforeEach(() => jest.clearAllMocks())
+
+  it('rejects unauthenticated request', async () => {
+    requireAdminSession.mockResolvedValueOnce({ error: new Response(null, { status: 401 }) })
+    const { DELETE } = await import('@/app/api/admin/hero-slides/[id]/route')
+    const req = new Request('http://localhost/api/admin/hero-slides/abc', { method: 'DELETE' })
+    expect((await DELETE(req, { params: Promise.resolve({ id: 'abc' }) })).status).toBe(401)
+  })
+
+  it('rejects non-UUID id', async () => {
+    const { DELETE } = await import('@/app/api/admin/hero-slides/[id]/route')
+    const req = new Request('http://localhost/api/admin/hero-slides/not-a-uuid', { method: 'DELETE' })
+    expect((await DELETE(req, { params: Promise.resolve({ id: 'not-a-uuid' }) })).status).toBe(400)
+  })
+
+  it('deletes slide and calls revalidatePath', async () => {
+    const chain = makeChain({ data: null, error: null })
+    chain['eq'] = jest.fn().mockResolvedValue({ data: null, error: null })
+    mockFrom.mockReturnValue(chain)
+    const { revalidatePath } = require('next/cache') as { revalidatePath: jest.Mock }
+    const { DELETE } = await import('@/app/api/admin/hero-slides/[id]/route')
+    const validId = '123e4567-e89b-12d3-a456-426614174000'
+    const req = new Request(`http://localhost/api/admin/hero-slides/${validId}`, { method: 'DELETE' })
+    const res = await DELETE(req, { params: Promise.resolve({ id: validId }) })
+    expect(res.status).toBe(200)
+    expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
+  })
+})
