@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { hashIp, parseDeviceType, isAllowedEventType } from '@/lib/analytics'
-import { clampLength } from '@/lib/validate'
+import { clampLength, stripControlChars } from '@/lib/validate'
 import { getClientIp } from '@/lib/get-client-ip'
 
 // Rate limiter: max 30 events per IP per 60 seconds (higher than contact form since page views are frequent)
@@ -48,8 +48,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid event_type.' }, { status: 400 })
   }
 
-  const pagePath = clampLength(String(body.page_path ?? ''), 500) || null
-  const referrer = clampLength(String(body.referrer ?? ''), 1000) || null
+  const pagePath = stripControlChars(clampLength(String(body.page_path ?? ''), 500)) || null
+  const referrer = stripControlChars(clampLength(String(body.referrer ?? ''), 1000)) || null
   const userAgent = request.headers.get('user-agent') ?? null
   const deviceType = parseDeviceType(userAgent)
   const sessionId = clampLength(String(body.session_id ?? ''), 64) || null
