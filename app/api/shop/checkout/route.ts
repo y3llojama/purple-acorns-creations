@@ -161,6 +161,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 402 })
   }
 
+  // Guard: payment call succeeded but Square returned no payment ID (API anomaly)
+  // Do NOT rollback stock — the charge may have gone through. Log for manual review.
+  if (!paymentId) {
+    console.error('[checkout] Square payment returned no ID — manual investigation required. orderId:', orderId)
+    return NextResponse.json({ error: 'Payment processing error. Please contact support.' }, { status: 500 })
+  }
+
   // Step 4: Fire-and-forget push to Square inventory (non-blocking)
   const squareItems = decremented
     .map(item => {

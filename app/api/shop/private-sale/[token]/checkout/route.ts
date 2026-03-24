@@ -142,6 +142,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   const { error: fulfillError } = await supabase.rpc('fulfill_private_sale', { sale_id: sale.id })
   if (fulfillError) {
     console.error('fulfill_private_sale failed after payment. paymentId:', paymentId, 'sale_id:', sale.id, fulfillError)
+    // Release the stock reservation so inventory isn't stranded
+    const { error: releaseErr } = await supabase.rpc('release_private_sale_stock', { sale_id: sale.id })
+    if (releaseErr) console.error('release_private_sale_stock failed. sale_id:', sale.id, releaseErr)
     let refunded = false
     try {
       await client.refunds.refundPayment({

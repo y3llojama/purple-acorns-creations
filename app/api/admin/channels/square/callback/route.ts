@@ -87,11 +87,12 @@ export async function GET(request: Request) {
     )
   }
 
+  // Settings table always has exactly one row — no .eq() filter needed
   const { error: dbError } = await supabase.from('settings').update({
     square_access_token: encryptToken(tokens.access_token),
     square_refresh_token: tokens.refresh_token ? encryptToken(tokens.refresh_token) : null,
     square_location_id: locationId,
-  }).eq('id', settings!.id)
+  })
 
   if (dbError) {
     console.error('[square/callback] db update failed:', dbError.code)

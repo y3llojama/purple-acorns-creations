@@ -27,23 +27,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Webhook not configured.' }, { status: 500 })
   }
 
-  const svixHeader = request.headers.get('svix-signature') ?? request.headers.get('resend-signature') ?? ''
+  // Resend delivers webhooks via Svix — use separate svix-id, svix-timestamp, svix-signature headers
+  // Secret format: "whsec_<base64>" — base64-decode the payload portion before use
+  // Signed payload: "{svix-id}.{svix-timestamp}.{rawBody}"
+  // Comparison is base64 vs base64 (not hex) — matches Svix's signing scheme
+  const svixId = request.headers.get('svix-id') ?? ''
+  const svixTimestamp = request.headers.get('svix-timestamp') ?? ''
+  const svixSignature = request.headers.get('svix-signature') ?? ''
   const rawBody = await request.text()
 
-  const parts = Object.fromEntries(svixHeader.split(',').map((p) => p.split('=', 2) as [string, string]))
-  const timestamp = parts['t'] ?? ''
-  const receivedSig = parts['v1'] ?? ''
-
   let valid = false
-  if (timestamp && receivedSig) {
-    const expected = crypto
-      .createHmac('sha256', webhookSecret)
-      .update(`${timestamp}.${rawBody}`)
-      .digest('hex')
+  if (svixId && svixTimestamp && svixSignature) {
     try {
-      const a = Buffer.from(receivedSig, 'utf8')
-      const b = Buffer.from(expected, 'utf8')
-      valid = a.length === b.length && crypto.timingSafeEqual(a, b)
+      const secretBytes = Buffer.from(webhookSecret.replace(/^whsec_/, ''), 'base64')
+      const toSign = `${svixId}.${svixTimestamp}.${rawBody}`
+      const expected = crypto.createHmac('sha256', secretBytes).update(toSign).digest('base64')
+      // svix-signature may contain multiple space-separated "v1,<base64>" entries
+      const sigs = svixSignature.split(' ')
+      for (const sig of sigs) {
+        const [version, b64] = sig.split(',', 2)
+        if (version !== 'v1' || !b64) continue
+        const a = Buffer.from(b64, 'base64')
+        const b = Buffer.from(expected, 'base64')
+        if (a.length === b.length && crypto.timingSafeEqual(a, b)) { valid = true; break }
+      }
     } catch {
       valid = false
     }

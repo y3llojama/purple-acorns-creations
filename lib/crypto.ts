@@ -57,8 +57,8 @@ export function decryptValue(value: string): string {
     const decipher = crypto.createDecipheriv(ALGO, key, iv)
     decipher.setAuthTag(tag)
     return decipher.update(encrypted).toString('utf8') + decipher.final('utf8')
-  } catch {
-    console.error('[crypto] decryptValue failed — returning empty string')
+  } catch (err) {
+    console.error('[crypto] decryptValue failed — returning empty string', err)
     return ''
   }
 }
