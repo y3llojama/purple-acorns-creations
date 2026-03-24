@@ -7,6 +7,19 @@ import { getSettings } from '@/lib/theme'
 import { interpolate, buildVars } from '@/lib/variables'
 import { getClientIp } from '@/lib/get-client-ip'
 
+// Allowlist of permitted image source hostnames.
+// Only Supabase storage subdomains are permitted — *.supabase.co
+const ALLOWED_HOSTNAME_RE = /^[a-z0-9-]+\.supabase\.co$/i
+
+export function isImageUrlAllowed(url: string): boolean {
+  try {
+    const { hostname } = new URL(url)
+    return ALLOWED_HOSTNAME_RE.test(hostname)
+  } catch {
+    return false
+  }
+}
+
 // Inter Medium — clean sans-serif matching the site nav aesthetic, bundled via outputFileTracingIncludes.
 const FONT_PATH = path.join(process.cwd(), 'public', 'fonts', 'Inter-Medium.ttf')
 
@@ -41,8 +54,8 @@ export async function GET(request: NextRequest) {
   }
 
   const url = request.nextUrl.searchParams.get('url')
-  if (!url || !isValidHttpsUrl(url)) {
-    return NextResponse.json({ error: 'Valid image URL required' }, { status: 400 })
+  if (!url || !isValidHttpsUrl(url) || !isImageUrlAllowed(url)) {
+    return NextResponse.json({ error: 'Image URL not allowed' }, { status: 400 })
   }
 
   const settings = await getSettings()
@@ -62,7 +75,7 @@ export async function GET(request: NextRequest) {
     // No watermark — pass through with cache headers
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
-        'Content-Type': imageRes.headers.get('content-type') || 'image/jpeg',
+        'Content-Type': 'image/jpeg',
         'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
       },
     })
@@ -152,7 +165,7 @@ export async function GET(request: NextRequest) {
     // Fall back to original image rather than returning a broken 500
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
-        'Content-Type': imageRes.headers.get('content-type') || 'image/jpeg',
+        'Content-Type': 'image/jpeg',
         'Cache-Control': 'public, max-age=60',
       },
     })
