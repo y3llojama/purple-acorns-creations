@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   const entry = rateLimitMap.get(ip) ?? { count: 0, reset: now + RATE_LIMIT_WINDOW }
   if (now > entry.reset) { entry.count = 0; entry.reset = now + RATE_LIMIT_WINDOW }
   entry.count++; rateLimitMap.set(ip, entry)
-  if (entry.count >= RATE_LIMIT_MAX) {
+  if (entry.count > RATE_LIMIT_MAX) {
     return NextResponse.json({ error: 'Too many requests.' }, { status: 429 })
   }
 

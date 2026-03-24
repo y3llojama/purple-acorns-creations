@@ -130,7 +130,7 @@ export async function sendContactNotification(name: string, email: string, messa
   return sendEmail({
     to: settings.contact_email,
     subject: `New message from ${stripControlChars(name)}`,
-    replyTo: email,
+    replyTo: stripControlChars(email),
     text: `New contact form submission:\n\nFrom: ${stripControlChars(name)} <${email}>\n\nMessage:\n${message}`,
     html: `<h2>New contact form submission</h2>
 <p><strong>From:</strong> ${safeName} &lt;${safeEmail}&gt;</p>
