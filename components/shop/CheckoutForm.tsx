@@ -3,31 +3,13 @@ import { useEffect, useRef, useState } from 'react'
 import { useCart } from './CartContext'
 import { useRouter } from 'next/navigation'
 import { calculateShipping } from '@/lib/shipping'
-
-interface SquareCard {
-  attach: (container: HTMLElement) => Promise<void>
-  tokenize: () => Promise<{ status: string; token?: string; errors?: Array<{ message: string }> }>
-}
-interface VerificationDetails {
-  amount: string
-  currencyCode: string
-  intent: 'CHARGE' | 'STORE'
-  billingContact: { givenName?: string; familyName?: string; countryCode?: string }
-}
-interface SquarePayments {
-  card: () => Promise<SquareCard>
-  verifyBuyer: (sourceId: string, details: VerificationDetails) => Promise<{ token: string }>
-}
-declare global {
-  interface Window {
-    Square?: { payments: (appId: string, locationId: string) => Promise<SquarePayments> }
-  }
-}
+import { runVerifyBuyer, type SquareCard, type SquarePayments } from '@/lib/square/buyer-verification'
 
 export default function CheckoutForm({ onSuccess }: { onSuccess?: () => void }) {
   const { items, total, clearCart } = useCart()
   const router = useRouter()
   const cardRef = useRef<SquareCard | null>(null)
+  const paymentsRef = useRef<SquarePayments | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -48,7 +30,7 @@ export default function CheckoutForm({ onSuccess }: { onSuccess?: () => void }) 
     let timeoutId: ReturnType<typeof setTimeout> | null = null
     let cancelled = false
     let attempts = 0
-    const MAX_ATTEMPTS = 20 // 10 seconds at 500ms intervals
+    const MAX_ATTEMPTS = 20
 
     async function init() {
       if (cancelled) return
@@ -66,6 +48,7 @@ export default function CheckoutForm({ onSuccess }: { onSuccess?: () => void }) 
       const locationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID ?? ''
       const payments = await window.Square.payments(appId, locationId)
       if (cancelled) return
+      paymentsRef.current = payments
       const card = await payments.card()
       if (cancelled) return
       await card.attach(containerRef.current)
@@ -96,11 +79,34 @@ export default function CheckoutForm({ onSuccess }: { onSuccess?: () => void }) 
         setError(result.errors?.[0]?.message ?? 'Card error — please try again')
         return
       }
+      const sourceId = result.token
+
+      let verificationToken: string | undefined
+      if (paymentsRef.current) {
+        const verify = await runVerifyBuyer(
+          paymentsRef.current,
+          sourceId,
+          total + (shippingCost ?? 0),
+          shipping.name,
+          shipping.country,
+        )
+        if (verify.cancelled) {
+          setError('Verification was cancelled. Please try again.')
+          return
+        }
+        if (verify.error) {
+          setError('Verification failed — please try again.')
+          return
+        }
+        verificationToken = verify.verificationToken
+      }
+
       const res = await fetch('/api/shop/checkout', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           cart: items.map(i => ({ productId: i.product.id, quantity: i.quantity })),
-          sourceId: result.token,
+          sourceId,
+          verificationToken,
           shipping: {
             name: shipping.name,
             address1: shipping.address1,

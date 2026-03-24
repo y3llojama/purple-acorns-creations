@@ -4,31 +4,12 @@ import { useRouter } from 'next/navigation'
 import { calculateShipping } from '@/lib/shipping'
 import type { PrivateSaleItem, ShippingAddress } from '@/lib/supabase/types'
 import { sanitizeText } from '@/lib/sanitize'
+import { runVerifyBuyer, type SquareCard, type SquarePayments } from '@/lib/square/buyer-verification'
 
 interface SaleData {
   items: PrivateSaleItem[]
   expiresAt: string
   shipping: { mode: 'fixed' | 'percentage'; value: number }
-}
-
-interface SquareCard {
-  attach: (container: HTMLElement) => Promise<void>
-  tokenize: () => Promise<{ status: string; token?: string; errors?: Array<{ message: string }> }>
-}
-interface VerificationDetails {
-  amount: string
-  currencyCode: string
-  intent: 'CHARGE' | 'STORE'
-  billingContact: { givenName?: string; familyName?: string; countryCode?: string }
-}
-interface SquarePayments {
-  card: () => Promise<SquareCard>
-  verifyBuyer: (sourceId: string, details: VerificationDetails) => Promise<{ token: string }>
-}
-declare global {
-  interface Window {
-    Square?: { payments: (appId: string, locationId: string) => Promise<SquarePayments> }
-  }
 }
 
 export default function PrivateSaleCheckout({ sale, token }: { sale: SaleData; token: string }) {
@@ -58,7 +39,7 @@ export default function PrivateSaleCheckout({ sale, token }: { sale: SaleData; t
     return () => clearInterval(id)
   }, [sale.expiresAt])
 
-  // Square SDK init — mirrors CheckoutForm.tsx pattern exactly
+  // Square SDK init
   useEffect(() => {
     let cancelled = false
     let timeoutId: ReturnType<typeof setTimeout> | null = null
@@ -117,31 +98,19 @@ export default function PrivateSaleCheckout({ sale, token }: { sale: SaleData; t
       }
       const sourceId = result.token
 
-      // Buyer verification (3DS/SCA) — shows bank challenge dialog if required
       let verificationToken: string | undefined
       if (paymentsRef.current) {
-        try {
-          const nameParts = shipping.name.trim().split(' ')
-          const verification = await paymentsRef.current.verifyBuyer(sourceId, {
-            amount: (subtotal + shippingCost).toFixed(2),
-            currencyCode: 'USD',
-            intent: 'CHARGE',
-            billingContact: {
-              givenName: nameParts[0] ?? '',
-              familyName: nameParts.slice(1).join(' ') || undefined,
-              countryCode: shipping.country || 'US',
-            },
-          })
-          verificationToken = verification.token
-        } catch (verifyErr: unknown) {
-          const msg = verifyErr instanceof Error ? verifyErr.message : String(verifyErr)
-          // Only block on explicit user cancellation; other errors let the payment attempt proceed
-          if (msg.toLowerCase().includes('cancel')) {
-            setError('Verification was cancelled. Please try again.')
-            return
-          }
-          console.warn('[verifyBuyer] non-cancellation error, proceeding without token:', msg)
+        const total = subtotal + shippingCost
+        const verify = await runVerifyBuyer(paymentsRef.current, sourceId, total, shipping.name, shipping.country)
+        if (verify.cancelled) {
+          setError('Verification was cancelled. Please try again.')
+          return
         }
+        if (verify.error) {
+          setError('Verification failed — please try again.')
+          return
+        }
+        verificationToken = verify.verificationToken
       }
 
       const res = await fetch(`/api/shop/private-sale/${token}/checkout`, {

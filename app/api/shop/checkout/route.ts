@@ -5,6 +5,7 @@ import { pushInventoryToSquare } from '@/lib/channels/square/catalog'
 import { calculateShipping } from '@/lib/shipping'
 import { sanitizeText } from '@/lib/sanitize'
 import type { ShippingAddress } from '@/lib/supabase/types'
+import { squarePaymentError } from '@/lib/square/payment-errors'
 
 const rateMap = new Map<string, { count: number; reset: number }>()
 function checkRate(ip: string): boolean {
@@ -24,6 +25,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
   const cart: LineItem[] = Array.isArray(body.cart) ? body.cart : []
   const sourceId: string = typeof body.sourceId === 'string' ? body.sourceId : ''
+  const verificationToken: string | undefined = typeof body.verificationToken === 'string' ? body.verificationToken : undefined
   if (!cart.length) return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
   if (!sourceId) return NextResponse.json({ error: 'sourceId required' }, { status: 400 })
 
@@ -101,18 +103,22 @@ export async function POST(request: Request) {
           },
         }],
       },
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: `order-${sourceId.slice(-12)}`,
     })
     orderId = orderResult.order?.id ?? ''
+    if (!orderId) throw new Error('Square order created but returned no ID')
 
     const paymentResult = await client.payments.create({
       sourceId, orderId, locationId,
       amountMoney: { amount: BigInt(totalCents), currency: 'USD' },
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: `pay-${sourceId.slice(-12)}`,
+      ...(verificationToken ? { verificationToken } : {}),
     })
     paymentId = paymentResult.payment?.id ?? ''
   } catch (err) {
-    return NextResponse.json({ error: 'Payment failed', detail: String(err) }, { status: 402 })
+    const { message, detail } = squarePaymentError(err)
+    console.error('[checkout] Square payment error:', detail)
+    return NextResponse.json({ error: message, detail }, { status: 402 })
   }
 
   // Step 4: Atomically decrement stock per item (charge already succeeded)
@@ -126,6 +132,7 @@ export async function POST(request: Request) {
         const { error: rollbackError } = await supabase.rpc('increment_stock', { product_id: done.productId, qty: done.quantity })
         if (rollbackError) console.error('[checkout] increment_stock rollback failed for', done.productId, rollbackError.message)
       }
+      let refunded = false
       try {
         const { client } = await getSquareClient()
         await client.refunds.refundPayment({
@@ -134,10 +141,15 @@ export async function POST(request: Request) {
           amountMoney: { amount: BigInt(totalCents), currency: 'USD' },
           reason: 'Stock decrement error during checkout',
         })
+        refunded = true
       } catch (err) {
-        console.error('Refund failed after decrement_stock error. paymentId:', paymentId, err)
+        console.error('Refund failed after decrement_stock error. Manual intervention required. paymentId:', paymentId, err)
       }
-      return NextResponse.json({ error: 'Checkout failed — payment refunded' }, { status: 500 })
+      return NextResponse.json({
+        error: refunded
+          ? 'Checkout failed — a refund has been issued to your card.'
+          : 'Checkout failed — please contact support immediately with your order details.',
+      }, { status: 500 })
     }
     // Step 5: Race condition — item sold between validation and charge
     if (Array.isArray(rows) && rows.length === 0) {
@@ -146,6 +158,7 @@ export async function POST(request: Request) {
         const { error: rollbackError } = await supabase.rpc('increment_stock', { product_id: done.productId, qty: done.quantity })
         if (rollbackError) console.error('[checkout] increment_stock rollback failed for', done.productId, rollbackError.message)
       }
+      let refunded = false
       try {
         const { client } = await getSquareClient()
         await client.refunds.refundPayment({
@@ -154,10 +167,16 @@ export async function POST(request: Request) {
           amountMoney: { amount: BigInt(totalCents), currency: 'USD' },
           reason: 'Item sold out during checkout',
         })
+        refunded = true
       } catch (err) {
-        console.error('Refund failed after sold-out race condition. paymentId:', paymentId, err)
+        console.error('Refund failed after sold-out race condition. Manual intervention required. paymentId:', paymentId, err)
       }
-      return NextResponse.json({ error: 'Item sold out — payment refunded', soldOut: item.productId }, { status: 409 })
+      return NextResponse.json({
+        error: refunded
+          ? 'Item sold out — a refund has been issued to your card.'
+          : 'Item sold out — please contact support immediately with your order details.',
+        soldOut: item.productId,
+      }, { status: 409 })
     }
     decremented.push(item)
   }

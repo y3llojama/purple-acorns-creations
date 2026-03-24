@@ -4,7 +4,7 @@ import { getSquareClient } from '@/lib/channels/square/client'
 import { calculateShipping } from '@/lib/shipping'
 import { sanitizeText } from '@/lib/sanitize'
 import type { ShippingAddress } from '@/lib/supabase/types'
-import { SquareError } from 'square'
+import { squarePaymentError } from '@/lib/square/payment-errors'
 
 const rateMap = new Map<string, { count: number; reset: number }>()
 function checkRate(ip: string): boolean {
@@ -13,29 +13,6 @@ function checkRate(ip: string): boolean {
   if (now > entry.reset) { entry.count = 0; entry.reset = now + 60_000 }
   entry.count++; rateMap.set(ip, entry)
   return entry.count <= 10
-}
-
-const CARD_ERROR_MESSAGES: Record<string, string> = {
-  CARD_DECLINED:               'Your card was declined. Please try a different card.',
-  CARD_DECLINED_VERIFICATION_REQUIRED: 'Your bank requires additional verification. Please contact your bank.',
-  CARD_EXPIRED:                'Your card has expired. Please use a different card.',
-  INVALID_CARD:                'Invalid card details. Please check and try again.',
-  VERIFY_CVV_FAILURE:          'CVV check failed. Please check your card details.',
-  VERIFY_AVS_FAILURE:          'Address verification failed. Please check your billing address.',
-  INSUFFICIENT_FUNDS:          'Insufficient funds. Please try a different card.',
-  CARD_NOT_SUPPORTED:          'This card type is not supported. Please try a different card.',
-  PAYMENT_LIMIT_EXCEEDED:      'Payment amount exceeds limit. Please contact support.',
-  TEMPORARY_ERROR:             'A temporary error occurred. Please try again.',
-}
-
-function squarePaymentError(err: unknown): { message: string; detail: string } {
-  if (err instanceof SquareError) {
-    const first = (err as SquareError & { errors?: Array<{ code?: string; detail?: string }> }).errors?.[0]
-    const message = (first?.code && CARD_ERROR_MESSAGES[first.code])
-      ?? 'Payment failed — please try a different card.'
-    return { message, detail: first ? `${first.code}: ${first.detail ?? ''}` : String(err) }
-  }
-  return { message: 'Payment failed — please try a different card.', detail: String(err) }
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
@@ -127,9 +104,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
           },
         }],
       },
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: `order-${sale.id}-${sourceId.slice(-12)}`,
     })
     orderId = orderResult.order?.id ?? ''
+    if (!orderId) throw new Error('Square order created but returned no ID')
   } catch (err) {
     const { message, detail } = squarePaymentError(err)
     console.error('[private-sale checkout] Square order creation error:', detail)
@@ -141,7 +119,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     const paymentResult = await client.payments.create({
       sourceId, orderId, locationId,
       amountMoney: { amount: BigInt(totalCents), currency: 'USD' as const },
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: `pay-${sale.id}-${sourceId.slice(-12)}`,
       ...(verificationToken ? { verificationToken } : {}),
     })
     paymentId = paymentResult.payment?.id ?? ''
@@ -155,6 +133,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   const { error: fulfillError } = await supabase.rpc('fulfill_private_sale', { sale_id: sale.id })
   if (fulfillError) {
     console.error('fulfill_private_sale failed after payment. paymentId:', paymentId, 'sale_id:', sale.id, fulfillError)
+    let refunded = false
     try {
       await client.refunds.refundPayment({
         paymentId,
@@ -162,10 +141,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
         amountMoney: { amount: BigInt(totalCents), currency: 'USD' as const },
         reason: 'Fulfillment error — automatic refund',
       })
+      refunded = true
     } catch (refundErr) {
       console.error('Refund also failed. Manual intervention required. paymentId:', paymentId, refundErr)
     }
-    return NextResponse.json({ error: 'Order processing error. If charged, a refund has been issued.' }, { status: 500 })
+    const msg = refunded
+      ? 'Order processing error — a refund has been issued to your card.'
+      : 'Order processing error — please contact support immediately with your order details.'
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 
   return NextResponse.json({ orderId, paymentId })
