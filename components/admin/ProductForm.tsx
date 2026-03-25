@@ -156,15 +156,19 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
           style={inputStyle}
         >
           <option value="">— Uncategorized —</option>
-          {/* Top-level categories without a parent */}
-          {categories.filter(c => !c.parent_id).map(parent => (
-            <optgroup key={parent.id} label={parent.name}>
-              <option value={parent.id}>{parent.name}</option>
-              {categories.filter(c => c.parent_id === parent.id).map(child => (
-                <option key={child.id} value={child.id}>&nbsp;&nbsp;{child.name}</option>
-              ))}
-            </optgroup>
-          ))}
+          {categories.filter(c => !c.parent_id).map(parent => {
+            const children = categories.filter(c => c.parent_id === parent.id)
+            // Leaf parent (no children) — directly selectable
+            if (children.length === 0) return <option key={parent.id} value={parent.id}>{parent.name}</option>
+            // Parent with children — header only, only children are selectable
+            return (
+              <optgroup key={parent.id} label={parent.name}>
+                {children.map(child => (
+                  <option key={child.id} value={child.id}>{child.name}</option>
+                ))}
+              </optgroup>
+            )
+          })}
         </select>
       </div>
 

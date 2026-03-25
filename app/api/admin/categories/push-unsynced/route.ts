@@ -16,10 +16,15 @@ export async function POST() {
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
   if (!categories?.length) return NextResponse.json({ pushed: 0, errors: [] })
 
+  // Only push leaf categories — skip parents that have children
+  const parentIds = new Set(categories.filter(c => c.parent_id !== null).map(c => c.parent_id))
+  const leafCategories = categories.filter(c => !parentIds.has(c.id))
+  if (!leafCategories.length) return NextResponse.json({ pushed: 0, errors: [] })
+
   let pushed = 0
   const errors: string[] = []
 
-  for (const category of categories) {
+  for (const category of leafCategories) {
     const result = await pushCategory(category)
     if (result.success) {
       pushed++
