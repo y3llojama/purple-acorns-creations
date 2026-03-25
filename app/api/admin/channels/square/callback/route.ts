@@ -49,7 +49,7 @@ export async function GET(request: Request) {
 
   const tokenRes = await fetch(`${baseUrl}/oauth2/token`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Square-Version': '2024-01-18' },
+    headers: { 'Content-Type': 'application/json', 'Square-Version': '2025-01-23' },
     body: JSON.stringify({
       client_id: appId,
       client_secret: appSecret,
@@ -91,6 +91,7 @@ export async function GET(request: Request) {
   const { error: dbError } = await supabase.from('settings').update({
     square_access_token: encryptToken(tokens.access_token),
     square_refresh_token: tokens.refresh_token ? encryptToken(tokens.refresh_token) : null,
+    square_token_expires_at: tokens.expires_at ?? null,
     square_location_id: locationId,
   })
 

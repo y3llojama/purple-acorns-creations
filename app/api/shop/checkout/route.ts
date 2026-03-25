@@ -59,7 +59,7 @@ export async function POST(request: Request) {
 
   // Step 1: Fetch product data + shipping settings (prices only — no stock check here)
   const [{ data: products }, { data: settingsRow }] = await Promise.all([
-    supabase.from('products').select('id,name,price,stock_count,stock_reserved,square_variation_id').in('id', cart.map(i => i.productId)),
+    supabase.from('products').select('id,name,price,stock_count,square_variation_id').in('id', cart.map(i => i.productId)),
     supabase.from('settings').select('shipping_mode,shipping_value').limit(1).maybeSingle(),
   ])
   if (!products) return NextResponse.json({ error: 'Failed to validate cart' }, { status: 500 })

@@ -73,6 +73,18 @@ const category: Category = {
   updated_at: '',
 }
 
+
+// Helper: wrap an array so `for await (const x of ...)` works in tests
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function asyncIter(items: any[]) {
+  return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    [Symbol.asyncIterator]: async function* (): AsyncGenerator<any> {
+      for (const item of items) yield item
+    },
+  }
+}
+
 beforeEach(() => jest.resetAllMocks())
 
 // ── pushInventoryToSquare ─────────────────────────────────────────────────────
@@ -351,7 +363,7 @@ describe('pullCategoriesFromSquare', () => {
 
   it('updates existing categories and inserts new ones', async () => {
     mockGetSquareClientFn.mockResolvedValue({
-      client: { catalog: { list: jest.fn().mockResolvedValue({ data: squareCats }) } },
+      client: { catalog: { list: jest.fn().mockReturnValue(asyncIter(squareCats)) } },
     })
     mockFrom
       .mockReturnValueOnce(b({ data: { id: 'local-1' }, error: null })) // existing check sq-known
@@ -366,7 +378,7 @@ describe('pullCategoriesFromSquare', () => {
 
   it('silently ignores slug collision on insert', async () => {
     mockGetSquareClientFn.mockResolvedValue({
-      client: { catalog: { list: jest.fn().mockResolvedValue({ data: [squareCats[1]] }) } },
+      client: { catalog: { list: jest.fn().mockReturnValue(asyncIter([squareCats[1]])) } },
     })
     mockFrom
       .mockReturnValueOnce(b({ data: null, error: null })) // not found
@@ -378,7 +390,7 @@ describe('pullCategoriesFromSquare', () => {
 
   it('records error when update fails', async () => {
     mockGetSquareClientFn.mockResolvedValue({
-      client: { catalog: { list: jest.fn().mockResolvedValue({ data: [squareCats[0]] }) } },
+      client: { catalog: { list: jest.fn().mockReturnValue(asyncIter([squareCats[0]])) } },
     })
     mockFrom
       .mockReturnValueOnce(b({ data: { id: 'local-1' }, error: null }))
@@ -410,7 +422,7 @@ describe('pullProductsFromSquare', () => {
 
   it('updates existing products and inserts new ones', async () => {
     mockGetSquareClientFn.mockResolvedValue({
-      client: { catalog: { list: jest.fn().mockResolvedValue({ data: squareItems }) } },
+      client: { catalog: { list: jest.fn().mockReturnValue(asyncIter(squareItems)) } },
     })
     mockFrom
       .mockReturnValueOnce(b({ data: { id: 'local-cat-1' }, error: null })) // category lookup for sq-prod-known
@@ -429,7 +441,7 @@ describe('pullProductsFromSquare', () => {
   })
 
   it('resolves category link from Square category ID', async () => {
-    const mockList = jest.fn().mockResolvedValue({ data: [squareItems[0]] })
+    const mockList = jest.fn().mockReturnValue(asyncIter([squareItems[0]]))
     mockGetSquareClientFn.mockResolvedValue({
       client: { catalog: { list: mockList } },
     })
@@ -451,7 +463,7 @@ describe('pullProductsFromSquare', () => {
 
   it('silently ignores slug collision on insert', async () => {
     mockGetSquareClientFn.mockResolvedValue({
-      client: { catalog: { list: jest.fn().mockResolvedValue({ data: [squareItems[1]] }) } },
+      client: { catalog: { list: jest.fn().mockReturnValue(asyncIter([squareItems[1]])) } },
     })
     mockFrom
       .mockReturnValueOnce(b({ data: null, error: null })) // existing check (not found)

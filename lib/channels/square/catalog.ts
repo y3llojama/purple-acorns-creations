@@ -1,5 +1,7 @@
+import crypto from 'crypto'
 import { getSquareClient } from './client'
 import { createServiceRoleClient } from '@/lib/supabase/server'
+import { sanitizeText, sanitizeContent } from '@/lib/sanitize'
 import type { Product, SyncResult } from '@/lib/channels/types'
 import type { Category } from '@/lib/supabase/types'
 
@@ -27,7 +29,7 @@ export async function pushCategory(category: Category): Promise<SyncResult> {
     }
 
     const result = await client.catalog.object.upsert({
-      idempotencyKey: `category-${category.id}-${Date.now()}`,
+      idempotencyKey: `category-${category.id}-${crypto.randomUUID()}`,
       object: {
         type: 'CATEGORY',
         id: `#CAT-${category.id}`,
@@ -78,7 +80,7 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
   try {
     const { client, locationId } = await getSquareClient()
     const supabase = createServiceRoleClient()
-    const idempotencyKey = `product-${product.id}-${Date.now()}`
+    const idempotencyKey = `product-${product.id}-${crypto.randomUUID()}`
 
     // Look up the category's Square ID via the FK
     let squareCategoryId: string | undefined
@@ -144,7 +146,7 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
 
     if (variationId) {
       await client.inventory.batchCreateChanges({
-        idempotencyKey: `inv-${product.id}-${Date.now()}`,
+        idempotencyKey: `inv-${product.id}-${crypto.randomUUID()}`,
         changes: [{
           type: 'PHYSICAL_COUNT',
           physicalCount: {
@@ -248,7 +250,7 @@ export async function pushInventoryToSquare(
   const occurredAt = new Date().toISOString()
 
   await client.inventory.batchCreateChanges({
-    idempotencyKey: `checkout-push-${Date.now()}-${crypto.randomUUID()}`,
+    idempotencyKey: `checkout-push-${crypto.randomUUID()}`,
     changes: items.map(item => ({
       type: 'ADJUSTMENT' as const,
       adjustment: {
@@ -274,10 +276,12 @@ export async function pullCategoriesFromSquare(): Promise<{ upserted: number; er
   const { client } = await getSquareClient()
   const supabase = createServiceRoleClient()
 
-  // List all CATEGORY objects from Square catalog
-  // Page<CatalogObject, ListCatalogResponse> — data is in .data
-  const listResult = await client.catalog.list({ types: 'CATEGORY' })
-  const objects = listResult.data ?? []
+  // Paginate all CATEGORY objects — for await auto-follows the cursor
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const objects: any[] = []
+  for await (const obj of client.catalog.list({ types: 'CATEGORY' })) {
+    objects.push(obj)
+  }
 
   let upserted = 0
   const errors: string[] = []
@@ -288,7 +292,7 @@ export async function pullCategoriesFromSquare(): Promise<{ upserted: number; er
     if (!catData?.name) continue
 
     const squareCategoryId = obj.id
-    const name = catData.name.trim()
+    const name = sanitizeText(catData.name.trim())
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 
     // Check if we already have this category
@@ -347,8 +351,12 @@ export async function pullProductsFromSquare(): Promise<{ upserted: number; erro
   const { client } = await getSquareClient()
   const supabase = createServiceRoleClient()
 
-  const listResult = await client.catalog.list({ types: 'ITEM' })
-  const objects = listResult.data ?? []
+  // Paginate all ITEM objects — for await auto-follows the cursor
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const objects: any[] = []
+  for await (const obj of client.catalog.list({ types: 'ITEM' })) {
+    objects.push(obj)
+  }
 
   let upserted = 0
   const errors: string[] = []
@@ -359,8 +367,8 @@ export async function pullProductsFromSquare(): Promise<{ upserted: number; erro
     if (!itemData?.name) continue
 
     const squareCatalogId = obj.id
-    const name = itemData.name.trim()
-    const description = itemData.description ?? null
+    const name = sanitizeText(itemData.name.trim())
+    const description = itemData.description ? sanitizeContent(itemData.description) : null
 
     // Price from first variation (cents BigInt → dollars float)
     // variations[] is CatalogObject[] — cast to access itemVariationData

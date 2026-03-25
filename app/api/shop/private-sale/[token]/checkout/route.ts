@@ -69,6 +69,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     return NextResponse.json({ error: 'This link is no longer available' }, { status: 410 })
   }
 
+  // Atomically claim the sale before charging — prevents double-charge race condition.
+  // Two concurrent requests can both pass the used_at check above, but only one can
+  // claim the sale here. The loser gets a 409 before any card is charged.
+  const { data: claimed, error: claimErr } = await supabase.rpc('claim_private_sale', { sale_id: sale.id })
+  if (claimErr) {
+    console.error('[private-sale checkout] claim_private_sale error:', claimErr.message)
+    return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 503 })
+  }
+  if (!claimed) {
+    return NextResponse.json({ error: 'This link is no longer available' }, { status: 410 })
+  }
+
   const idem = crypto.randomUUID()
 
   // Calculate totals
@@ -81,7 +93,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   // Create Square order
   let orderId = ''
   let paymentId = ''
-  const { client, locationId } = await getSquareClient()
+  let client: Awaited<ReturnType<typeof getSquareClient>>['client']
+  let locationId: string
+  try {
+    const sq = await getSquareClient()
+    client = sq.client
+    locationId = sq.locationId
+  } catch (err) {
+    await supabase.rpc('release_private_sale_claim', { sale_id: sale.id })
+    console.error('[private-sale checkout] Square not connected:', err)
+    return NextResponse.json({ error: 'Payment service unavailable. Please try again.' }, { status: 503 })
+  }
 
   try {
     const orderResult = await client.orders.create({
@@ -118,6 +140,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     orderId = orderResult.order?.id ?? ''
     if (!orderId) throw new Error('Square order created but returned no ID')
   } catch (err) {
+    await supabase.rpc('release_private_sale_claim', { sale_id: sale.id })
     const { message, detail } = squarePaymentError(err)
     console.error('[private-sale checkout] Square order creation error:', detail)
     return NextResponse.json({ error: message }, { status: 402 })
@@ -133,6 +156,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     })
     paymentId = paymentResult.payment?.id ?? ''
   } catch (err) {
+    await supabase.rpc('release_private_sale_claim', { sale_id: sale.id })
     const { message, detail } = squarePaymentError(err)
     console.error('[private-sale checkout] Square payment error:', detail)
     return NextResponse.json({ error: message }, { status: 402 })
