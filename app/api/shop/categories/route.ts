@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   const supabase = createServiceRoleClient()
   const { data, error } = await supabase
     .from('categories')
-    .select('id, name, slug')
+    .select('id, name, slug, parent_id')
     .eq('online_visibility', true)
     .order('sort_order', { ascending: true })
 

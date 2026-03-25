@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import CategoryFilter, { type CategoryOption } from './CategoryFilter'
 import ProductCard from './ProductCard'
 import { Product } from '@/lib/supabase/types'
@@ -18,71 +19,128 @@ interface Props {
   watermark?: string | null
 }
 
-const PAGE_SIZE = 24
-
 export default function ProductGrid({ watermark }: Props) {
-  const [categoryId, setCategoryId] = useState('')
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const activeCat = searchParams.get('cat') ?? ''
+  const activeSub = searchParams.get('sub') ?? ''
+
   const [categories, setCategories] = useState<CategoryOption[]>([])
+  const [catReady, setCatReady] = useState(false)
   const [sort, setSort] = useState<SortOption>('new')
   const [page, setPage] = useState(1)
   const [data, setData] = useState<ApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Load categories first; gate product fetches on this
   useEffect(() => {
     fetch('/api/shop/categories')
-      .then(res => { if (!res.ok) return; return res.json() })
-      .then((json: CategoryOption[] | undefined) => { if (json) setCategories(json) })
-      .catch(() => { /* best-effort */ })
+      .then(res => (res.ok ? res.json() : []))
+      .then((json: CategoryOption[]) => { setCategories(json); setCatReady(true) })
+      .catch(() => setCatReady(true))
   }, [])
+
+  // Dynamic document title
+  useEffect(() => {
+    if (!catReady) return
+    const parts: string[] = ['Shop']
+    if (activeCat) {
+      const cat = categories.find(c => c.slug === activeCat)
+      if (cat) parts.push(cat.name)
+    }
+    if (activeSub) {
+      const sub = categories.find(c => c.slug === activeSub)
+      if (sub) parts.push(sub.name)
+    }
+    document.title = parts.join(' — ')
+    return () => { document.title = 'Shop' }
+  }, [activeCat, activeSub, categories, catReady])
+
+  // Build API params based on active selection
+  const buildCategoryParams = useCallback((): URLSearchParams => {
+    const p = new URLSearchParams()
+    if (activeSub) {
+      const sub = categories.find(c => c.slug === activeSub)
+      if (sub) p.set('category_id', sub.id)
+    } else if (activeCat) {
+      const cat = categories.find(c => c.slug === activeCat)
+      if (cat) p.set('parent_category_id', cat.id)
+    }
+    return p
+  }, [activeCat, activeSub, categories])
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const params = new URLSearchParams()
-      if (categoryId) params.set('category_id', categoryId)
+      const params = buildCategoryParams()
       params.set('sort', sort)
       params.set('page', String(page))
-
       const res = await fetch(`/api/shop/products?${params.toString()}`)
       if (!res.ok) throw new Error(`Failed to load products (${res.status})`)
-      const json: ApiResponse = await res.json()
-      setData(json)
+      setData(await res.json())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load products')
     } finally {
       setLoading(false)
     }
-  }, [categoryId, sort, page])
+  }, [buildCategoryParams, sort, page])
 
   useEffect(() => {
+    if (!catReady) return
     fetchProducts()
-  }, [fetchProducts])
+  }, [fetchProducts, catReady])
 
-  const handleCategoryChange = (id: string) => {
-    setCategoryId(id)
-    setPage(1)
+  // Reset page when URL filters change
+  useEffect(() => { setPage(1) }, [activeCat, activeSub])
+
+  const handleCatChange = (slug: string) => {
+    const params = new URLSearchParams()
+    if (slug) params.set('cat', slug)
+    router.push(`/shop${params.size > 0 ? '?' + params.toString() : ''}`)
   }
 
-  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSort(e.target.value as SortOption)
-    setPage(1)
+  const handleSubChange = (slug: string) => {
+    const params = new URLSearchParams()
+    if (activeCat) params.set('cat', activeCat)
+    if (slug) params.set('sub', slug)
+    router.push(`/shop?${params.toString()}`)
   }
 
   const totalPages = Math.ceil((data?.total ?? 0) / 24)
 
+  // Heading: "Shop", "Shop — Jewelry", "Shop — Jewelry — Micro-Crochet"
+  const headingParts: string[] = ['Shop']
+  if (activeCat && catReady) {
+    const cat = categories.find(c => c.slug === activeCat)
+    if (cat) headingParts.push(cat.name)
+  }
+  if (activeSub && catReady) {
+    const sub = categories.find(c => c.slug === activeSub)
+    if (sub) headingParts.push(sub.name)
+  }
+
   return (
     <div>
-      {/* Controls row */}
+      <h1 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary)', marginBottom: '40px', textAlign: 'center' }}>
+        {headingParts.join(' — ')}
+      </h1>
+
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '8px' }}>
-        <CategoryFilter categories={categories} active={categoryId} onChange={handleCategoryChange} />
+        <CategoryFilter
+          categories={categories}
+          activeCat={activeCat}
+          activeSub={activeSub}
+          onCatChange={handleCatChange}
+          onSubChange={handleSubChange}
+        />
         <div>
           <label htmlFor="shop-sort" style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginRight: '8px' }}>Sort by</label>
           <select
             id="shop-sort"
             value={sort}
-            onChange={handleSortChange}
+            onChange={e => { setSort(e.target.value as SortOption); setPage(1) }}
             style={{
               padding: '8px 12px', minHeight: '48px', border: '1px solid var(--color-border)',
               borderRadius: '4px', background: 'var(--color-surface)', color: 'var(--color-primary)',
@@ -97,7 +155,6 @@ export default function ProductGrid({ watermark }: Props) {
         </div>
       </div>
 
-      {/* Content */}
       {loading && (
         <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 0' }}>Loading products…</p>
       )}
@@ -124,7 +181,6 @@ export default function ProductGrid({ watermark }: Props) {
         </div>
       )}
 
-      {/* Pagination */}
       {!loading && !error && totalPages > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginTop: '40px' }}>
           <button

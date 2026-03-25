@@ -25,7 +25,17 @@ export async function GET(request: Request) {
   const offset = (page - 1) * 24
   const supabase = createServiceRoleClient()
   let query = supabase.from('products').select('*', { count: 'exact' }).eq('is_active', true)
-  if (categoryId && UUID_RE.test(categoryId)) query = query.eq('category_id', categoryId)
+  const parentCategoryId = searchParams.get('parent_category_id')
+  if (parentCategoryId && UUID_RE.test(parentCategoryId)) {
+    const { data: children } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('parent_id', parentCategoryId)
+    const ids = [parentCategoryId, ...(children ?? []).map((c: { id: string }) => c.id)]
+    query = query.in('category_id', ids)
+  } else if (categoryId && UUID_RE.test(categoryId)) {
+    query = query.eq('category_id', categoryId)
+  }
   switch (sort) {
     case 'popular': query = query.order('view_count', { ascending: false }); break
     case 'price_asc': query = query.order('price', { ascending: true }); break

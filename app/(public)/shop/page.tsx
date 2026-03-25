@@ -1,6 +1,7 @@
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { JsonLd, buildBreadcrumbSchema } from '@/lib/seo'
 import { interpolate, buildVars } from '@/lib/variables'
+import { Suspense } from 'react'
 import ProductGrid from '@/components/shop/ProductGrid'
 
 export const metadata = {
@@ -23,8 +24,9 @@ export default async function ShopPage() {
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 24px 60px' }}>
       <JsonLd schema={breadcrumbSchema} />
-      <h1 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary)', marginBottom: '40px', textAlign: 'center' }}>Shop</h1>
-      <ProductGrid watermark={watermark} />
+      <Suspense fallback={<p style={{ textAlign: 'center', padding: '60px 0', color: 'var(--color-text-muted)' }}>Loading…</p>}>
+        <ProductGrid watermark={watermark} />
+      </Suspense>
     </div>
   )
 }
