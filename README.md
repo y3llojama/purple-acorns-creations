@@ -7,6 +7,7 @@ Website for Purple Acorns Creations — a handmade jewellery and crochet shop. B
 ## Table of Contents
 
 - [Pre-Launch Checklist](#pre-launch-checklist)
+- [Flipping Square to Production](#8-flip-square-from-sandbox-to-production)
 - [Stack](#stack)
 - [Project Structure](#project-structure)
 - [Prerequisites](#prerequisites)
@@ -135,7 +136,64 @@ See [Email (Contact Notifications & Replies)](#email-contact-notifications--repl
 
 ---
 
-### 8. (Optional) Terraform — for full IaC / recreate from scratch
+### 8. Flip Square from Sandbox to Production
+
+> Complete steps 8a–8e in order. The app stays in sandbox mode until all env vars are updated.
+
+#### 8a. Square Developer Dashboard — create production credentials
+
+1. Go to [developer.squareup.com](https://developer.squareup.com) → your app → **Production** tab
+2. Copy **Production Application ID** and **Production Access Token**
+3. Copy your **Production Location ID** (Locations → your location)
+
+#### 8b. Register the production webhook
+
+1. Square Developer Dashboard → your app → **Production** → **Webhooks**
+2. Add endpoint: `https://purpleacornz.com/api/webhooks/square`
+3. Subscribe to events:
+   - `inventory.count.updated`
+   - `catalog.version.updated`
+4. Copy the **Webhook Signature Key** shown after saving
+
+#### 8c. Update environment variables
+
+In both `.env.local` and Vercel → Environment Variables:
+
+```bash
+SQUARE_ENVIRONMENT=production
+SQUARE_APPLICATION_ID=<production app ID from 8a>
+SQUARE_APPLICATION_SECRET=<production app secret from Square dashboard>
+SQUARE_WEBHOOK_SIGNATURE_KEY=<webhook signature key from 8b>
+SQUARE_WEBHOOK_URL=https://purpleacornz.com/api/webhooks/square
+NEXT_PUBLIC_SQUARE_APPLICATION_ID=<production app ID from 8a>
+NEXT_PUBLIC_SQUARE_LOCATION_ID=<production location ID from 8a>
+```
+
+> The `SQUARE_WEBHOOK_URL` must match the URL exactly as registered in the dashboard — Square uses it in the HMAC signature calculation.
+
+#### 8d. Re-connect Square via OAuth (admin UI)
+
+The `square_access_token` stored in the database is a **sandbox** token. You must replace it with a production token:
+
+1. Log in to admin
+2. Go to **Integrations → Square**
+3. Click **Connect Square** — this runs the OAuth flow against production
+4. Confirm the location ID shown matches your production location
+
+#### 8e. Verify after deploy
+
+```bash
+# Confirm env var is set correctly on Vercel
+vercel env ls | grep SQUARE_ENVIRONMENT
+
+# Trigger a test webhook delivery from Square dashboard
+# Square Developer → Production → Webhooks → Send test event → inventory.count.updated
+# Confirm the admin sync log shows no errors
+```
+
+---
+
+### 9. (Optional) Terraform — for full IaC / recreate from scratch
 
 Only needed if you want to be able to `terraform destroy` + `terraform apply` to recreate the entire Supabase project from scratch. See [Supabase Infrastructure (Terraform)](#supabase-infrastructure-terraform).
 
