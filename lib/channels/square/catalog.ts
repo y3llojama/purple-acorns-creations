@@ -276,10 +276,11 @@ export async function pullCategoriesFromSquare(): Promise<{ upserted: number; er
   const { client } = await getSquareClient()
   const supabase = createServiceRoleClient()
 
-  // Paginate all CATEGORY objects — for await auto-follows the cursor
+  // Paginate all CATEGORY objects — await the Page, then iterate across pages
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const objects: any[] = []
-  for await (const obj of client.catalog.list({ types: 'CATEGORY' })) {
+  const catPage = await client.catalog.list({ types: 'CATEGORY' })
+  for await (const obj of catPage) {
     objects.push(obj)
   }
 
@@ -351,10 +352,11 @@ export async function pullProductsFromSquare(): Promise<{ upserted: number; erro
   const { client } = await getSquareClient()
   const supabase = createServiceRoleClient()
 
-  // Paginate all ITEM objects — for await auto-follows the cursor
+  // Paginate all ITEM objects — await the Page, then iterate across pages
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const objects: any[] = []
-  for await (const obj of client.catalog.list({ types: 'ITEM' })) {
+  const itemPage = await client.catalog.list({ types: 'ITEM' })
+  for await (const obj of itemPage) {
     objects.push(obj)
   }
 
