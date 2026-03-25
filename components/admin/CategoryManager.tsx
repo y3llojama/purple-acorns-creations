@@ -196,13 +196,15 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
           onDragOver={e => e.preventDefault()}
           onDrop={() => onDrop(cat.id)}
           style={{
-            padding: isChild ? '7px 12px 7px 28px' : '9px 12px',
+            padding: isChild ? '7px 12px 7px 36px' : '9px 12px',
             background: isChild ? 'var(--color-bg)' : 'var(--color-surface)',
-            borderTop: isChild ? '1px solid var(--color-border)' : undefined,
+            borderTop: '1px solid var(--color-border)',
+            borderLeft: isChild ? '3px solid var(--color-primary)' : '3px solid transparent',
             display: 'flex', alignItems: 'center', gap: '8px',
           }}
         >
           <span style={{ color: 'var(--color-text-muted)', cursor: 'grab', fontSize: '14px' }}>⠿</span>
+          {isChild && <span style={{ color: 'var(--color-text-muted)', fontSize: '12px', flexShrink: 0 }}>↳</span>}
           <span style={{ flex: 1, fontWeight: isChild ? 400 : 600 }}>{cat.name}</span>
           {'product_count' in cat && (
             <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', background: 'var(--color-surface)', padding: '2px 7px', borderRadius: '10px', border: '1px solid var(--color-border)' }}>
