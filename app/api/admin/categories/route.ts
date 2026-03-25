@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   if (error) return error
 
   const body = await request.json().catch(() => ({}))
-  const name = sanitizeText(String(body.name ?? '').trim())
+  const name = String(body.name ?? '').trim()
   if (!name) return NextResponse.json({ error: 'name required' }, { status: 400 })
 
   const categoryType = body.category_type ?? 'REGULAR_CATEGORY'

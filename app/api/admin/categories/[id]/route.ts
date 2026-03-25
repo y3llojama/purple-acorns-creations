@@ -33,7 +33,7 @@ export async function PATCH(request: Request, { params }: Params) {
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
 
   if (body.name !== undefined) {
-    const name = sanitizeText(String(body.name).trim())
+    const name = String(body.name).trim()
     if (!name) return NextResponse.json({ error: 'name required' }, { status: 400 })
     update.name = name
     const slug = toSlug(name)
