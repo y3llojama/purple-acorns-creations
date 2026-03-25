@@ -61,7 +61,9 @@
 
 ## Theming
 
-- CSS custom properties only — two themes: `warm-artisan` and `soft-botanical`
+- CSS custom properties only — four themes: `warm-artisan`, `soft-botanical`, `modern`, and `custom`
+- `modern` is the default theme (fallback when settings are absent)
+- `custom` has no CSS block in `globals.css` — it falls back to `modern` styling, with `deriveCustomThemeVars()` injecting overrides as inline CSS vars on `<html>` when `custom_primary` and `custom_accent` are set
 - Theme toggled via `data-theme` attribute on `<html>`
 - No hardcoded colour values outside `globals.css`
 

@@ -39,3 +39,16 @@ export async function markdownToHtml(md: string): Promise<string> {
   const raw = await Promise.resolve(marked(md, { gfm: true, breaks: true }))
   return sanitizeHtml(raw, CONTENT_OPTIONS)
 }
+
+/**
+ * Escape characters that have special meaning inside an HTML attribute value.
+ * Use when interpolating a URL or any user-controlled string into an HTML attribute.
+ */
+export function escapeHtmlAttr(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}

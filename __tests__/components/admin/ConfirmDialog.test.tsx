@@ -31,4 +31,21 @@ describe('ConfirmDialog', () => {
     expect(screen.getByRole('button', { name: /send/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /delete/i })).toBeNull()
   })
+
+  it('calls onCancel when Escape key is pressed', () => {
+    const onCancel = jest.fn()
+    render(<ConfirmDialog message="Delete?" onConfirm={jest.fn()} onCancel={onCancel} />)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onCancel).toHaveBeenCalled()
+  })
+
+  it('calls the latest onCancel when prop changes identity before Escape', () => {
+    const first = jest.fn()
+    const second = jest.fn()
+    const { rerender } = render(<ConfirmDialog message="Delete?" onConfirm={jest.fn()} onCancel={first} />)
+    rerender(<ConfirmDialog message="Delete?" onConfirm={jest.fn()} onCancel={second} />)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(second).toHaveBeenCalled()
+    expect(first).not.toHaveBeenCalled()
+  })
 })

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { requireAdminSession } from '@/lib/auth'
-import { isValidHttpsUrl, clampLength } from '@/lib/validate'
+import { isValidHttpsUrl, clampLength, isValidUuid } from '@/lib/validate'
 import { sanitizeText } from '@/lib/sanitize'
 
 export async function GET() {
@@ -40,7 +40,7 @@ export async function PUT(request: Request) {
   if (error) return error
   const body = await request.json().catch(() => ({} as Record<string, unknown>))
   const { id, ...fields } = body as { id?: string } & Record<string, unknown>
-  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+  if (!id || !isValidUuid(id)) return NextResponse.json({ error: 'Valid id required' }, { status: 400 })
   const update: Record<string, string | null> = {}
   if (fields.name !== undefined) update.name = sanitizeText(clampLength(String(fields.name), 200))
   if (fields.location !== undefined) update.location = sanitizeText(clampLength(String(fields.location), 300))
@@ -63,9 +63,10 @@ export async function DELETE(request: Request) {
   const { error } = await requireAdminSession()
   if (error) return error
   const body = await request.json().catch(() => ({} as Record<string, unknown>))
-  if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+  const eventId = String(body.id ?? '')
+  if (!eventId || !isValidUuid(eventId)) return NextResponse.json({ error: 'Valid id required' }, { status: 400 })
   const supabase = createServiceRoleClient()
-  const { error: dbError } = await supabase.from('events').delete().eq('id', String(body.id))
+  const { error: dbError } = await supabase.from('events').delete().eq('id', eventId)
   if (dbError) return NextResponse.json({ error: 'Failed to delete event' }, { status: 500 })
   return NextResponse.json({ success: true })
 }

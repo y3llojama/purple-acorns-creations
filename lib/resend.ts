@@ -2,7 +2,7 @@ import { Resend } from 'resend'
 import type { Newsletter, NewsletterSubscriber } from '@/lib/supabase/types'
 import { addUtmParams } from '@/lib/newsletter'
 import { isValidHttpsUrl } from '@/lib/validate'
-import { sanitizeText } from '@/lib/sanitize'
+import { sanitizeText, escapeHtmlAttr } from '@/lib/sanitize'
 
 export function getResendClient(apiKey: string) {
   return new Resend(apiKey)
@@ -17,7 +17,7 @@ export function buildNewsletterEmail(
   const unsubscribeUrl = `${siteUrl}/newsletter/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`
 
   const heroBlock = newsletter.hero_image_url && isValidHttpsUrl(newsletter.hero_image_url)
-    ? `<img src="${newsletter.hero_image_url}" alt="" style="width:100%;max-width:600px;height:auto;display:block;border-radius:4px;margin:0 auto 24px;" />`
+    ? `<img src="${escapeHtmlAttr(newsletter.hero_image_url)}" alt="" style="width:100%;max-width:600px;height:auto;display:block;border-radius:4px;margin:0 auto 24px;" />`
     : ''
 
   return `<!DOCTYPE html>

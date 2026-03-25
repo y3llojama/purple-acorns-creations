@@ -27,4 +27,14 @@ describe('getClientIp', () => {
     const req = makeRequest({ 'x-forwarded-for': '1.1.1.1 , 2.2.2.2 ' })
     expect(getClientIp(req)).toBe('2.2.2.2')
   })
+
+  it('returns unknown when x-real-ip is only whitespace', () => {
+    const req = makeRequest({ 'x-real-ip': '   ', 'x-forwarded-for': '7.7.7.7' })
+    expect(getClientIp(req)).toBe('7.7.7.7')
+  })
+
+  it('handles single x-forwarded-for entry', () => {
+    const req = makeRequest({ 'x-forwarded-for': '5.5.5.5' })
+    expect(getClientIp(req)).toBe('5.5.5.5')
+  })
 })

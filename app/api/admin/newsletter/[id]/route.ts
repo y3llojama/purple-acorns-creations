@@ -3,7 +3,7 @@ import { requireAdminSession } from '@/lib/auth'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { isValidNewsletterSection } from '@/lib/newsletter'
 import { sanitizeContent, sanitizeText } from '@/lib/sanitize'
-import { isValidHttpsUrl } from '@/lib/validate'
+import { isValidHttpsUrl, isValidUuid } from '@/lib/validate'
 import type { NewsletterSection } from '@/lib/supabase/types'
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -13,6 +13,9 @@ export async function GET(_request: Request, { params }: RouteContext) {
   if (error) return error
 
   const { id } = await params
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: 'Invalid newsletter id.' }, { status: 400 })
+  }
   const supabase = createServiceRoleClient()
   const { data, error: dbError } = await supabase
     .from('newsletters')
@@ -30,6 +33,9 @@ export async function PUT(request: Request, { params }: RouteContext) {
   if (error) return error
 
   const { id } = await params
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: 'Invalid newsletter id.' }, { status: 400 })
+  }
   const body = await request.json().catch(() => ({}))
   const allowed = ['title', 'subject_line', 'teaser_text', 'hero_image_url', 'content', 'tone', 'slug', 'ai_brief']
   const updates: Record<string, unknown> = {}
@@ -84,6 +90,9 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
   if (error) return error
 
   const { id } = await params
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: 'Invalid newsletter id.' }, { status: 400 })
+  }
   const supabase = createServiceRoleClient()
 
   const { data: existing, error: fetchError } = await supabase

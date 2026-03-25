@@ -19,7 +19,8 @@ function req(body: unknown) {
     body: JSON.stringify(body),
   })
 }
-const ctx = { params: Promise.resolve({ id: 'abc' }) }
+const VALID_ID = '11111111-1111-1111-1111-111111111111'
+const ctx = { params: Promise.resolve({ id: VALID_ID }) }
 
 beforeEach(() => {
   jest.clearAllMocks()

@@ -34,8 +34,10 @@ export async function GET(request: Request) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query: any = supabase.from('messages').select('*', { count: 'exact' })
 
-  if (q) {
-    query = query.or(`name.ilike.%${q}%,email.ilike.%${q}%,message.ilike.%${q}%`)
+  // Strip PostgREST grammar characters before interpolation to prevent filter injection.
+  const safeQ = q.replace(/[,()]/g, '')
+  if (safeQ.length > 0) {
+    query = query.or(`name.ilike.%${safeQ}%,email.ilike.%${safeQ}%,message.ilike.%${safeQ}%`)
   }
   if (emailFilter) {
     query = query.eq('email', emailFilter)

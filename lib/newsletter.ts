@@ -20,6 +20,18 @@ export function isValidNewsletterSection(section: unknown): boolean {
   return false
 }
 
+/**
+ * Strip characters and phrases commonly used in prompt injection attacks.
+ * Defense-in-depth for admin inputs interpolated into AI prompts.
+ */
+function sanitizePromptInput(str: string): string {
+  return str
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\b(ignore (the )?(above|previous|prior|all)|disregard|forget everything|new instruction|system prompt|you are now)\b/gi, '[removed]')
+    .trim()
+}
+
 export interface AiPromptInput {
   workingOn: string; selectedChips: string[]; tone: NewsletterTone
   extra: string; upcomingEvents: Array<{ name: string; date: string; location: string }>; today: string
@@ -27,14 +39,14 @@ export interface AiPromptInput {
 
 export function buildAiPrompt(input: AiPromptInput): string {
   const events = input.upcomingEvents.length
-    ? input.upcomingEvents.map(e => `- ${e.name} on ${e.date} at ${e.location}`).join('\n')
+    ? input.upcomingEvents.map(e => `- ${sanitizePromptInput(e.name)} on ${e.date} at ${sanitizePromptInput(e.location)}`).join('\n')
     : 'No upcoming events.'
   return `You are a friendly newsletter writer for Purple Acorns Creations, a handmade jewelry and crochet business run by a mother-daughter duo in Massachusetts. Write in a warm, personal voice. Today is ${input.today}.
 
-Write a newsletter with tone: ${input.tone}.
-What we are working on: ${input.workingOn}
-Key topics: ${input.selectedChips.join(', ') || 'general update'}
-Additional notes: ${input.extra || 'none'}
+Write a newsletter with tone: ${sanitizePromptInput(input.tone)}.
+What we are working on: ${sanitizePromptInput(input.workingOn)}
+Key topics: ${input.selectedChips.map(sanitizePromptInput).join(', ') || 'general update'}
+Additional notes: ${sanitizePromptInput(input.extra ?? '') || 'none'}
 Upcoming events:\n${events}
 
 Return ONLY valid JSON:

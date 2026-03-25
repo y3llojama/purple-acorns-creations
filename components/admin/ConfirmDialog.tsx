@@ -6,6 +6,9 @@ interface Props { message: string; onConfirm: () => void; onCancel: () => void; 
 export default function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
+  const onCancelRef = useRef(onCancel)
+
+  useEffect(() => { onCancelRef.current = onCancel })
 
   useEffect(() => {
     previousFocusRef.current = document.activeElement as HTMLElement
@@ -13,7 +16,7 @@ export default function ConfirmDialog({ message, onConfirm, onCancel, confirmLab
     cancelBtn?.focus()
 
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') { onCancel(); return }
+      if (e.key === 'Escape') { onCancelRef.current(); return }
       if (e.key !== 'Tab') return
       const buttons = Array.from(dialogRef.current?.querySelectorAll<HTMLButtonElement>('button') ?? [])
       if (buttons.length === 0) return
@@ -31,7 +34,8 @@ export default function ConfirmDialog({ message, onConfirm, onCancel, confirmLab
       document.removeEventListener('keydown', handleKeyDown)
       previousFocusRef.current?.focus()
     }
-  }, [onCancel])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div role="presentation" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
@@ -39,7 +43,7 @@ export default function ConfirmDialog({ message, onConfirm, onCancel, confirmLab
         <p id="confirm-msg" style={{ fontSize: '18px', marginBottom: '24px', color: 'var(--color-text)' }}>{message}</p>
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
           <button onClick={onCancel} style={{ padding: '12px 24px', fontSize: '18px', border: '2px solid var(--color-primary)', background: 'transparent', color: 'var(--color-primary)', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}>Cancel</button>
-          <button onClick={onConfirm} style={{ padding: '12px 24px', fontSize: '18px', border: 'none', background: '#c05050', color: '#fff', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}>{confirmLabel ?? 'Delete'}</button>
+          <button onClick={onConfirm} style={{ padding: '12px 24px', fontSize: '18px', border: 'none', background: 'var(--color-error)', color: 'var(--color-error-text)', borderRadius: '4px', cursor: 'pointer', minHeight: '48px' }}>{confirmLabel ?? 'Delete'}</button>
         </div>
       </div>
     </div>

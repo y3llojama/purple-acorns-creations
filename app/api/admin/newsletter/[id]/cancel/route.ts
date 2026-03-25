@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdminSession } from '@/lib/auth'
 import { createServiceRoleClient } from '@/lib/supabase/server'
+import { isValidUuid } from '@/lib/validate'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -9,6 +10,9 @@ export async function POST(_request: Request, { params }: RouteContext) {
   if (error) return error
 
   const { id } = await params
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: 'Invalid newsletter id.' }, { status: 400 })
+  }
   const supabase = createServiceRoleClient()
 
   const { data: newsletter, error: fetchError } = await supabase

@@ -1,4 +1,4 @@
-import { sanitizeContent, sanitizeText } from '@/lib/sanitize'
+import { sanitizeContent, sanitizeText, escapeHtmlAttr } from '@/lib/sanitize'
 
 describe('sanitizeContent', () => {
   it('allows safe HTML tags', () => {
@@ -44,5 +44,25 @@ describe('sanitizeText', () => {
   })
   it('returns plain text unchanged', () => {
     expect(sanitizeText('Hello world')).toBe('Hello world')
+  })
+})
+
+describe('escapeHtmlAttr', () => {
+  it('passes clean URLs through unchanged', () => {
+    expect(escapeHtmlAttr('https://example.com/image.jpg')).toBe('https://example.com/image.jpg')
+  })
+  it('encodes double quotes that would break src attribute', () => {
+    const malicious = 'https://example.com/img.jpg" onload="alert(1)'
+    expect(escapeHtmlAttr(malicious)).not.toContain('"')
+    expect(escapeHtmlAttr(malicious)).toContain('&quot;')
+  })
+  it('encodes ampersands', () => {
+    expect(escapeHtmlAttr('https://example.com/?a=1&b=2')).toBe('https://example.com/?a=1&amp;b=2')
+  })
+  it('encodes angle brackets', () => {
+    expect(escapeHtmlAttr('<script>')).toBe('&lt;script&gt;')
+  })
+  it('handles empty string', () => {
+    expect(escapeHtmlAttr('')).toBe('')
   })
 })

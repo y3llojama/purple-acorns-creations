@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { requireAdminSession } from '@/lib/auth'
-import { isValidHttpsUrl } from '@/lib/validate'
+import { isValidHttpsUrl, isValidUuid } from '@/lib/validate'
 
 const MAX_PHOTOS = 10
 
@@ -58,7 +58,8 @@ export async function PATCH(request: Request) {
   const { error } = await requireAdminSession()
   if (error) return error
   const body = await request.json().catch(() => ({} as Record<string, unknown>))
-  if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+  const photoId = String(body.id ?? '')
+  if (!photoId || !isValidUuid(photoId)) return NextResponse.json({ error: 'Valid id required' }, { status: 400 })
   const update: Record<string, number> = {}
   if (body.display_order !== undefined) {
     update.display_order = Number(body.display_order) || 0
@@ -68,7 +69,7 @@ export async function PATCH(request: Request) {
   const { data, error: dbError } = await supabase
     .from('follow_along_photos')
     .update(update)
-    .eq('id', String(body.id))
+    .eq('id', photoId)
     .select()
     .single()
   if (dbError) return NextResponse.json({ error: 'Failed to update photo' }, { status: 500 })
@@ -80,20 +81,21 @@ export async function DELETE(request: Request) {
   const { error } = await requireAdminSession()
   if (error) return error
   const body = await request.json().catch(() => ({} as Record<string, unknown>))
-  if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+  const deleteId = String(body.id ?? '')
+  if (!deleteId || !isValidUuid(deleteId)) return NextResponse.json({ error: 'Valid id required' }, { status: 400 })
   const supabase = createServiceRoleClient()
 
   // Get storage_path before deleting to clean up storage
   const { data: photo } = await supabase
     .from('follow_along_photos')
     .select('storage_path')
-    .eq('id', String(body.id))
+    .eq('id', deleteId)
     .single()
 
   const { error: dbError } = await supabase
     .from('follow_along_photos')
     .delete()
-    .eq('id', String(body.id))
+    .eq('id', deleteId)
   if (dbError) return NextResponse.json({ error: 'Failed to delete photo' }, { status: 500 })
   revalidatePath('/', 'layout')
 

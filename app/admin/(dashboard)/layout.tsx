@@ -1,21 +1,8 @@
-import type { Metadata } from 'next'
 import AdminSidebar from '@/components/admin/AdminSidebar'
 import { getSettings } from '@/lib/theme'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { UnreadCountProvider } from '@/lib/contexts/unread-count-context'
 import styles from './layout.module.css'
-
-export const metadata: Metadata = {
-  manifest: '/admin-manifest.json',
-  icons: {
-    apple: '/admin-icon-180.png',
-  },
-  other: {
-    'apple-mobile-web-app-capable': 'yes',
-    'apple-mobile-web-app-status-bar-style': 'black-translucent',
-    'apple-mobile-web-app-title': 'PA Admin',
-  },
-}
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = createServiceRoleClient()

@@ -69,7 +69,7 @@ export default function NewsletterSignup() {
           </form>
         )}
         {status === 'error' && message && (
-          <p id="newsletter-email-error" role="alert" style={{ color: '#c05050', marginTop: '8px', fontSize: '16px' }}>{message}</p>
+          <p id="newsletter-email-error" role="alert" style={{ color: 'var(--color-error)', marginTop: '8px', fontSize: '16px' }}>{message}</p>
         )}
         <p style={{ color: 'var(--color-text-muted)', fontSize: '14px', marginTop: '12px' }}>
           By subscribing you agree to our{' '}

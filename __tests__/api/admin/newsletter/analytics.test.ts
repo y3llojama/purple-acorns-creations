@@ -7,9 +7,10 @@ import { createServiceRoleClient } from '@/lib/supabase/server'
 import { requireAdminSession } from '@/lib/auth'
 import { GET } from '@/app/api/admin/newsletter/[id]/analytics/route'
 
-const params = Promise.resolve({ id: 'nl-1' })
+const TEST_ID = '11111111-1111-1111-1111-111111111111'
+const params = Promise.resolve({ id: TEST_ID })
 function req() {
-  return new Request('http://localhost/api/admin/newsletter/nl-1/analytics')
+  return new Request(`http://localhost/api/admin/newsletter/${TEST_ID}/analytics`)
 }
 beforeEach(() => {
   jest.clearAllMocks()
