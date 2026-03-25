@@ -47,13 +47,8 @@ export async function syncCategory(category: import('@/lib/supabase/types').Cate
   const config = await getChannelConfig()
   if (!config.squareEnabled) return
 
-  // Only sync leaf categories (no children) — parent categories are navigation only
-  const supabase = createServiceRoleClient()
-  const { count } = await supabase
-    .from('categories')
-    .select('id', { count: 'exact', head: true })
-    .eq('parent_id', category.id)
-  if ((count ?? 0) > 0) return
+  // Only sync REGULAR_CATEGORY — MENU_CATEGORY are navigation groupings only
+  if (category.category_type !== 'REGULAR_CATEGORY') return
 
   try {
     const { pushCategory } = await import('./square/catalog')
