@@ -9,7 +9,7 @@ export const metadata = {
 
 export default async function EventsPage() {
   const supabase = createServiceRoleClient()
-  const { data } = await supabase.from('events').select('*').order('date')
+  const { data } = await supabase.from('events').select('*').eq('featured', true).order('date')
   const allEvents: Event[] = data ?? []
 
   const today = new Date().toISOString().slice(0, 10)
