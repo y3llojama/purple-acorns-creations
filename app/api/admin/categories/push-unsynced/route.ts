@@ -16,8 +16,9 @@ export async function POST() {
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
   if (!categories?.length) return NextResponse.json({ pushed: 0, errors: [] })
 
-  // Only push REGULAR_CATEGORY — MENU_CATEGORY are navigation groupings only
-  const leafCategories = (categories ?? []).filter((c: { category_type: string }) => c.category_type === 'REGULAR_CATEGORY')
+  // Only push leaf categories — those with no children (structural, not type-based)
+  const parentIds = new Set((categories ?? []).filter((c: { parent_id: string | null }) => c.parent_id !== null).map((c: { parent_id: string | null }) => c.parent_id))
+  const leafCategories = (categories ?? []).filter((c: { id: string }) => !parentIds.has(c.id))
   if (!leafCategories.length) return NextResponse.json({ pushed: 0, errors: [] })
 
   let pushed = 0

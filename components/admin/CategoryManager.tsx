@@ -246,11 +246,6 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
         <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '3px' }}>Sort order</label>
         <input style={inputStyle} type="number" value={formSortOrder} onChange={e => setFormSortOrder(e.target.value)} placeholder="Auto" />
 
-        <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '3px' }}>Category type</label>
-        <select style={inputStyle} value={formType} onChange={e => setFormType(e.target.value as 'REGULAR_CATEGORY' | 'MENU_CATEGORY')}>
-          <option value="REGULAR_CATEGORY">Regular</option>
-          <option value="MENU_CATEGORY">Menu</option>
-        </select>
 
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', marginBottom: '10px', cursor: 'pointer' }}>
           <input type="checkbox" checked={formVisible} onChange={e => setFormVisible(e.target.checked)} style={{ width: '16px', height: '16px' }} />
@@ -297,8 +292,7 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
   return (
     <div>
       <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '6px', padding: '10px 14px', marginBottom: '16px' }}>
-        <strong>Structure:</strong> Square supports one category + one sub-category above each item (2 levels max).
-        Use <strong>Menu</strong> type for top-level groupings and <strong>Regular</strong> type for sub-categories that hold items.
+        <strong>Structure:</strong> 2 levels max (matches Square). Top-level categories are groupings — assign items to sub-categories only. Leave <em>Parent category</em> blank to create a top-level grouping.
       </p>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
         <span style={{ fontWeight: 600 }}>{categories.length} categories</span>
