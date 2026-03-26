@@ -100,8 +100,8 @@ export default function EventsManager({ initialEvents }: Props) {
 
   async function toggleFeatured(ev: Event) {
     const newVal = !ev.featured
-    // Optimistically update UI: unfeature all, then set this one
-    setEvents(list => list.map(e => ({ ...e, featured: newVal ? e.id === ev.id : false })))
+    // Optimistically update UI
+    setEvents(list => list.map(e => e.id === ev.id ? { ...e, featured: newVal } : e))
     await fetch('/api/admin/events', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -186,7 +186,7 @@ export default function EventsManager({ initialEvents }: Props) {
       )}
 
       <ul style={{ listStyle: 'none', padding: 0 }}>
-        {events.map(ev => (
+        {[...events].sort((a, b) => b.date.localeCompare(a.date)).map(ev => (
           <li key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'var(--color-surface)', borderRadius: '8px', border: '1px solid var(--color-border)', marginBottom: '12px' }}>
             <div>
               <div style={{ fontWeight: '600', fontSize: '18px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>

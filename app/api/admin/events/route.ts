@@ -24,11 +24,8 @@ export async function POST(request: Request) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return NextResponse.json({ error: 'date must be YYYY-MM-DD' }, { status: 400 })
   const link_url = body.link_url ? (isValidHttpsUrl(String(body.link_url)) ? String(body.link_url) : null) : null
   const supabase = createServiceRoleClient()
-  // Manual adds are featured by default; un-feature all others first
+  // Manual adds are featured by default
   const featured = body.featured !== false
-  if (featured) {
-    await supabase.from('events').update({ featured: false }).neq('id', '00000000-0000-0000-0000-000000000000')
-  }
   const { data, error: dbError } = await supabase.from('events').insert({
     name, location, date,
     time: sanitizeText(clampLength(String(body.time ?? ''), 50)) || null,
@@ -61,12 +58,7 @@ export async function PUT(request: Request) {
   if (fields.link_label !== undefined) update.link_label = sanitizeText(clampLength(String(fields.link_label), 100)) || null
   const supabase = createServiceRoleClient()
   // If featuring this event, un-feature all others first
-  if (fields.featured === true) {
-    await supabase.from('events').update({ featured: false }).neq('id', id)
-    update.featured = true
-  } else if (fields.featured === false) {
-    update.featured = false
-  }
+  if (fields.featured !== undefined) update.featured = Boolean(fields.featured)
   const { error: dbError } = await supabase.from('events').update(update).eq('id', id)
   if (dbError) return NextResponse.json({ error: 'Failed to update event' }, { status: 500 })
   return NextResponse.json({ success: true })
