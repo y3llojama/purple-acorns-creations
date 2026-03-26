@@ -64,11 +64,27 @@ export async function GET(request: NextRequest) {
     .eq('event_type', 'contact_submit')
     .gte('created_at', since.toISOString())
 
+  // Shop clicks in period
+  const { count: shopClicks } = await supabase
+    .from('analytics_events')
+    .select('*', { count: 'exact', head: true })
+    .eq('event_type', 'shop_click')
+    .gte('created_at', since.toISOString())
+
+  // Newsletter subscriptions in period
+  const { count: newsletterSubscribes } = await supabase
+    .from('analytics_events')
+    .select('*', { count: 'exact', head: true })
+    .eq('event_type', 'newsletter_subscribe')
+    .gte('created_at', since.toISOString())
+
   return NextResponse.json({
     totalViews: totalViews ?? 0,
     uniqueVisitors,
     topPage: topPage ? { path: topPage[0], views: topPage[1] } : null,
     topReferrer: topReferrer ? { source: topReferrer[0], count: topReferrer[1] } : null,
     contactSubmissions: contactSubmissions ?? 0,
+    shopClicks: shopClicks ?? 0,
+    newsletterSubscribes: newsletterSubscribes ?? 0,
   })
 }

@@ -10,6 +10,15 @@ interface SummaryData {
   topPage: { path: string; views: number } | null
   topReferrer: { source: string; count: number } | null
   contactSubmissions: number
+  shopClicks: number
+  newsletterSubscribes: number
+}
+
+interface CampaignEntry {
+  source: string
+  medium: string
+  campaign: string
+  count: number
 }
 
 interface TimeseriesPoint {
@@ -178,22 +187,25 @@ export default function AnalyticsDashboard() {
   const [pages, setPages] = useState<PageEntry[]>([])
   const [sources, setSources] = useState<SourceEntry[]>([])
   const [devices, setDevices] = useState<DeviceEntry[]>([])
+  const [campaigns, setCampaigns] = useState<CampaignEntry[]>([])
 
   const loadData = useCallback(async (p: Period) => {
     setLoading(true)
     const qs = `period=${p}`
-    const [s, t, pg, src, dev] = await Promise.all([
+    const [s, t, pg, src, dev, camp] = await Promise.all([
       fetchJson<SummaryData>(`/api/admin/analytics/summary?${qs}`),
       fetchJson<TimeseriesPoint[]>(`/api/admin/analytics/timeseries?${qs}`),
       fetchJson<PageEntry[]>(`/api/admin/analytics/pages?${qs}`),
       fetchJson<SourceEntry[]>(`/api/admin/analytics/sources?${qs}`),
       fetchJson<DeviceEntry[]>(`/api/admin/analytics/devices?${qs}`),
+      fetchJson<CampaignEntry[]>(`/api/admin/analytics/campaigns?${qs}`),
     ])
     setSummary(s)
     setTimeseries(t ?? [])
     setPages(pg ?? [])
     setSources(src ?? [])
     setDevices(dev ?? [])
+    setCampaigns(camp ?? [])
     setLoading(false)
   }, [])
 
@@ -257,7 +269,35 @@ export default function AnalyticsDashboard() {
               subtitle={summary.topReferrer ? `${summary.topReferrer.count} visits` : undefined}
             />
             <SummaryCard label="Contact Submissions" value={formatNumber(summary.contactSubmissions)} />
+            <SummaryCard label="Shop Clicks" value={formatNumber(summary.shopClicks)} />
+            <SummaryCard label="Newsletter Signups" value={formatNumber(summary.newsletterSubscribes)} />
           </div>
+
+          {/* Conversion Rates */}
+          {summary.totalViews > 0 && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+              gap: '16px',
+              marginBottom: '40px',
+            }}>
+              <SummaryCard
+                label="Shop CTR"
+                value={`${((summary.shopClicks / summary.totalViews) * 100).toFixed(1)}%`}
+                subtitle="shop clicks / page views"
+              />
+              <SummaryCard
+                label="Contact Rate"
+                value={`${((summary.contactSubmissions / summary.totalViews) * 100).toFixed(1)}%`}
+                subtitle="submissions / page views"
+              />
+              <SummaryCard
+                label="Newsletter Rate"
+                value={`${((summary.newsletterSubscribes / summary.totalViews) * 100).toFixed(1)}%`}
+                subtitle="signups / page views"
+              />
+            </div>
+          )}
 
           {/* Views Over Time */}
           <ChartSection title="Views Over Time">
@@ -276,6 +316,24 @@ export default function AnalyticsDashboard() {
           {/* Traffic Sources */}
           <ChartSection title="Traffic Sources">
             <HorizontalBarChart items={sources.map(s => ({ label: s.source, value: s.count }))} />
+          </ChartSection>
+
+          {/* Campaigns (UTM) */}
+          <ChartSection title="Campaigns">
+            {campaigns.length > 0 ? (
+              <HorizontalBarChart items={campaigns.map(c => ({
+                label: c.campaign !== '(none)'
+                  ? `${c.source} / ${c.campaign}`
+                  : c.medium !== '(none)'
+                    ? `${c.source} / ${c.medium}`
+                    : c.source,
+                value: c.count,
+              }))} />
+            ) : (
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '14px', fontStyle: 'italic' }}>
+                No UTM-tagged traffic for this period.
+              </p>
+            )}
           </ChartSection>
 
           {/* Device Breakdown */}

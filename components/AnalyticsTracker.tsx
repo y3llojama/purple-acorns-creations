@@ -55,6 +55,24 @@ export default function AnalyticsTracker() {
   const isFirstLoad = useRef(true)
   const lastTrackedPath = useRef<string | null>(null)
 
+/** Capture UTM params from URL and persist in sessionStorage for the session */
+function getUtmParams(): Record<string, string> | null {
+  const KEY = 'pac_utms'
+  const stored = sessionStorage.getItem(KEY)
+  if (stored) {
+    try { return JSON.parse(stored) } catch { /* ignore */ }
+  }
+  const params = new URLSearchParams(window.location.search)
+  const utms: Record<string, string> = {}
+  for (const key of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']) {
+    const val = params.get(key)
+    if (val) utms[key] = val
+  }
+  if (Object.keys(utms).length === 0) return null
+  sessionStorage.setItem(KEY, JSON.stringify(utms))
+  return utms
+}
+
   const trackPageView = useCallback((path: string) => {
     if (path === lastTrackedPath.current) return
     lastTrackedPath.current = path
@@ -72,6 +90,14 @@ export default function AnalyticsTracker() {
       // Only include external referrers (not self-referrals)
       if (ref && !ref.includes(window.location.hostname)) {
         event.referrer = ref
+      }
+      const utms = getUtmParams()
+      if (utms) event.metadata = utms
+    } else {
+      // Attach persisted UTMs to subsequent page views in same session
+      const stored = sessionStorage.getItem('pac_utms')
+      if (stored) {
+        try { event.metadata = JSON.parse(stored) } catch { /* ignore */ }
       }
     }
 
