@@ -193,8 +193,15 @@ export default function EventsManager({ initialEvents }: Props) {
         <p style={{ color: 'var(--color-text-muted)', fontSize: '18px' }}>No upcoming events. Click &quot;+ Add New Event&quot; to add one.</p>
       )}
 
-      <ul style={{ listStyle: 'none', padding: 0 }}>
-        {[...events].sort((a, b) => b.date.localeCompare(a.date)).map(ev => (
+      {(() => {
+        const today = new Date().toISOString().slice(0, 10)
+        const upcoming = [...events].filter(e => e.date >= today).sort((a, b) => a.date.localeCompare(b.date))
+        const past = [...events].filter(e => e.date < today).sort((a, b) => b.date.localeCompare(a.date))
+        return (
+          <>
+            <ul style={{ listStyle: 'none', padding: 0 }}>
+              {upcoming.length === 0 && <p style={{ color: 'var(--color-text-muted)', padding: '16px 0' }}>No upcoming events.</p>}
+              {upcoming.map(ev => (
           <li key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'var(--color-surface)', borderRadius: '8px', border: '1px solid var(--color-border)', marginBottom: '12px' }}>
             <div>
               <div style={{ fontWeight: '600', fontSize: '18px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -237,8 +244,37 @@ export default function EventsManager({ initialEvents }: Props) {
               </button>
             </div>
           </li>
-        ))}
-      </ul>
+              ))}
+            </ul>
+            {past.length > 0 && (
+              <details style={{ marginTop: '24px' }}>
+                <summary style={{ cursor: 'pointer', fontSize: '14px', fontWeight: 600, color: 'var(--color-text-muted)', padding: '8px 0', userSelect: 'none' }}>
+                  Past events ({past.length})
+                </summary>
+                <ul style={{ listStyle: 'none', padding: 0, marginTop: '8px', opacity: 0.7 }}>
+                  {past.map(ev => (
+                    <li key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'var(--color-surface)', borderRadius: '8px', border: '1px solid var(--color-border)', marginBottom: '8px' }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '16px', color: 'var(--color-text-muted)' }}>{ev.name}</div>
+                        <div style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>
+                          {new Date(ev.date + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                          {' · '}{ev.location}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setDeleteId(ev.id)}
+                        style={{ background: 'none', border: '1px solid #c05050', color: '#c05050', padding: '6px 12px', fontSize: '13px', borderRadius: '4px', cursor: 'pointer', minHeight: '44px', flexShrink: 0 }}
+                      >
+                        Delete
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </>
+        )
+      })()}
 
       {deleteId && (
         <ConfirmDialog

@@ -36,18 +36,11 @@ export default async function HomePage() {
   const proto = hdrs.get('x-forwarded-proto') ?? 'https'
   const siteBase = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_SITE_URL ?? '')
 
-  const [content, settings, featured, gallery, eventResult, followAlongResult, heroSlides] = await Promise.all([
+  const [content, settings, featured, gallery, followAlongResult, heroSlides] = await Promise.all([
     getAllContent(),
     getSettings(),
     supabase.from('products').select('*').eq('is_active', true).eq('gallery_featured', true).order('gallery_sort_order').limit(8).then(r => r.data ?? []),
     supabase.from('gallery').select('*').eq('is_featured', false).order('sort_order').limit(8).then(r => r.data ?? []),
-    // Try featured events first; fall back to next upcoming if column missing or none featured
-    supabase.from('events').select('*').eq('featured', true).gte('date', today).order('date').limit(1).single()
-      .then(async r => {
-        if (r.data) return r
-        // No featured event (or column doesn't exist yet) — fall back to next upcoming
-        return supabase.from('events').select('*').gte('date', today).order('date').limit(1).single()
-      }),
     supabase.from('follow_along_photos').select('*').order('display_order').then(r => r.data ?? []),
     supabase
       .from('hero_slides')
@@ -56,18 +49,19 @@ export default async function HomePage() {
       .then(r => r.data ?? []),
   ])
 
-  if (eventResult.error && eventResult.error.code !== 'PGRST116') {
-    // PGRST116 = no rows found (expected when no upcoming events)
-    console.error('[HomePage] events query error:', eventResult.error.message)
-  }
+  // Resolve featured event: prefer upcoming featured, fall back to any next upcoming
+  const { data: featuredEventData } = await supabase
+    .from('events').select('*').eq('featured', true).gte('date', today).order('date').limit(1).single()
+  const eventData = featuredEventData ?? (await supabase
+    .from('events').select('*').gte('date', today).order('date').limit(1).single()).data
 
   const vars = buildVars(settings.business_name)
   const orgSchema = buildOrganizationSchema(settings.business_name)
-  const event = eventResult.data ? {
-    ...eventResult.data,
-    name: interpolate(eventResult.data.name, vars),
-    description: eventResult.data.description ? interpolate(eventResult.data.description, vars) : eventResult.data.description,
-    link_label: eventResult.data.link_label ? interpolate(eventResult.data.link_label, vars) : eventResult.data.link_label,
+  const event = eventData ? {
+    ...eventData,
+    name: interpolate(eventData.name, vars),
+    description: eventData.description ? interpolate(eventData.description, vars) : eventData.description,
+    link_label: eventData.link_label ? interpolate(eventData.link_label, vars) : eventData.link_label,
   } : null
 
   return (
