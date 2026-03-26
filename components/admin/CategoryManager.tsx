@@ -79,10 +79,11 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
       const data = await res.json()
       if (!res.ok) {
         setPushUnsyncedMsg(`Error: ${data.error ?? 'Push failed'}`)
-      } else if (data.pushed === 0) {
-        setPushUnsyncedMsg('All categories are already synced.')
       } else {
-        setPushUnsyncedMsg(`Pushed ${data.pushed}${data.errors?.length ? `, ${data.errors.length} error(s)` : ''}`)
+        const msg = data.pushed === 0
+          ? 'All categories are already synced.'
+          : `Pushed ${data.pushed}${data.errors?.length ? `, ${data.errors.length} error(s)` : ''}`
+        setPushUnsyncedMsg(msg)
         const refreshed = await fetch('/api/admin/categories').then(r => r.json()).catch(() => null)
         if (Array.isArray(refreshed)) setCategories(refreshed)
       }
@@ -310,6 +311,7 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
               <button
                 onClick={pushUnsyncedToSquare}
                 disabled={pushingUnsynced}
+                title="Push categories created here → Square. Run this after adding new categories."
                 style={{ ...btnStyle, background: 'var(--color-surface)', color: 'var(--color-primary)', border: '1px solid var(--color-border)', cursor: pushingUnsynced ? 'not-allowed' : 'pointer', opacity: pushingUnsynced ? 0.7 : 1 }}
                 aria-busy={pushingUnsynced}
               >
@@ -318,6 +320,7 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
               <button
                 onClick={syncFromSquare}
                 disabled={syncingCategories}
+                title="Pull categories from Square → here. Run this if you added categories directly in Square."
                 style={{ ...btnStyle, background: 'var(--color-surface)', color: 'var(--color-primary)', border: '1px solid var(--color-border)', cursor: syncingCategories ? 'not-allowed' : 'pointer', opacity: syncingCategories ? 0.7 : 1 }}
                 aria-busy={syncingCategories}
               >

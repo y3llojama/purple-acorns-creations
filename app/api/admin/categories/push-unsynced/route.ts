@@ -8,24 +8,30 @@ export async function POST() {
   if (error) return error
 
   const supabase = createServiceRoleClient()
-  const { data: categories, error: fetchError } = await supabase
+
+  // Fetch ALL categories so we can determine hierarchy correctly
+  const { data: allCategories, error: fetchError } = await supabase
     .from('categories')
     .select('*')
-    .is('square_category_id', null)
+    .order('sort_order', { ascending: true })
 
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
-  if (!categories?.length) return NextResponse.json({ pushed: 0, errors: [] })
+  if (!allCategories?.length) return NextResponse.json({ pushed: 0, errors: [] })
 
-  // Only push leaf categories — those with no children (structural, not type-based)
-  const parentIds = new Set((categories ?? []).filter((c: { parent_id: string | null }) => c.parent_id !== null).map((c: { parent_id: string | null }) => c.parent_id))
-  const leafCategories = (categories ?? []).filter((c: { id: string }) => !parentIds.has(c.id))
-  if (!leafCategories.length) return NextResponse.json({ pushed: 0, errors: [] })
+  const unsynced = allCategories.filter((c: { square_category_id: string | null }) => !c.square_category_id)
+  if (!unsynced.length) return NextResponse.json({ pushed: 0, errors: [] })
+
+  // Push in two phases: parents first so children can reference their Square IDs
+  const unsyncedParents = unsynced.filter((c: { parent_id: string | null }) => !c.parent_id)
+  const unsyncedChildren = unsynced.filter((c: { parent_id: string | null }) => !!c.parent_id)
 
   let pushed = 0
   const errors: string[] = []
 
-  for (const category of leafCategories) {
-    const result = await pushCategory(category)
+  for (const category of [...unsyncedParents, ...unsyncedChildren]) {
+    // Re-fetch the category so parent's square_category_id is current after phase 1
+    const { data: fresh } = await supabase.from('categories').select('*').eq('id', category.id).single()
+    const result = await pushCategory(fresh ?? category)
     if (result.success) {
       pushed++
     } else {
