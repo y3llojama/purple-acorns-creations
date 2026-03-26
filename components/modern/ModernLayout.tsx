@@ -8,8 +8,11 @@ import PageLoadOverlay from './PageLoadOverlay'
 import { CartProvider } from '@/components/shop/CartContext'
 import CartDrawer from '@/components/shop/CartDrawer'
 
+interface NavCategory { id: string; name: string; slug: string; children: { id: string; name: string; slug: string }[] }
+
 interface Props {
   children: React.ReactNode
+  navCategories: NavCategory[]
   settings: Settings
   announcementText: string
   announcementLinkUrl: string | null
@@ -19,6 +22,7 @@ interface Props {
 
 export default function ModernLayout({
   children,
+  navCategories,
   settings,
   announcementText,
   announcementLinkUrl,
@@ -38,6 +42,7 @@ export default function ModernLayout({
         logoUrl={settings.logo_url}
         businessName={settings.business_name}
         squareStoreUrl={settings.square_store_url}
+        navCategories={navCategories}
       />
       {/* padding-top offsets the floating logo that overflows below the header bar.
           Pages that start with a full-bleed hero cancel this with margin-top: calc(-1 * var(--logo-overflow)) */}

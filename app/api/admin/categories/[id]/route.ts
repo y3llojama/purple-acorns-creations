@@ -55,12 +55,6 @@ export async function PATCH(request: Request, { params }: Params) {
     if (!Number.isFinite(so)) return NextResponse.json({ error: 'invalid sort_order' }, { status: 400 })
     update.sort_order = Math.floor(so)
   }
-  if (body.category_type !== undefined) {
-    if (!VALID_CATEGORY_TYPES.includes(body.category_type)) {
-      return NextResponse.json({ error: 'invalid category_type' }, { status: 400 })
-    }
-    update.category_type = body.category_type
-  }
   if (body.online_visibility !== undefined) update.online_visibility = Boolean(body.online_visibility)
   if (body.seo_title !== undefined) update.seo_title = body.seo_title ? sanitizeText(String(body.seo_title)) : null
   if (body.seo_description !== undefined) update.seo_description = body.seo_description ? sanitizeText(String(body.seo_description)) : null

@@ -25,37 +25,34 @@ interface NavItem {
   panel?: NavPanel
   mobile?: NavLink[]
 }
+interface NavCategory { id: string; name: string; slug: string; children: { id: string; name: string; slug: string }[] }
 
-function buildNavItems(businessName: string): NavItem[] { return [
+function buildNavItems(businessName: string, navCategories: NavCategory[]): NavItem[] {
+  const shopColumns: NavColumn[] = navCategories.map(cat => ({
+    heading: cat.name,
+    links: cat.children.length > 0
+      ? cat.children.map(child => ({
+          label: child.name,
+          href: `/shop?cat=${cat.slug}&sub=${child.slug}`,
+        }))
+      : [{ label: `All ${cat.name}`, href: `/shop?cat=${cat.slug}` }],
+  }))
+
+  const shopMobile: NavLink[] = [
+    ...navCategories.flatMap(cat =>
+      cat.children.length > 0
+        ? cat.children.map(child => ({ label: child.name, href: `/shop?cat=${cat.slug}&sub=${child.slug}` }))
+        : [{ label: cat.name, href: `/shop?cat=${cat.slug}` }]
+    ),
+    { label: 'All Products', href: '/shop' },
+  ]
+
+  return [
   {
     label: 'Shop',
     href: '/shop',
-    columns: [
-      {
-        heading: 'Featured',
-        links: [
-          { label: 'New Arrivals', href: '/shop' },
-          { label: 'Gift Sets', href: '/shop' },
-          { label: 'All Products', href: '/shop' },
-        ],
-      },
-      {
-        heading: 'By Craft',
-        links: [
-          { label: 'Metals', href: '/shop' },
-          { label: 'Textiles', href: '/shop' },
-          { label: 'Mixed Media', href: '/shop' },
-          { label: 'Stone', href: '/shop' },
-        ],
-      },
-      {
-        heading: 'Collections',
-        links: [
-          { label: 'Seasonal', href: '/shop' },
-          { label: 'Limited Edition', href: '/shop' },
-          { label: 'Handmade Favourites', href: '/shop' },
-        ],
-      },
+    columns: shopColumns.length > 0 ? shopColumns : [
+      { heading: 'All', links: [{ label: 'All Products', href: '/shop' }] },
     ],
     panel: {
       headline: 'Made by hand,\nworn with joy.',
@@ -64,13 +61,7 @@ function buildNavItems(businessName: string): NavItem[] { return [
       cta: 'Shop All',
       bg: 'linear-gradient(135deg, #4a2d6b 0%, #7b5ea7 60%, #a590c8 100%)',
     },
-    mobile: [
-      { label: 'New Arrivals', href: '/shop' },
-      { label: 'Metals', href: '/shop' },
-      { label: 'Textiles', href: '/shop' },
-      { label: 'Gift Sets', href: '/shop' },
-      { label: 'All Products', href: '/shop' },
-    ],
+    mobile: shopMobile,
   },
   {
     label: `World of ${businessName}`,
@@ -140,10 +131,11 @@ interface Props {
   logoUrl: string | null
   businessName: string
   squareStoreUrl: string | null
+  navCategories: NavCategory[]
 }
 
-export default function ModernHeader({ logoUrl, businessName, squareStoreUrl }: Props) {
-  const NAV_ITEMS = buildNavItems(businessName)
+export default function ModernHeader({ logoUrl, businessName, squareStoreUrl, navCategories }: Props) {
+  const NAV_ITEMS = buildNavItems(businessName, navCategories)
   const { count: savedCount } = useSavedItems()
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)

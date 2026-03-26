@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
-import CategoryFilter, { type CategoryOption } from './CategoryFilter'
+import { useSearchParams } from 'next/navigation'
 import ProductCard from './ProductCard'
 import { Product } from '@/lib/supabase/types'
+
+interface CategoryOption { id: string; name: string; slug: string; parent_id: string | null }
 
 type SortOption = 'new' | 'popular' | 'price_asc' | 'price_desc'
 
@@ -21,7 +22,6 @@ interface Props {
 
 export default function ProductGrid({ watermark }: Props) {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const activeCat = searchParams.get('cat') ?? ''
   const activeSub = searchParams.get('sub') ?? ''
 
@@ -95,19 +95,6 @@ export default function ProductGrid({ watermark }: Props) {
   // Reset page when URL filters change
   useEffect(() => { setPage(1) }, [activeCat, activeSub])
 
-  const handleCatChange = (slug: string) => {
-    const params = new URLSearchParams()
-    if (slug) params.set('cat', slug)
-    router.push(`/shop${params.size > 0 ? '?' + params.toString() : ''}`)
-  }
-
-  const handleSubChange = (slug: string) => {
-    const params = new URLSearchParams()
-    if (activeCat) params.set('cat', activeCat)
-    if (slug) params.set('sub', slug)
-    router.push(`/shop?${params.toString()}`)
-  }
-
   const totalPages = Math.ceil((data?.total ?? 0) / 24)
 
   // Heading: "Shop", "Shop — Jewelry", "Shop — Jewelry — Micro-Crochet"
@@ -127,14 +114,7 @@ export default function ProductGrid({ watermark }: Props) {
         {headingParts.join(' — ')}
       </h1>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '8px' }}>
-        <CategoryFilter
-          categories={categories}
-          activeCat={activeCat}
-          activeSub={activeSub}
-          onCatChange={handleCatChange}
-          onSubChange={handleSubChange}
-        />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
         <div>
           <label htmlFor="shop-sort" style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginRight: '8px' }}>Sort by</label>
           <select
