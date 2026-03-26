@@ -16,7 +16,7 @@ interface SearchItem {
 // ── Nav data ─────────────────────────────────────────────────────────────────
 
 interface NavLink { label: string; href: string }
-interface NavColumn { heading: string; links: NavLink[] }
+interface NavColumn { heading: string; slug?: string; links: NavLink[] }
 interface NavPanel { headline: string; sub: string; href: string; cta: string; bg: string }
 interface NavItem {
   label: string
@@ -30,6 +30,7 @@ interface NavCategory { id: string; name: string; slug: string; children: { id: 
 function buildNavItems(businessName: string, navCategories: NavCategory[]): NavItem[] {
   const shopColumns: NavColumn[] = navCategories.map(cat => ({
     heading: cat.name,
+    slug: cat.slug,
     links: cat.children.length > 0
       ? cat.children.map(child => ({
           label: child.name,
@@ -61,7 +62,6 @@ function buildNavItems(businessName: string, navCategories: NavCategory[]): NavI
       cta: 'Shop All',
       bg: 'linear-gradient(135deg, #4a2d6b 0%, #7b5ea7 60%, #a590c8 100%)',
     },
-    mobile: shopMobile,
   },
   {
     label: `World of ${businessName}`,
@@ -653,7 +653,7 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl, na
           max-height: 0;
           transition: max-height 0.4s cubic-bezier(0.46, 0.01, 0.32, 1);
         }
-        .mh-mobile-children.open { max-height: 320px; }
+        .mh-mobile-children.open { max-height: 800px; }
 
         .mh-mobile-child-link {
           display: block;
@@ -669,6 +669,26 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl, na
         }
         .mh-mobile-child-link:last-child { border-bottom: none; }
         .mh-mobile-child-link:hover { color: var(--color-primary); }
+
+        .mh-mobile-col-heading {
+          padding: 14px 28px 8px;
+          font-family: 'Jost', sans-serif;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          color: var(--color-primary);
+          opacity: 0.7;
+          border-bottom: 1px solid var(--color-border);
+        }
+        a.mh-mobile-col-heading {
+          display: block;
+          text-decoration: none;
+          transition: opacity 0.15s ease;
+        }
+        a.mh-mobile-col-heading:hover { opacity: 1; }
+
+        .mh-mobile-child-link.indent { padding-left: 44px; }
 
         .mh-mobile-cta {
           display: block;
@@ -908,16 +928,26 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl, na
               ) : null}
             </button>
             <div className={`mh-mobile-children${mobileOpenItem === item.label ? ' open' : ''}`}>
-              {(item.mobile ?? item.columns?.flatMap(c => c.links) ?? []).map(link => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  className="mh-mobile-child-link"
-                  onClick={() => { setMobileOpen(false); setMobileOpenItem(null) }}
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {item.mobile
+                ? item.mobile.map(link => (
+                    <Link key={link.label} href={link.href} className="mh-mobile-child-link" onClick={() => { setMobileOpen(false); setMobileOpenItem(null) }}>
+                      {link.label}
+                    </Link>
+                  ))
+                : item.columns?.map(col => (
+                    <div key={col.heading}>
+                      {col.slug
+                        ? <Link href={`/shop?cat=${col.slug}`} className="mh-mobile-col-heading" onClick={() => { setMobileOpen(false); setMobileOpenItem(null) }}>{col.heading}</Link>
+                        : <div className="mh-mobile-col-heading">{col.heading}</div>
+                      }
+                      {col.links.map(link => (
+                        <Link key={link.label} href={link.href} className="mh-mobile-child-link indent" onClick={() => { setMobileOpen(false); setMobileOpenItem(null) }}>
+                          {link.label}
+                        </Link>
+                      ))}
+                    </div>
+                  ))
+              }
             </div>
           </div>
         ))}
