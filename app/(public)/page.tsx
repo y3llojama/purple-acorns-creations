@@ -76,8 +76,10 @@ export default async function HomePage() {
       />
       <ModernFeaturedGrid
         items={(() => {
-          const dbItems = (featured as Product[]).slice(0, 4)
-            .map(p => ({ id: p.id, image_url: p.images[0] ?? '', title: p.name, description: null }))
+          const dbItems = (featured as Product[])
+            .filter(p => isValidHttpsUrl(p.images?.[0] ?? ''))
+            .slice(0, 4)
+            .map(p => ({ id: p.id, image_url: p.images[0], title: p.name, description: null }))
           return dbItems.length > 0 ? dbItems : FALLBACK_FEATURED
         })()}
         watermark={settings.gallery_watermark ? interpolate(settings.gallery_watermark, vars) : null}
