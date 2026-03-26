@@ -41,7 +41,13 @@ export default async function HomePage() {
     getSettings(),
     supabase.from('products').select('*').eq('is_active', true).eq('gallery_featured', true).order('gallery_sort_order').limit(8).then(r => r.data ?? []),
     supabase.from('gallery').select('*').eq('is_featured', false).order('sort_order').limit(8).then(r => r.data ?? []),
-    supabase.from('events').select('*').eq('featured', true).gte('date', today).order('date').limit(1).single(),
+    // Try featured events first; fall back to next upcoming if column missing or none featured
+    supabase.from('events').select('*').eq('featured', true).gte('date', today).order('date').limit(1).single()
+      .then(async r => {
+        if (r.data) return r
+        // No featured event (or column doesn't exist yet) — fall back to next upcoming
+        return supabase.from('events').select('*').gte('date', today).order('date').limit(1).single()
+      }),
     supabase.from('follow_along_photos').select('*').order('display_order').then(r => r.data ?? []),
     supabase
       .from('hero_slides')
