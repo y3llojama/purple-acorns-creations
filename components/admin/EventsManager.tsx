@@ -102,11 +102,19 @@ export default function EventsManager({ initialEvents }: Props) {
     const newVal = !ev.featured
     // Optimistically update UI
     setEvents(list => list.map(e => e.id === ev.id ? { ...e, featured: newVal } : e))
-    await fetch('/api/admin/events', {
+    const res = await fetch('/api/admin/events', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: ev.id, featured: newVal }),
     })
+    if (!res.ok) {
+      // Revert optimistic update on failure
+      setEvents(list => list.map(e => e.id === ev.id ? { ...e, featured: ev.featured } : e))
+    } else {
+      // Reload to confirm persisted state
+      const refreshed = await fetch('/api/admin/events').then(r => r.json()).catch(() => null)
+      if (Array.isArray(refreshed)) setEvents(refreshed)
+    }
   }
 
 
