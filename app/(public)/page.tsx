@@ -49,11 +49,9 @@ export default async function HomePage() {
       .then(r => r.data ?? []),
   ])
 
-  // Resolve featured event: prefer upcoming featured, fall back to any next upcoming
-  const { data: featuredEventData } = await supabase
+  // Show only explicitly featured upcoming events on the homepage tile
+  const { data: eventData } = await supabase
     .from('events').select('*').eq('featured', true).gte('date', today).order('date').limit(1).single()
-  const eventData = featuredEventData ?? (await supabase
-    .from('events').select('*').gte('date', today).order('date').limit(1).single()).data
 
   const vars = buildVars(settings.business_name)
   const orgSchema = buildOrganizationSchema(settings.business_name)

@@ -253,20 +253,40 @@ export default function EventsManager({ initialEvents }: Props) {
                 </summary>
                 <ul style={{ listStyle: 'none', padding: 0, marginTop: '8px', opacity: 0.7 }}>
                   {past.map(ev => (
-                    <li key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'var(--color-surface)', borderRadius: '8px', border: '1px solid var(--color-border)', marginBottom: '8px' }}>
+                    <li key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'var(--color-surface)', borderRadius: '8px', border: '1px solid var(--color-border)', marginBottom: '12px' }}>
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: '16px', color: 'var(--color-text-muted)' }}>{ev.name}</div>
-                        <div style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>
+                        <div style={{ fontWeight: 600, fontSize: '18px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {ev.name}
+                          {ev.featured && <span style={{ fontSize: '11px', background: 'var(--color-primary)', color: '#fff', padding: '2px 7px', borderRadius: '10px', fontWeight: 500, letterSpacing: '0.05em' }}>On homepage</span>}
+                        </div>
+                        <div style={{ color: 'var(--color-text-muted)', fontSize: '14px' }}>
                           {new Date(ev.date + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                          {ev.time ? ` · ${ev.time}` : ''}
                           {' · '}{ev.location}
                         </div>
                       </div>
-                      <button
-                        onClick={() => setDeleteId(ev.id)}
-                        style={{ background: 'none', border: '1px solid #c05050', color: '#c05050', padding: '6px 12px', fontSize: '13px', borderRadius: '4px', cursor: 'pointer', minHeight: '44px', flexShrink: 0 }}
-                      >
-                        Delete
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px', flexShrink: 0, alignItems: 'center' }}>
+                        <button
+                          onClick={() => toggleFeatured(ev)}
+                          aria-label={ev.featured ? 'Remove from homepage' : 'Feature on homepage'}
+                          title={ev.featured ? 'Currently shown on homepage — click to remove' : 'Show this event on the homepage tile'}
+                          style={{ background: ev.featured ? 'var(--color-primary)' : 'none', border: '1px solid var(--color-primary)', color: ev.featured ? '#fff' : 'var(--color-primary)', padding: '8px 12px', fontSize: '14px', borderRadius: '4px', cursor: 'pointer', minHeight: '44px' }}
+                        >
+                          {ev.featured ? '★ Featured' : '☆ Feature'}
+                        </button>
+                        <button
+                          onClick={() => handleEdit(ev)}
+                          style={{ background: 'none', border: '1px solid var(--color-primary)', color: 'var(--color-primary)', padding: '8px 16px', fontSize: '14px', borderRadius: '4px', cursor: 'pointer', minHeight: '44px' }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => setDeleteId(ev.id)}
+                          style={{ background: 'none', border: '1px solid #c05050', color: '#c05050', padding: '8px 16px', fontSize: '14px', borderRadius: '4px', cursor: 'pointer', minHeight: '44px' }}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
