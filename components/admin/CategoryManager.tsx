@@ -240,20 +240,7 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
         <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '3px' }}>Parent category</label>
         <select style={inputStyle} value={formParentId} onChange={e => setFormParentId(e.target.value)}>
           <option value="">— None (top-level) —</option>
-          {topLevel.map(p => {
-            const menuChildren = (p.children ?? []).filter((c: import('@/lib/supabase/types').Category) => c.category_type === 'MENU_CATEGORY')
-            if (menuChildren.length > 0) {
-              return (
-                <optgroup key={p.id} label={p.name}>
-                  <option value={p.id}>{p.name}</option>
-                  {menuChildren.map((c: import('@/lib/supabase/types').Category) => (
-                    <option key={c.id} value={c.id}>&nbsp;&nbsp;{c.name}</option>
-                  ))}
-                </optgroup>
-              )
-            }
-            return <option key={p.id} value={p.id}>{p.name}</option>
-          })}
+          {topLevel.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
 
         <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '3px' }}>Sort order</label>
@@ -309,6 +296,10 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
 
   return (
     <div>
+      <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '6px', padding: '10px 14px', marginBottom: '16px' }}>
+        <strong>Structure:</strong> Square supports one category + one sub-category above each item (2 levels max).
+        Use <strong>Menu</strong> type for top-level groupings and <strong>Regular</strong> type for sub-categories that hold items.
+      </p>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
         <span style={{ fontWeight: 600 }}>{categories.length} categories</span>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
