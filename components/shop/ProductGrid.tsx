@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import ProductCard from './ProductCard'
 import { Product } from '@/lib/supabase/types'
 
@@ -22,6 +22,7 @@ interface Props {
 
 export default function ProductGrid({ watermark }: Props) {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const activeCat = searchParams.get('cat') ?? ''
   const activeSub = searchParams.get('sub') ?? ''
 
@@ -108,11 +109,49 @@ export default function ProductGrid({ watermark }: Props) {
     if (sub) headingParts.push(sub.name)
   }
 
+  const activeCatObj = catReady ? categories.find(c => c.slug === activeCat) : null
+  const activeSubObj = catReady ? categories.find(c => c.slug === activeSub) : null
+
   return (
     <div>
-      <h1 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary)', marginBottom: '40px', textAlign: 'center' }}>
-        {headingParts.join(' — ')}
+      <h1 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary)', marginBottom: activeCat ? '16px' : '40px', textAlign: 'center' }}>
+        Shop
       </h1>
+
+      {catReady && activeCat && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '32px' }}>
+          <button
+            onClick={() => router.push('/shop')}
+            style={{ background: 'none', border: 'none', padding: 0, color: 'var(--color-text-muted)', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }}
+          >
+            All
+          </button>
+          <span style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>›</span>
+          <button
+            onClick={() => router.push(`/shop?cat=${activeCat}`)}
+            style={{
+              padding: '4px 12px', borderRadius: '20px', fontSize: '13px', cursor: 'pointer',
+              background: activeSub ? 'var(--color-surface)' : 'var(--color-primary)',
+              color: activeSub ? 'var(--color-primary)' : '#fff',
+              border: '1px solid var(--color-primary)',
+            }}
+          >
+            {activeCatObj?.name ?? activeCat}
+          </button>
+          {activeSub && activeSubObj && (
+            <>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>›</span>
+              <span style={{
+                padding: '4px 12px', borderRadius: '20px', fontSize: '13px',
+                background: 'var(--color-primary)', color: '#fff',
+                border: '1px solid var(--color-primary)',
+              }}>
+                {activeSubObj.name}
+              </span>
+            </>
+          )}
+        </div>
+      )}
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
         <div>
