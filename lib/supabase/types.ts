@@ -67,7 +67,7 @@ export interface Category {
 
 export interface Event {
   id: string; name: string; date: string; time: string | null; location: string
-  description: string | null; link_url: string | null; link_label: string | null; created_at: string
+  description: string | null; link_url: string | null; link_label: string | null; featured: boolean; created_at: string
 }
 
 export interface GalleryItem {

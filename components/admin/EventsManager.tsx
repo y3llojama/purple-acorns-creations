@@ -98,6 +98,17 @@ export default function EventsManager({ initialEvents }: Props) {
     setDeleteId(null)
   }
 
+  async function toggleFeatured(ev: Event) {
+    const newVal = !ev.featured
+    // Optimistically update UI: unfeature all, then set this one
+    setEvents(list => list.map(e => ({ ...e, featured: newVal ? e.id === ev.id : false })))
+    await fetch('/api/admin/events', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: ev.id, featured: newVal }),
+    })
+  }
+
 
   return (
     <div>
@@ -178,14 +189,30 @@ export default function EventsManager({ initialEvents }: Props) {
         {events.map(ev => (
           <li key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'var(--color-surface)', borderRadius: '8px', border: '1px solid var(--color-border)', marginBottom: '12px' }}>
             <div>
-              <div style={{ fontWeight: '600', fontSize: '18px', color: 'var(--color-primary)' }}>{ev.name}</div>
+              <div style={{ fontWeight: '600', fontSize: '18px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {ev.name}
+                {ev.featured && <span style={{ fontSize: '11px', background: 'var(--color-primary)', color: '#fff', padding: '2px 7px', borderRadius: '10px', fontWeight: 500, letterSpacing: '0.05em' }}>On homepage</span>}
+              </div>
               <div style={{ color: 'var(--color-text-muted)', fontSize: '14px' }}>
                 {new Date(ev.date + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                 {ev.time ? ` · ${ev.time}` : ''}
                 {' · '}{ev.location}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: '8px', flexShrink: 0, alignItems: 'center' }}>
+              <button
+                onClick={() => toggleFeatured(ev)}
+                aria-label={ev.featured ? 'Remove from homepage' : 'Feature on homepage'}
+                title={ev.featured ? 'Currently shown on homepage — click to remove' : 'Show this event on the homepage tile'}
+                style={{
+                  background: ev.featured ? 'var(--color-primary)' : 'none',
+                  border: '1px solid var(--color-primary)',
+                  color: ev.featured ? '#fff' : 'var(--color-primary)',
+                  padding: '8px 12px', fontSize: '14px', borderRadius: '4px', cursor: 'pointer', minHeight: '44px',
+                }}
+              >
+                {ev.featured ? '★ Featured' : '☆ Feature'}
+              </button>
               <button
                 onClick={() => handleEdit(ev)}
                 aria-label={`Edit event ${ev.name}`}
