@@ -147,8 +147,12 @@ export default function InventoryManager({ initialProducts, categories, squareSy
 
   function getCategoryName(categoryId: string | null): string {
     if (!categoryId) return '—'
-    const cat = categories.find(c => c.id === categoryId)
-    return cat?.name ?? '—'
+    for (const cat of categories) {
+      if (cat.id === categoryId) return cat.name
+      const child = cat.children?.find(c => c.id === categoryId)
+      if (child) return child.name
+    }
+    return '—'
   }
 
   return (
