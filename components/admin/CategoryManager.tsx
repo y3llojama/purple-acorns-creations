@@ -240,7 +240,20 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
         <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '3px' }}>Parent category</label>
         <select style={inputStyle} value={formParentId} onChange={e => setFormParentId(e.target.value)}>
           <option value="">— None (top-level) —</option>
-          {topLevel.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          {topLevel.map(p => {
+            const menuChildren = (p.children ?? []).filter((c: import('@/lib/supabase/types').Category) => c.category_type === 'MENU_CATEGORY')
+            if (menuChildren.length > 0) {
+              return (
+                <optgroup key={p.id} label={p.name}>
+                  <option value={p.id}>{p.name}</option>
+                  {menuChildren.map((c: import('@/lib/supabase/types').Category) => (
+                    <option key={c.id} value={c.id}>&nbsp;&nbsp;{c.name}</option>
+                  ))}
+                </optgroup>
+              )
+            }
+            return <option key={p.id} value={p.id}>{p.name}</option>
+          })}
         </select>
 
         <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '3px' }}>Sort order</label>

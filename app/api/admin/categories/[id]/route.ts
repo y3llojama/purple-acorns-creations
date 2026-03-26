@@ -45,9 +45,12 @@ export async function PATCH(request: Request, { params }: Params) {
   if (body.parent_id !== undefined) {
     const parentId: string | null = body.parent_id ?? null
     if (parentId) {
-      const { data: parent } = await supabase.from('categories').select('parent_id').eq('id', parentId).single()
+      const { data: parent } = await supabase.from('categories').select('parent_id, category_type').eq('id', parentId).single()
       if (!parent) return NextResponse.json({ error: 'parent_id not found' }, { status: 400 })
-      if (parent.parent_id) return NextResponse.json({ error: 'parent must be a top-level category' }, { status: 400 })
+      if (parent.parent_id) {
+        const { data: grandparent } = await supabase.from('categories').select('parent_id').eq('id', parent.parent_id).single()
+        if (grandparent?.parent_id) return NextResponse.json({ error: 'Maximum nesting depth exceeded (3 levels max)' }, { status: 400 })
+      }
     }
     update.parent_id = parentId
   }
