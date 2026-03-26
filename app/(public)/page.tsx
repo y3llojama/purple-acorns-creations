@@ -74,16 +74,18 @@ export default async function HomePage() {
         transition={(settings.hero_transition ?? 'crossfade') as 'crossfade' | 'slide'}
         intervalMs={settings.hero_interval_ms ?? 5000}
       />
-      <ModernFeaturedGrid
-        items={(() => {
-          const dbItems = (featured as Product[])
-            .filter(p => isValidHttpsUrl(p.images?.[0] ?? ''))
-            .slice(0, 4)
-            .map(p => ({ id: p.id, image_url: p.images[0], title: p.name, description: null }))
-          return dbItems.length > 0 ? dbItems : FALLBACK_FEATURED
-        })()}
-        watermark={settings.gallery_watermark ? interpolate(settings.gallery_watermark, vars) : null}
-      />
+      {(() => {
+        const featuredItems = (featured as Product[])
+          .filter(p => isValidHttpsUrl(p.images?.[0] ?? ''))
+          .slice(0, 4)
+          .map(p => ({ id: p.id, image_url: p.images[0], title: p.name, description: null }))
+        return featuredItems.length > 0 ? (
+          <ModernFeaturedGrid
+            items={featuredItems}
+            watermark={settings.gallery_watermark ? interpolate(settings.gallery_watermark, vars) : null}
+          />
+        ) : null
+      })()}
       <GalleryScroller prefetchedFeatured={featured as Product[]} maxItems={settings.gallery_max_items ?? 8} watermark={settings.gallery_watermark ? interpolate(settings.gallery_watermark, vars) : null} />
       <ModernStorySection
         teaser={sanitizeText(interpolate(content.story_teaser ?? '', vars))}
