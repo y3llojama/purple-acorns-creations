@@ -35,7 +35,7 @@ export async function pushCategory(category: Category): Promise<SyncResult> {
         id: `#CAT-${category.id}`,
         categoryData: {
           name: category.name,
-          categoryType: category.category_type as 'REGULAR_CATEGORY' | 'MENU_CATEGORY',
+          categoryType: 'REGULAR_CATEGORY',
           onlineVisibility: category.online_visibility,
           parentCategory: parentSquareCategoryId ? { id: parentSquareCategoryId } : undefined,
           ecomSeoData: (category.seo_title || category.seo_description || category.seo_permalink) ? {
