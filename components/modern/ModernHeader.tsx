@@ -50,6 +50,10 @@ function buildNavItems(businessName: string, navCategories: NavCategory[]): NavI
 
   return [
   {
+    label: 'Home',
+    href: '/',
+  },
+  {
     label: 'Shop',
     href: '/shop',
     columns: shopColumns.length > 0 ? shopColumns : [
