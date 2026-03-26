@@ -4,8 +4,6 @@ import { requireAdminSession } from '@/lib/auth'
 import { sanitizeText } from '@/lib/sanitize'
 import { syncCategory } from '@/lib/channels'
 
-const VALID_CATEGORY_TYPES = ['REGULAR_CATEGORY', 'MENU_CATEGORY'] as const
-
 function toSlug(name: string): string {
   return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
@@ -47,10 +45,6 @@ export async function POST(request: Request) {
   const name = String(body.name ?? '').trim()
   if (!name) return NextResponse.json({ error: 'name required' }, { status: 400 })
 
-  const categoryType = body.category_type ?? 'REGULAR_CATEGORY'
-  if (!VALID_CATEGORY_TYPES.includes(categoryType)) {
-    return NextResponse.json({ error: `category_type must be one of: ${VALID_CATEGORY_TYPES.join(', ')}` }, { status: 400 })
-  }
 
   const slug = toSlug(name)
   const supabase = createServiceRoleClient()
@@ -85,7 +79,6 @@ export async function POST(request: Request) {
       slug,
       parent_id: parentId,
       sort_order: sortOrder,
-      category_type: categoryType,
       online_visibility: body.online_visibility !== false,
       seo_title: body.seo_title ? sanitizeText(String(body.seo_title)) : null,
       seo_description: body.seo_description ? sanitizeText(String(body.seo_description)) : null,

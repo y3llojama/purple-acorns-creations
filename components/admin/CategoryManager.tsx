@@ -41,7 +41,6 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
   const [formName, setFormName] = useState('')
   const [formParentId, setFormParentId] = useState('')
   const [formSortOrder, setFormSortOrder] = useState('')
-  const [formType, setFormType] = useState<'REGULAR_CATEGORY' | 'MENU_CATEGORY'>('REGULAR_CATEGORY')
   const [formVisible, setFormVisible] = useState(true)
   const [formSeoTitle, setFormSeoTitle] = useState('')
   const [formSeoDesc, setFormSeoDesc] = useState('')
@@ -96,7 +95,7 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
 
   function openNew() {
     setEditState({ mode: 'new' })
-    setFormName(''); setFormParentId(''); setFormSortOrder(''); setFormType('REGULAR_CATEGORY')
+    setFormName(''); setFormParentId(''); setFormSortOrder('')
     setFormVisible(true); setFormSeoTitle(''); setFormSeoDesc(''); setFormSeoPermalink('')
     setSaveError('')
   }
@@ -104,7 +103,7 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
   function openEdit(cat: Category) {
     setEditState({ mode: 'edit', category: cat })
     setFormName(cat.name); setFormParentId(cat.parent_id ?? '')
-    setFormSortOrder(String(cat.sort_order)); setFormType(cat.category_type)
+    setFormSortOrder(String(cat.sort_order))
     setFormVisible(cat.online_visibility); setFormSeoTitle(cat.seo_title ?? '')
     setFormSeoDesc(cat.seo_description ?? ''); setFormSeoPermalink(cat.seo_permalink ?? '')
     setSaveError('')
@@ -119,7 +118,6 @@ export default function CategoryManager({ initialCategories, squareSyncEnabled }
       name: formName.trim(),
       parent_id: formParentId || null,
       sort_order: formSortOrder ? Number(formSortOrder) : undefined,
-      category_type: formType,
       online_visibility: formVisible,
       seo_title: formSeoTitle || null,
       seo_description: formSeoDesc || null,

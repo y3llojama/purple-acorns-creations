@@ -5,8 +5,6 @@ import { sanitizeText } from '@/lib/sanitize'
 import { syncCategory } from '@/lib/channels'
 import { deleteSquareCategory } from '@/lib/channels/square/catalog'
 
-const VALID_CATEGORY_TYPES = ['REGULAR_CATEGORY', 'MENU_CATEGORY'] as const
-
 function toSlug(name: string): string {
   return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }

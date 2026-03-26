@@ -33,14 +33,6 @@ describe('POST /api/admin/categories', () => {
     expect((await POST(req)).status).toBe(400)
   })
 
-  it('rejects invalid category_type', async () => {
-    mockFrom.mockReturnValue(makeChain({ data: null, error: null }))
-    const { POST } = await import('@/app/api/admin/categories/route')
-    const req = new Request('http://localhost/api/admin/categories', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Test', category_type: 'INVALID' }),
-    })
     expect((await POST(req)).status).toBe(400)
   })
 })

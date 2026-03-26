@@ -53,7 +53,6 @@ export interface Category {
   slug: string
   parent_id: string | null
   sort_order: number
-  category_type: 'REGULAR_CATEGORY' | 'MENU_CATEGORY'
   online_visibility: boolean
   seo_title: string | null
   seo_description: string | null

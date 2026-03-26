@@ -63,7 +63,6 @@ const category: Category = {
   slug: 'rings',
   parent_id: null,
   sort_order: 0,
-  category_type: 'REGULAR_CATEGORY',
   online_visibility: true,
   square_category_id: null,
   seo_title: null,

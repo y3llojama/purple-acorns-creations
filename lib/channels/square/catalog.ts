@@ -324,7 +324,6 @@ export async function pullCategoriesFromSquare(): Promise<{ upserted: number; er
           square_category_id: squareCategoryId,
           parent_id: null,
           sort_order: 0,
-          category_type: 'REGULAR_CATEGORY',
           online_visibility: catData.onlineVisibility ?? true,
         })
       if (insertError) {

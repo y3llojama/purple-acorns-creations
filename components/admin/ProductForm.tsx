@@ -156,13 +156,9 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
           style={inputStyle}
         >
           <option value="">— Uncategorized —</option>
-          {/* Only REGULAR_CATEGORY are assignable to products */}
-          {categories.filter(c => !c.parent_id && c.category_type === 'REGULAR_CATEGORY').map(cat => (
-            <option key={cat.id} value={cat.id}>{cat.name}</option>
-          ))}
-          {categories.filter(c => !c.parent_id && c.category_type !== 'REGULAR_CATEGORY').map(parent => {
-            const children = categories.filter(c => c.parent_id === parent.id && c.category_type === 'REGULAR_CATEGORY')
-            if (children.length === 0) return null
+          {categories.filter(c => !c.parent_id).map(parent => {
+            const children = (parent as Category & { children?: Category[] }).children ?? []
+            if (children.length === 0) return <option key={parent.id} value={parent.id}>{parent.name}</option>
             return (
               <optgroup key={parent.id} label={parent.name}>
                 {children.map(child => (
