@@ -1,10 +1,103 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { Heart, Link2, Activity, Users } from 'lucide-react'
 import { useSavedItems } from '@/lib/saved-items'
+import { useToast } from '@/components/shop/ToastContext'
 
 export default function SavedItemsPage() {
-  const { items, toggle } = useSavedItems()
+  const { items, toggle, loading } = useSavedItems()
+  const { toast } = useToast()
+  const [sharing, setSharing] = useState(false)
+  const [isLiveShared, setIsLiveShared] = useState(false)
+  const [sharedWithMe, setSharedWithMe] = useState<Array<{ slug: string; itemCount: number; previewImage: string | null; visitedAt: string }>>([])
+
+  // Check if live sharing is currently active
+  useEffect(() => {
+    const token = localStorage.getItem('pa-list-token')
+    if (!token) return
+    fetch('/api/shop/saved-lists/me', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data) setIsLiveShared(!!data.is_live_shared) })
+      .catch(() => {})
+  }, [])
+
+  // Load shared-with-me lists from localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('pa-shared-with-me')
+      if (raw) setSharedWithMe(JSON.parse(raw))
+    } catch { /* ignore */ }
+  }, [])
+
+  async function handleShare(mode: 'copy' | 'live') {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('pa-list-token') : null
+    if (!token) return
+
+    setSharing(true)
+    try {
+      const res = await fetch('/api/shop/saved-lists/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, mode }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        console.error('[Share] API error:', res.status, err)
+        toast('Failed to generate share link')
+        return
+      }
+      const { url } = await res.json()
+      try {
+        await navigator.clipboard.writeText(url)
+        toast(mode === 'copy' ? 'Snapshot link copied!' : 'Live list link copied!')
+      } catch {
+        // Clipboard API can fail on HTTP — show the URL in the toast
+        toast('Link ready — copy from address bar')
+        window.open(url, '_blank')
+      }
+      if (mode === 'live') setIsLiveShared(true)
+    } catch (err) {
+      console.error('[Share] error:', err)
+      toast('Failed to share')
+    } finally {
+      setSharing(false)
+    }
+  }
+
+  async function handleStopSharing() {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('pa-list-token') : null
+    if (!token) return
+    const res = await fetch('/api/shop/saved-lists/stop-sharing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    })
+    if (res.ok) {
+      toast('Live sharing stopped — recipients now have a static copy')
+      setIsLiveShared(false)
+    } else {
+      toast('Failed to stop sharing')
+    }
+  }
+
+  function copyProductLink(productId: string) {
+    const url = `${window.location.origin}/shop/${productId}`
+    navigator.clipboard.writeText(url).then(() => toast('Link copied!'))
+  }
+
+  if (loading) {
+    return (
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: 'clamp(40px, 6vw, 80px) clamp(16px, 4vw, 48px)', textAlign: 'center' }}>
+        <p style={{ color: 'var(--color-text-muted)' }}>Loading your saved items...</p>
+      </div>
+    )
+  }
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', padding: 'clamp(40px, 6vw, 80px) clamp(16px, 4vw, 48px)' }}>
@@ -26,10 +119,9 @@ export default function SavedItemsPage() {
           position: relative;
         }
 
-        .saved-card-remove {
+        .saved-card-action {
           position: absolute;
           top: 10px;
-          right: 10px;
           background: rgba(255,255,255,0.92);
           border: none;
           border-radius: 50%;
@@ -44,12 +136,32 @@ export default function SavedItemsPage() {
           padding: 0;
           backdrop-filter: blur(4px);
         }
-        .saved-card-remove:hover { transform: scale(1.1); }
+        .saved-card-action:hover { transform: scale(1.1); }
 
         .saved-empty {
           text-align: center;
           padding: 80px 0;
         }
+
+        .share-btn {
+          padding: 8px 16px;
+          font-size: 12px;
+          font-family: 'Jost', sans-serif;
+          font-weight: 500;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          border: 1px solid var(--color-border);
+          border-radius: 4px;
+          background: var(--color-surface);
+          color: var(--color-text);
+          cursor: pointer;
+          min-height: 48px;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .share-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+        .share-btn:disabled { opacity: 0.5; cursor: not-allowed; }
       `}</style>
 
       {/* Header */}
@@ -66,6 +178,24 @@ export default function SavedItemsPage() {
           )}
         </h1>
       </div>
+
+      {/* Share actions */}
+      {items.length > 0 && (
+        <div style={{ display: 'flex', gap: '12px', marginTop: '20px', flexWrap: 'wrap' }}>
+          <button className="share-btn" onClick={() => handleShare('copy')} disabled={sharing}>
+            <Link2 size={14} /> Share a Copy
+          </button>
+          {isLiveShared ? (
+            <button className="share-btn" onClick={handleStopSharing} disabled={sharing}>
+              Stop Sharing
+            </button>
+          ) : (
+            <button className="share-btn" onClick={() => handleShare('live')} disabled={sharing}>
+              <Activity size={14} /> Share Live List
+            </button>
+          )}
+        </div>
+      )}
 
       {items.length === 0 ? (
         <div className="saved-empty">
@@ -98,38 +228,54 @@ export default function SavedItemsPage() {
         <>
           <div className="saved-grid">
             {items.map(item => (
-              <div key={item.id} className="saved-card">
-                {/* Image */}
-                <div style={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
-                  {item.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={item.image_url}
-                      alt={item.title ?? ''}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                    />
-                  ) : (
-                    <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, var(--color-border) 0%, var(--color-surface) 100%)' }} />
-                  )}
-                  <button
-                    className="saved-card-remove"
-                    aria-label={`Remove ${item.title ?? 'item'} from saved items`}
-                    onClick={() => toggle(item)}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--color-primary, #7b5ea7)" stroke="var(--color-primary, #7b5ea7)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                    </svg>
-                  </button>
-                </div>
-
-                {/* Title */}
-                {item.title && (
-                  <div style={{ padding: '12px 14px' }}>
-                    <p style={{ fontSize: '13px', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 500, margin: 0, color: 'var(--color-text)' }}>
-                      {item.title}
-                    </p>
+              <div key={item.product_id} className="saved-card">
+                <Link href={`/shop/${item.product_id}`} style={{ textDecoration: 'none' }}>
+                  <div style={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
+                    {item.images?.[0] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.images[0]}
+                        alt={item.name ?? ''}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, var(--color-border) 0%, var(--color-surface) 100%)' }} />
+                    )}
+                    {item.availability === 'sold_out' && (
+                      <div style={{ position: 'absolute', top: '8px', left: '8px', background: 'var(--color-text-muted)', color: 'var(--color-surface)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                        Sold out
+                      </div>
+                    )}
                   </div>
-                )}
+                </Link>
+
+                <button
+                  className="saved-card-action"
+                  style={{ right: '10px' }}
+                  aria-label={`Remove ${item.name} from saved items`}
+                  onClick={() => toggle(item.product_id, { name: item.name, price: item.price, images: item.images })}
+                >
+                  <Heart size={16} fill="var(--color-primary, #7b5ea7)" stroke="var(--color-primary, #7b5ea7)" />
+                </button>
+                <button
+                  className="saved-card-action"
+                  style={{ right: '52px' }}
+                  aria-label={`Copy link for ${item.name}`}
+                  onClick={() => copyProductLink(item.product_id)}
+                >
+                  <Link2 size={14} stroke="var(--color-text-muted)" />
+                </button>
+
+                <div style={{ padding: '12px 14px' }}>
+                  {item.name && (
+                    <p style={{ fontSize: '13px', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 500, margin: 0, color: 'var(--color-text)' }}>
+                      {item.name}
+                    </p>
+                  )}
+                  <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '4px 0 0' }}>
+                    ${item.price.toFixed(2)}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
@@ -148,6 +294,55 @@ export default function SavedItemsPage() {
             </Link>
           </div>
         </>
+      )}
+
+      {/* Shared with me */}
+      {sharedWithMe.length > 0 && (
+        <div style={{ marginTop: '64px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+            <Users size={16} stroke="var(--color-text-muted)" />
+            <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text)', fontSize: '20px', fontWeight: 600, margin: 0 }}>
+              Shared with me
+            </h2>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
+            {sharedWithMe.map(list => (
+              <Link
+                key={list.slug}
+                href={`/shop/saved/${list.slug}`}
+                style={{
+                  textDecoration: 'none',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '4px',
+                  overflow: 'hidden',
+                  background: 'var(--color-surface)',
+                  display: 'block',
+                }}
+              >
+                <div style={{ aspectRatio: '16/9', background: 'var(--color-border)', overflow: 'hidden' }}>
+                  {list.previewImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={list.previewImage}
+                      alt=""
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, var(--color-border) 0%, var(--color-surface) 100%)' }} />
+                  )}
+                </div>
+                <div style={{ padding: '10px 12px' }}>
+                  <p style={{ margin: 0, fontSize: '13px', fontWeight: 500, color: 'var(--color-text)' }}>
+                    {list.itemCount} {list.itemCount === 1 ? 'piece' : 'pieces'}
+                  </p>
+                  <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                    Viewed {new Date(list.visitedAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   )

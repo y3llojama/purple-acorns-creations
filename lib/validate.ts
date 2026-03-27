@@ -36,3 +36,8 @@ export function validateImageAttachment(file: File): string | null {
   if (file.size > MESSAGE_ATTACHMENT_MAX_SIZE) return 'Image must be under 5MB.'
   return null
 }
+
+/** Validate slug format: lowercase alphanumeric + hyphens, 1-60 chars */
+export function isValidSlug(str: string): boolean {
+  return /^[a-z0-9-]{1,60}$/.test(str)
+}

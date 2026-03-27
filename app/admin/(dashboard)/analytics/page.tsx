@@ -12,6 +12,7 @@ interface SummaryData {
   contactSubmissions: number
   shopClicks: number
   newsletterSubscribes: number
+  shareClicks: number
 }
 
 interface CampaignEntry {
@@ -270,6 +271,7 @@ export default function AnalyticsDashboard() {
             />
             <SummaryCard label="Contact Submissions" value={formatNumber(summary.contactSubmissions)} />
             <SummaryCard label="Shop Clicks" value={formatNumber(summary.shopClicks)} />
+            <SummaryCard label="Share Clicks" value={formatNumber(summary.shareClicks)} />
             <SummaryCard label="Newsletter Signups" value={formatNumber(summary.newsletterSubscribes)} />
           </div>
 
@@ -290,6 +292,11 @@ export default function AnalyticsDashboard() {
                 label="Contact Rate"
                 value={`${((summary.contactSubmissions / summary.totalViews) * 100).toFixed(1)}%`}
                 subtitle="submissions / page views"
+              />
+              <SummaryCard
+                label="Share Rate"
+                value={`${((summary.shareClicks / summary.totalViews) * 100).toFixed(1)}%`}
+                subtitle="shares / page views"
               />
               <SummaryCard
                 label="Newsletter Rate"
