@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { Product } from '@/lib/supabase/types'
 
 const HeartButton = dynamic(() => import('./HeartButton'), { ssr: false })
+import ShareButton from './ShareButton'
 
 interface Props {
   product: Product
@@ -67,7 +68,8 @@ export default function ProductCard({ product, showPrice = true, watermark }: Pr
             Save
           </a>
         )}
-        <HeartButton itemId={product.id} itemTitle={product.name} imageUrl={firstImage} />
+        <HeartButton productId={product.id} name={product.name} price={product.price} images={product.images ?? []} />
+        <ShareButton url={`${typeof window !== 'undefined' ? window.location.origin : ''}/shop/${product.id}`} label="Copy product link" />
       </div>
     </div>
   )

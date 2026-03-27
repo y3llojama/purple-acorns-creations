@@ -9,6 +9,7 @@ import { useCart } from '@/components/shop/CartContext'
 import type { Product } from '@/lib/supabase/types'
 
 const HeartButton = dynamic(() => import('@/components/shop/HeartButton'), { ssr: false })
+import ShareButton from './ShareButton'
 
 interface Props {
   product: Product
@@ -138,7 +139,8 @@ export default function ProductDetail({ product, watermark }: Props) {
             </button>
 
             {/* Heart / Save */}
-            <HeartButton itemId={product.id} itemTitle={product.name} imageUrl={firstImage} />
+            <HeartButton productId={product.id} name={product.name} price={product.price} images={product.images ?? []} />
+            <ShareButton url={`${typeof window !== 'undefined' ? window.location.origin : ''}/shop/${product.id}`} label="Copy product link" />
 
             {/* Pinterest Save button */}
             {firstImage && (
