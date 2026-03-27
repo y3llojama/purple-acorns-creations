@@ -6,6 +6,7 @@ export const ALLOWED_EVENT_TYPES = [
   'contact_submit',
   'newsletter_subscribe',
   'shop_click',
+  'share_click',
 ] as const
 
 export type AnalyticsEventType = (typeof ALLOWED_EVENT_TYPES)[number]

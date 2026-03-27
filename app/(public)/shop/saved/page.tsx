@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Heart, Link2 } from 'lucide-react'
+import { Heart, Link2, Activity, Users } from 'lucide-react'
 import { useSavedItems } from '@/lib/saved-items'
 import { useToast } from '@/components/shop/ToastContext'
 
@@ -10,6 +10,30 @@ export default function SavedItemsPage() {
   const { items, toggle, loading } = useSavedItems()
   const { toast } = useToast()
   const [sharing, setSharing] = useState(false)
+  const [isLiveShared, setIsLiveShared] = useState(false)
+  const [sharedWithMe, setSharedWithMe] = useState<Array<{ slug: string; itemCount: number; previewImage: string | null; visitedAt: string }>>([])
+
+  // Check if live sharing is currently active
+  useEffect(() => {
+    const token = localStorage.getItem('pa-list-token')
+    if (!token) return
+    fetch('/api/shop/saved-lists/me', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data) setIsLiveShared(!!data.is_live_shared) })
+      .catch(() => {})
+  }, [])
+
+  // Load shared-with-me lists from localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('pa-shared-with-me')
+      if (raw) setSharedWithMe(JSON.parse(raw))
+    } catch { /* ignore */ }
+  }, [])
 
   async function handleShare(mode: 'copy' | 'live') {
     const token = typeof window !== 'undefined' ? localStorage.getItem('pa-list-token') : null
@@ -22,11 +46,24 @@ export default function SavedItemsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, mode }),
       })
-      if (!res.ok) { toast('Failed to generate share link'); return }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        console.error('[Share] API error:', res.status, err)
+        toast('Failed to generate share link')
+        return
+      }
       const { url } = await res.json()
-      await navigator.clipboard.writeText(url)
-      toast(mode === 'copy' ? 'Snapshot link copied!' : 'Live list link copied!')
-    } catch {
+      try {
+        await navigator.clipboard.writeText(url)
+        toast(mode === 'copy' ? 'Snapshot link copied!' : 'Live list link copied!')
+      } catch {
+        // Clipboard API can fail on HTTP — show the URL in the toast
+        toast('Link ready — copy from address bar')
+        window.open(url, '_blank')
+      }
+      if (mode === 'live') setIsLiveShared(true)
+    } catch (err) {
+      console.error('[Share] error:', err)
       toast('Failed to share')
     } finally {
       setSharing(false)
@@ -41,8 +78,12 @@ export default function SavedItemsPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token }),
     })
-    if (res.ok) toast('Sharing stopped')
-    else toast('Failed to stop sharing')
+    if (res.ok) {
+      toast('Live sharing stopped — recipients now have a static copy')
+      setIsLiveShared(false)
+    } else {
+      toast('Failed to stop sharing')
+    }
   }
 
   function copyProductLink(productId: string) {
@@ -144,12 +185,15 @@ export default function SavedItemsPage() {
           <button className="share-btn" onClick={() => handleShare('copy')} disabled={sharing}>
             <Link2 size={14} /> Share a Copy
           </button>
-          <button className="share-btn" onClick={() => handleShare('live')} disabled={sharing}>
-            <Link2 size={14} /> Share Live List
-          </button>
-          <button className="share-btn" onClick={handleStopSharing}>
-            Stop Sharing
-          </button>
+          {isLiveShared ? (
+            <button className="share-btn" onClick={handleStopSharing} disabled={sharing}>
+              Stop Sharing
+            </button>
+          ) : (
+            <button className="share-btn" onClick={() => handleShare('live')} disabled={sharing}>
+              <Activity size={14} /> Share Live List
+            </button>
+          )}
         </div>
       )}
 
@@ -250,6 +294,55 @@ export default function SavedItemsPage() {
             </Link>
           </div>
         </>
+      )}
+
+      {/* Shared with me */}
+      {sharedWithMe.length > 0 && (
+        <div style={{ marginTop: '64px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+            <Users size={16} stroke="var(--color-text-muted)" />
+            <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text)', fontSize: '20px', fontWeight: 600, margin: 0 }}>
+              Shared with me
+            </h2>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
+            {sharedWithMe.map(list => (
+              <Link
+                key={list.slug}
+                href={`/shop/saved/${list.slug}`}
+                style={{
+                  textDecoration: 'none',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '4px',
+                  overflow: 'hidden',
+                  background: 'var(--color-surface)',
+                  display: 'block',
+                }}
+              >
+                <div style={{ aspectRatio: '16/9', background: 'var(--color-border)', overflow: 'hidden' }}>
+                  {list.previewImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={list.previewImage}
+                      alt=""
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, var(--color-border) 0%, var(--color-surface) 100%)' }} />
+                  )}
+                </div>
+                <div style={{ padding: '10px 12px' }}>
+                  <p style={{ margin: 0, fontSize: '13px', fontWeight: 500, color: 'var(--color-text)' }}>
+                    {list.itemCount} {list.itemCount === 1 ? 'piece' : 'pieces'}
+                  </p>
+                  <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                    Viewed {new Date(list.visitedAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   )

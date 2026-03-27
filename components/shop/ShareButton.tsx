@@ -15,8 +15,15 @@ export default function ShareButton({ url, label = 'Copy link' }: Props) {
     e.preventDefault()
     e.stopPropagation()
     try {
-      await navigator.clipboard.writeText(url)
+      const shareUrl = url.includes('?') ? `${url}&ref=share` : `${url}?ref=share`
+      await navigator.clipboard.writeText(shareUrl)
       toast('Link copied!')
+      fetch('/api/analytics/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event_type: 'share_click', page_path: window.location.pathname, metadata: { channel: 'copy_link' } }),
+        keepalive: true,
+      }).catch(() => {})
     } catch {
       toast('Failed to copy link')
     }

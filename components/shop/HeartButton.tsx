@@ -1,6 +1,7 @@
 'use client'
 
-import { Heart } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Heart, HeartPlus } from 'lucide-react'
 import { useSavedItems } from '@/lib/saved-items'
 
 interface Props {
@@ -13,6 +14,12 @@ interface Props {
 export default function HeartButton({ productId, name, price, images }: Props) {
   const { toggle, isSaved } = useSavedItems()
   const saved = isSaved(productId)
+  const [isSharedView, setIsSharedView] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setIsSharedView(params.get('ref') === 'share')
+  }, [])
 
   function handleClick(e: React.MouseEvent) {
     e.preventDefault()
@@ -20,10 +27,18 @@ export default function HeartButton({ productId, name, price, images }: Props) {
     toggle(productId, { name, price, images })
   }
 
+  const Icon = isSharedView && !saved ? HeartPlus : Heart
+
   return (
     <button
       onClick={handleClick}
-      aria-label={saved ? `Remove ${name} from saved items` : `Save ${name}`}
+      aria-label={
+        isSharedView && !saved
+          ? `Add ${name} to my favorites`
+          : saved
+            ? `Remove ${name} from saved items`
+            : `Save ${name}`
+      }
       aria-pressed={saved}
       style={{
         background: 'none',
@@ -35,13 +50,13 @@ export default function HeartButton({ productId, name, price, images }: Props) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        color: saved ? 'var(--color-error)' : 'var(--color-text-muted)',
+        color: saved ? 'var(--color-primary)' : 'var(--color-text-muted)',
       }}
     >
-      <Heart
+      <Icon
         size={20}
-        fill={saved ? 'var(--color-error)' : 'none'}
-        stroke={saved ? 'var(--color-error)' : 'currentColor'}
+        fill={saved ? 'var(--color-primary)' : 'none'}
+        stroke={saved ? 'var(--color-primary)' : 'currentColor'}
       />
     </button>
   )

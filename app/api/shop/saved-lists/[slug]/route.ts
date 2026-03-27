@@ -4,6 +4,8 @@ import { isValidSlug } from '@/lib/validate'
 import { checkRate, rateLimitResponse } from '@/lib/saved-lists-rate-limit'
 import { getClientIp } from '@/lib/get-client-ip'
 
+export const dynamic = 'force-dynamic'
+
 const notFoundMap = new Map<string, { count: number; reset: number }>()
 
 function check404Rate(request: Request): boolean {
@@ -68,11 +70,13 @@ export async function GET(
       added_at: item.added_at,
     }))
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     id: list.id,
     is_snapshot: list.is_snapshot,
     is_live: !list.is_snapshot,
     updated_at: list.updated_at,
     items: activeItems,
   })
+  res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
+  return res
 }

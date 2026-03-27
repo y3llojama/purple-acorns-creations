@@ -78,6 +78,13 @@ export async function GET(request: NextRequest) {
     .eq('event_type', 'newsletter_subscribe')
     .gte('created_at', since.toISOString())
 
+  // Share clicks in period (copy link + Pinterest)
+  const { count: shareClicks } = await supabase
+    .from('analytics_events')
+    .select('*', { count: 'exact', head: true })
+    .eq('event_type', 'share_click')
+    .gte('created_at', since.toISOString())
+
   return NextResponse.json({
     totalViews: totalViews ?? 0,
     uniqueVisitors,
@@ -86,5 +93,6 @@ export async function GET(request: NextRequest) {
     contactSubmissions: contactSubmissions ?? 0,
     shopClicks: shopClicks ?? 0,
     newsletterSubscribes: newsletterSubscribes ?? 0,
+    shareClicks: shareClicks ?? 0,
   })
 }

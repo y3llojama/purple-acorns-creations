@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
   const { data: list, error: listError } = await supabase
     .from('saved_lists')
-    .select('id, slug, updated_at')
+    .select('id, slug, edit_token, updated_at')
     .eq('token', token)
     .single()
 
@@ -63,6 +63,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     id: list.id,
     slug: list.slug,
+    is_live_shared: !!list.edit_token,
     updated_at: list.updated_at,
     items: activeItems,
   })

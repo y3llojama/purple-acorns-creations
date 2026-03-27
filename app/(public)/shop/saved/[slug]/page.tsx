@@ -41,7 +41,7 @@ export default function SharedListPage({ params }: { params: Promise<{ slug: str
 
   useEffect(() => {
     async function fetchList() {
-      const res = await fetch(`/api/shop/saved-lists/${slug}`)
+      const res = await fetch(`/api/shop/saved-lists/${slug}`, { cache: 'no-store' })
       if (!res.ok) {
         setError(res.status === 404 ? 'This shared list was not found.' : 'Failed to load list.')
         setLoading(false)
@@ -51,6 +51,21 @@ export default function SharedListPage({ params }: { params: Promise<{ slug: str
       setData(listData)
       lastUpdatedRef.current = listData.updated_at
       setLoading(false)
+
+      // Track this shared list in localStorage for "Shared with me" section
+      try {
+        const KEY = 'pa-shared-with-me'
+        const existing: Array<{ slug: string; itemCount: number; previewImage: string | null; visitedAt: string }> = JSON.parse(localStorage.getItem(KEY) || '[]')
+        const entry = {
+          slug,
+          itemCount: listData.items.length,
+          previewImage: listData.items[0]?.images?.[0] ?? null,
+          visitedAt: new Date().toISOString(),
+        }
+        const filtered = existing.filter((e: { slug: string }) => e.slug !== slug)
+        filtered.unshift(entry)
+        localStorage.setItem(KEY, JSON.stringify(filtered.slice(0, 20)))
+      } catch { /* ignore */ }
     }
     fetchList()
   }, [slug])
@@ -60,7 +75,7 @@ export default function SharedListPage({ params }: { params: Promise<{ slug: str
 
     const interval = setInterval(async () => {
       if (document.hidden) return
-      const res = await fetch(`/api/shop/saved-lists/${slug}`)
+      const res = await fetch(`/api/shop/saved-lists/${slug}`, { cache: 'no-store' })
       if (!res.ok) return
       const listData: SharedListData = await res.json()
 
@@ -191,14 +206,14 @@ export default function SharedListPage({ params }: { params: Promise<{ slug: str
       `}</style>
 
       {/* Banner */}
-      <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '12px 16px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        {showHandshake && <HeartHandshake size={18} stroke="var(--color-accent)" />}
-        <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-muted)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+        {showHandshake && <HeartHandshake size={16} stroke="var(--color-accent)" />}
+        <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-text-muted)', letterSpacing: '0.04em' }}>
           {data.is_snapshot
-            ? 'Shared favorites list'
+            ? 'Shared favorites'
             : data.is_live && editToken
-              ? 'Shared live list \u2014 anyone with this link can add or remove items. Share carefully.'
-              : 'Shared favorites list'
+              ? 'Live list \u2014 anyone with this link can edit'
+              : 'Shared favorites'
           }
         </p>
       </div>
@@ -261,11 +276,11 @@ export default function SharedListPage({ params }: { params: Promise<{ slug: str
                   onClick={() => addToMine(item.product_id)}
                   disabled={addedItems.has(item.product_id)}
                 >
-                  <HeartPlus
-                    size={16}
-                    stroke={addedItems.has(item.product_id) ? 'var(--color-primary)' : 'var(--color-text-muted)'}
-                    fill={addedItems.has(item.product_id) ? 'var(--color-primary)' : 'none'}
-                  />
+                  {addedItems.has(item.product_id) ? (
+                    <HeartHandshake size={16} stroke="var(--color-primary)" />
+                  ) : (
+                    <HeartPlus size={16} stroke="var(--color-text-muted)" fill="none" />
+                  )}
                 </button>
               )}
 

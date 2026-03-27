@@ -3,7 +3,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server'
 import { checkRate, rateLimitResponse } from '@/lib/saved-lists-rate-limit'
 
 export async function POST(request: Request) {
-  if (!checkRate(request, 'list-create', 5, 3_600_000)) return rateLimitResponse()
+  if (!checkRate(request, 'list-create', 20, 3_600_000)) return rateLimitResponse()
 
   const supabase = createServiceRoleClient()
   const { data, error } = await supabase

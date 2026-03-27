@@ -67,7 +67,7 @@ export async function POST(
     .single()
 
   if (!myList) {
-    if (!checkRate(request, 'list-create', 5, 3_600_000)) return rateLimitResponse()
+    if (!checkRate(request, 'list-create', 20, 3_600_000)) return rateLimitResponse()
 
     const { data: newList, error: createError } = await supabase
       .from('saved_lists')

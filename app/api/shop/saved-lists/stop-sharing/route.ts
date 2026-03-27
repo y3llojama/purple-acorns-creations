@@ -18,9 +18,11 @@ export async function POST(request: Request) {
 
   const supabase = createServiceRoleClient()
 
+  // Only null out edit_token — the slug stays so the shared URL
+  // keeps working, but the recipient can no longer edit (static view).
   const { error } = await supabase
     .from('saved_lists')
-    .update({ slug: null, edit_token: null })
+    .update({ edit_token: null })
     .eq('token', token)
 
   if (error) {
