@@ -59,7 +59,7 @@ export default function ProductCard({ product, showPrice = true, watermark }: Pr
         <ShareButton url={`${typeof window !== 'undefined' ? window.location.origin : ''}/shop/${product.id}`} label="Copy product link" />
         {firstImage && (
           <a
-            href={`https://pinterest.com/pin/create/button/?url=${encodeURIComponent(fullUrl)}&media=${encodeURIComponent(firstImage)}&description=${encodeURIComponent(product.name)}`}
+            href={`https://www.pinterest.com/pin/create/link/?url=${encodeURIComponent(fullUrl)}&media=${encodeURIComponent(firstImage)}&description=${encodeURIComponent(product.name)}`}
             rel="noopener noreferrer"
             target="_blank"
             aria-label="Pin on Pinterest"
