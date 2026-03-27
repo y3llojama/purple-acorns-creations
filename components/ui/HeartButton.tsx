@@ -46,7 +46,7 @@ export default function HeartButton({ itemId, itemTitle, imageUrl }: Props) {
         aria-pressed={saved}
         onClick={e => {
           e.preventDefault()
-          toggle({ id: itemId, title: itemTitle, image_url: imageUrl })
+          toggle(itemId, { name: itemTitle ?? '', price: 0, images: imageUrl ? [imageUrl] : [] })
         }}
       >
         <svg
