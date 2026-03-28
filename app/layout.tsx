@@ -6,24 +6,26 @@ import { deriveCustomThemeVars } from '@/lib/color'
 import type { ThemeVars } from '@/lib/color'
 import './globals.css'
 
-export async function generateMetadata(): Promise<Metadata> {
-  const settings = await getSettings()
-  const name = settings.business_name
-  return {
-    metadataBase: new URL('https://www.purpleacornz.com'),
-    title: {
-      default: name,
-      template: `%s — ${name}`,
-    },
-    description: 'Handcrafted jewelry by a mother-daughter duo. Crochet jewelry, sterling silver, brass, and artisan pieces made with love.',
-    openGraph: {
-      siteName: name,
-      images: ['/og-image.jpg'],
-    },
-    twitter: {
-      card: 'summary_large_image',
-    },
-  }
+// business_name rarely changes and is always loaded in RootLayout below.
+// Fetching settings here doubled DB hits on every page load because
+// generateMetadata runs in a separate RSC execution context from the page.
+const SITE_NAME = 'Purple Acorns Creations'
+
+export const metadata: Metadata = {
+  metadataBase: new URL('https://www.purpleacornz.com'),
+  title: {
+    default: SITE_NAME,
+    template: `%s — ${SITE_NAME}`,
+  },
+  description:
+    'Handcrafted jewelry by a mother-daughter duo. Crochet jewelry, sterling silver, brass, and artisan pieces made with love.',
+  openGraph: {
+    siteName: SITE_NAME,
+    images: ['/og-image.jpg'],
+  },
+  twitter: {
+    card: 'summary_large_image',
+  },
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
