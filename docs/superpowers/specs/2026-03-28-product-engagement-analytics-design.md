@@ -36,7 +36,11 @@ Added to `ALLOWED_EVENT_TYPES` in `lib/analytics.ts`:
 
 `shop_click` already exists in `ALLOWED_EVENT_TYPES` but is never fired — we wire it up.
 
-`pin_click` replaces the current `share_click` with `channel: 'pinterest'` pattern for clarity. Existing `share_click` events with `channel: 'pinterest'` remain in the DB for historical data — the product-engagement queries include both.
+`pin_click` replaces the current `share_click` with `channel: 'pinterest'` pattern for clarity. Existing `share_click` events with `channel: 'pinterest'` remain in the DB for historical data — all product-engagement queries count both `pin_click` events AND legacy `share_click` events where `metadata->>'channel' = 'pinterest'`.
+
+### Existing summary route update (#7)
+
+The existing `/api/admin/analytics/summary` route currently counts `share_click` events for the "Share Clicks" card. Update it to also count `pin_click` events so the main analytics page total stays accurate after the migration to the new event type.
 
 ### Derived Metrics
 
@@ -81,7 +85,7 @@ Fire on Buy / Square checkout button click. The event type already exists in the
 
 ### `product_save` / `product_unsave` — lib/saved-items.ts
 
-Fire inside `toggle()` after the API call succeeds. Determine which event based on whether the product was added or removed.
+Fire inside `toggle()` **only after `res.ok`** from the save/unsave API call — never optimistically. If the API call fails, no analytics event is sent. Determine which event based on whether the product was added or removed.
 
 ```
 { event_type: 'product_save' | 'product_unsave', page_path: window.location.pathname, metadata: { product_id } }
@@ -169,15 +173,42 @@ Full sortable table with every active product:
 
 Default sort: views descending. Clickable column headers to re-sort.
 
-### API Routes
+### API Routes (#9 — consolidated)
+
+Two routes instead of four. The summary route on the main analytics page stays separate because it serves a different page.
 
 | Route | Returns |
 |---|---|
-| `GET /api/admin/analytics/product-funnel?period=7d` | Aggregate funnel counts |
-| `GET /api/admin/analytics/product-timeseries?period=7d` | Daily breakdown by event type |
-| `GET /api/admin/analytics/product-table?period=7d` | Per-product engagement rows |
+| `GET /api/admin/analytics/product-engagement?period=7d` | Summary cards + top 10 (for main analytics page) |
+| `GET /api/admin/analytics/products?period=7d&page=1&limit=50` | Funnel, timeseries, and full product table (for dedicated page) |
 
-All routes are admin-auth-protected.
+The dedicated page route returns all three sections in one response:
+```json
+{
+  "funnel": { "views": 1247, "clicks": 773, "saves": 225, "pins": 150, "shop_clicks": 62 },
+  "timeseries": [{ "date": "2026-03-28", "clicks": 42, "saves": 12, "shop_clicks": 3 }, ...],
+  "products": [{ "id": "...", "name": "...", "views": 142, "clicks": 89, ... }, ...],
+  "pagination": { "page": 1, "limit": 50, "total": 24 }
+}
+```
+
+All routes are admin-auth-protected. Period parameter validated against `['1d', '7d', '30d', 'all']`. Responses include `Cache-Control: private, max-age=60`.
+
+---
+
+## Server-Side Validation
+
+### product_id UUID validation (#1)
+
+The `/api/analytics/track` route must validate that `metadata.product_id`, when present, is a valid UUID. Reject with `400` if it fails the regex `/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i`. This prevents injection of arbitrary strings into the metadata JSONB column.
+
+### Period parameter allowlist (#6)
+
+All admin analytics API routes must validate the `period` query parameter against the allowlist `['1d', '7d', '30d', 'all']`. Reject with `400` for any other value. Add `Cache-Control: private, max-age=60` header to all responses (1-minute cache for admin). The product table route supports `?page=1&limit=50` pagination (default limit 50, max 100).
+
+### Product name sanitization (#10)
+
+All admin dashboard components that render product names must pass them through `sanitizeText()` from `lib/sanitize.ts` before display. Product names come from the DB and are generally trusted, but defense-in-depth requires sanitization of any value rendered as HTML.
 
 ---
 
@@ -189,18 +220,42 @@ All routes are admin-auth-protected.
 
 ---
 
+## Legal & Compliance
+
+### Privacy policy update (#3)
+
+Before deploying, update the site privacy policy to disclose the new product interaction tracking (clicks, saves, pins, shop clicks). The existing policy covers page views — extend it to cover engagement events. Migration `045_update_privacy_policy_tracking_disclosure.sql` already exists; verify it covers the new event types or add a follow-up migration.
+
+### Consent / opt-out mechanism (#4)
+
+Document a legitimate interest assessment for these analytics: the events are anonymous (no user accounts, IP-hashed with daily salt, session-scoped), contain no PII, and serve the legitimate business interest of understanding product engagement. Add a note to the privacy policy explaining this basis. No cookie consent banner is needed since we use `sessionStorage` (not cookies) and no cross-site tracking occurs.
+
+### Data retention (#8)
+
+Add an automated retention policy: a `pg_cron` job that deletes `analytics_events` rows older than 12 months, running weekly. This limits data accumulation and supports data minimization principles. Add this in the migration file.
+
+```sql
+SELECT cron.schedule(
+  'analytics-events-retention',
+  '0 3 * * 0',  -- weekly, Sunday 3am UTC
+  $$DELETE FROM analytics_events WHERE created_at < now() - interval '12 months'$$
+);
+```
+
+---
+
 ## File Changes Summary
 
 | File | Change |
 |---|---|
 | `lib/analytics.ts` | Add new event types to `ALLOWED_EVENT_TYPES` |
+| `app/api/analytics/track/route.ts` | Add UUID validation for `metadata.product_id` |
 | `components/shop/ProductCard.tsx` | Fire `product_click` and replace pinterest `share_click` with `pin_click` |
 | `components/shop/ProductDetail.tsx` | Fire `shop_click` and replace pinterest `share_click` with `pin_click` |
-| `lib/saved-items.ts` | Fire `product_save` / `product_unsave` in `toggle()` |
-| `supabase/migrations/045_product_engagement_indexes.sql` | GIN + composite indexes on `analytics_events` |
-| `app/admin/(dashboard)/analytics/page.tsx` | Add Product Engagement summary section |
-| `app/admin/(dashboard)/analytics/products/page.tsx` | New dedicated product analytics page |
-| `app/api/admin/analytics/product-engagement/route.ts` | Summary + top 10 API |
-| `app/api/admin/analytics/product-funnel/route.ts` | Funnel aggregation API |
-| `app/api/admin/analytics/product-timeseries/route.ts` | Daily engagement breakdown API |
-| `app/api/admin/analytics/product-table/route.ts` | Full product table API |
+| `lib/saved-items.ts` | Fire `product_save` / `product_unsave` in `toggle()` after `res.ok` |
+| `supabase/migrations/047_product_engagement_indexes.sql` | GIN + composite indexes on `analytics_events` + pg_cron 12-month retention job |
+| `app/api/admin/analytics/summary/route.ts` | Count `pin_click` alongside legacy `share_click` for share totals |
+| `app/admin/(dashboard)/analytics/page.tsx` | Add Product Engagement summary section, sanitize product names |
+| `app/admin/(dashboard)/analytics/products/page.tsx` | New dedicated product analytics page, sanitize product names |
+| `app/api/admin/analytics/product-engagement/route.ts` | Summary cards + top 10 API (period allowlist, caching) |
+| `app/api/admin/analytics/products/route.ts` | Consolidated funnel + timeseries + product table API (period allowlist, pagination, caching) |
