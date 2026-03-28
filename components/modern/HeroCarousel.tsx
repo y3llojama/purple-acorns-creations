@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import Image from 'next/image'
 import type { HeroSlide } from '@/lib/supabase/types'
 
 interface Props {
@@ -69,13 +70,19 @@ export default function HeroCarousel({ slides, transition, intervalMs }: Props) 
           ? { position: i === 0 ? 'relative' : 'absolute', inset: 0, opacity: isActive ? 1 : 0, ...transitionStyle }
           : { position: i === 0 ? 'relative' : 'absolute', inset: 0, transform: `translateX(${(i - current) * 100}%)`, ...transitionStyle }
         return (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <div
             key={slide.id}
-            src={slide.url}
-            alt={slide.alt_text}
-            style={{ ...style, width: '100%', height: '100%', minHeight: '400px', objectFit: 'cover', display: 'block' }}
-          />
+            style={{ ...style, width: '100%', height: '100%', minHeight: '400px' }}
+          >
+            <Image
+              src={slide.url}
+              alt={slide.alt_text}
+              fill
+              sizes="100vw"
+              priority={i === 0}
+              style={{ objectFit: 'cover' }}
+            />
+          </div>
         )
       })}
 
