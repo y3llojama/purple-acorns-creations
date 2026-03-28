@@ -36,22 +36,15 @@ export default async function HomePage() {
   const proto = hdrs.get('x-forwarded-proto') ?? 'https'
   const siteBase = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_SITE_URL ?? '')
 
-  const [content, settings, featured, gallery, followAlongResult, heroSlides] = await Promise.all([
+  const [content, settings, featured, gallery, followAlongResult, heroSlides, { data: eventData }] = await Promise.all([
     getAllContent(),
     getSettings(),
     supabase.from('products').select('*').eq('is_active', true).eq('gallery_featured', true).order('gallery_sort_order').limit(8).then(r => r.data ?? []),
     supabase.from('gallery').select('*').eq('is_featured', false).order('sort_order').limit(8).then(r => r.data ?? []),
     supabase.from('follow_along_photos').select('*').order('display_order').then(r => r.data ?? []),
-    supabase
-      .from('hero_slides')
-      .select('id, url, alt_text, sort_order')
-      .order('sort_order')
-      .then(r => r.data ?? []),
+    supabase.from('hero_slides').select('id, url, alt_text, sort_order').order('sort_order').then(r => r.data ?? []),
+    supabase.from('events').select('*').eq('featured', true).gte('date', today).order('date').limit(1).single(),
   ])
-
-  // Show only explicitly featured upcoming events on the homepage tile
-  const { data: eventData } = await supabase
-    .from('events').select('*').eq('featured', true).gte('date', today).order('date').limit(1).single()
 
   const vars = buildVars(settings.business_name)
   const orgSchema = buildOrganizationSchema(settings.business_name)
