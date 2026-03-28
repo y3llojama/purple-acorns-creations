@@ -1,11 +1,13 @@
 'use client'
 
 import { useRef, useEffect } from 'react'
+import { watermarkSrc } from '@/lib/image-url'
 
 interface GalleryImage {
   url: string
   alt_text: string | null
   square_url?: string | null
+  created_at?: string
 }
 
 export default function ModernStoryMosaic({ photos, watermark }: { photos: GalleryImage[]; watermark?: string | null }) {
@@ -89,7 +91,7 @@ export default function ModernStoryMosaic({ photos, watermark }: { photos: Galle
         {photos.map((img, i) => {
           const href = img.square_url || '/shop'
           const imgSrc = watermark && img.url.startsWith('https')
-            ? `/api/gallery/image?url=${encodeURIComponent(img.url)}`
+            ? watermarkSrc(img.url, watermark, img.created_at)
             : img.url
           return (
             <div
