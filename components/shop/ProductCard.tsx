@@ -1,8 +1,10 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { Product } from '@/lib/supabase/types'
+import { watermarkSrc } from '@/lib/image-url'
 
 const HeartButton = dynamic(() => import('./HeartButton'), { ssr: false })
 import ShareButton from './ShareButton'
@@ -22,11 +24,12 @@ export default function ProductCard({ product, showPrice = true, watermark }: Pr
         {/* Image area */}
         <div style={{ position: 'relative', aspectRatio: '1', background: 'var(--color-border)', overflow: 'hidden' }}>
           {firstImage ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={watermark ? `/api/gallery/image?url=${encodeURIComponent(firstImage)}` : firstImage}
+            <Image
+              src={watermark ? watermarkSrc(firstImage, watermark, product.updated_at) : firstImage}
               alt={product.name}
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              fill
+              sizes="(max-width: 480px) 100vw, (max-width: 768px) 50vw, 25vw"
+              style={{ objectFit: 'cover' }}
             />
           ) : (
             <div style={{ width: '100%', height: '100%', background: 'var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
