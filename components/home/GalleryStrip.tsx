@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import type { GalleryItem } from '@/lib/supabase/types'
 import { isValidHttpsUrl } from '@/lib/validate'
+import { watermarkSrc } from '@/lib/image-url'
 
 interface Props { items: GalleryItem[]; watermark?: string | null }
 
@@ -21,7 +22,7 @@ export default function GalleryStrip({ items, watermark }: Props) {
       >
         {items.filter(item => isValidHttpsUrl(item.url)).map((item) => {
           const src = watermark
-            ? `/api/gallery/image?url=${encodeURIComponent(item.url)}`
+            ? watermarkSrc(item.url, watermark, item.created_at)
             : item.url
           return (
             <figure key={item.id} style={{ margin: 0, flexShrink: 0, width: '280px' }}>
