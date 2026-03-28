@@ -12,87 +12,17 @@ export async function GET(request: NextRequest) {
 
   const supabase = createServiceRoleClient()
 
-  // Total page views in period
-  const { count: totalViews } = await supabase
-    .from('analytics_events')
-    .select('*', { count: 'exact', head: true })
-    .eq('event_type', 'page_view')
-    .gte('created_at', since.toISOString())
-
-  // Unique visitors (distinct ip_hash) in period
-  const { data: visitorRows } = await supabase
-    .from('analytics_events')
-    .select('ip_hash')
-    .eq('event_type', 'page_view')
-    .gte('created_at', since.toISOString())
-
-  const uniqueVisitors = new Set(visitorRows?.map(r => r.ip_hash)).size
-
-  // Top page
-  const { data: pageRows } = await supabase
-    .from('analytics_events')
-    .select('page_path')
-    .eq('event_type', 'page_view')
-    .gte('created_at', since.toISOString())
-
-  const pageCounts: Record<string, number> = {}
-  for (const row of pageRows ?? []) {
-    const p = row.page_path ?? '(unknown)'
-    pageCounts[p] = (pageCounts[p] ?? 0) + 1
-  }
-  const topPage = Object.entries(pageCounts).sort((a, b) => b[1] - a[1])[0] ?? null
-
-  // Top referrer
-  const { data: refRows } = await supabase
-    .from('analytics_events')
-    .select('referrer')
-    .eq('event_type', 'page_view')
-    .gte('created_at', since.toISOString())
-    .not('referrer', 'is', null)
-
-  const refCounts: Record<string, number> = {}
-  for (const row of refRows ?? []) {
-    const r = row.referrer ?? '(direct)'
-    refCounts[r] = (refCounts[r] ?? 0) + 1
-  }
-  const topReferrer = Object.entries(refCounts).sort((a, b) => b[1] - a[1])[0] ?? null
-
-  // Contact form submissions in period
-  const { count: contactSubmissions } = await supabase
-    .from('analytics_events')
-    .select('*', { count: 'exact', head: true })
-    .eq('event_type', 'contact_submit')
-    .gte('created_at', since.toISOString())
-
-  // Shop clicks in period
-  const { count: shopClicks } = await supabase
-    .from('analytics_events')
-    .select('*', { count: 'exact', head: true })
-    .eq('event_type', 'shop_click')
-    .gte('created_at', since.toISOString())
-
-  // Newsletter subscriptions in period
-  const { count: newsletterSubscribes } = await supabase
-    .from('analytics_events')
-    .select('*', { count: 'exact', head: true })
-    .eq('event_type', 'newsletter_subscribe')
-    .gte('created_at', since.toISOString())
-
-  // Share clicks in period (copy link + Pinterest)
-  const { count: shareClicks } = await supabase
-    .from('analytics_events')
-    .select('*', { count: 'exact', head: true })
-    .eq('event_type', 'share_click')
-    .gte('created_at', since.toISOString())
-
-  return NextResponse.json({
-    totalViews: totalViews ?? 0,
-    uniqueVisitors,
-    topPage: topPage ? { path: topPage[0], views: topPage[1] } : null,
-    topReferrer: topReferrer ? { source: topReferrer[0], count: topReferrer[1] } : null,
-    contactSubmissions: contactSubmissions ?? 0,
-    shopClicks: shopClicks ?? 0,
-    newsletterSubscribes: newsletterSubscribes ?? 0,
-    shareClicks: shareClicks ?? 0,
+  const { data, error: rpcError } = await supabase.rpc('analytics_summary', {
+    since: since.toISOString(),
   })
+
+  if (rpcError) {
+    console.error('[analytics/summary] RPC error:', rpcError.message)
+    return NextResponse.json(
+      { error: 'Failed to load analytics summary' },
+      { status: 500 },
+    )
+  }
+
+  return NextResponse.json(data)
 }
