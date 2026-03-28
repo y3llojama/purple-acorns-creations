@@ -69,7 +69,7 @@ export default async function HomePage() {
         const featuredItems = (featured as Product[])
           .filter(p => isValidHttpsUrl(p.images?.[0] ?? ''))
           .slice(0, 4)
-          .map(p => ({ id: p.id, image_url: p.images[0], title: p.name, description: null }))
+          .map(p => ({ id: p.id, image_url: p.images[0], title: p.name, description: null, updated_at: p.updated_at }))
         return featuredItems.length > 0 ? (
           <ModernFeaturedGrid
             items={featuredItems}

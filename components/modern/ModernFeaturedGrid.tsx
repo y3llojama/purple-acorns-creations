@@ -1,12 +1,14 @@
 import Image from 'next/image'
 import HeartButton from '@/components/ui/HeartButton'
 import { isValidHttpsUrl } from '@/lib/validate'
+import { watermarkSrc } from '@/lib/image-url'
 
 interface Item {
   id: string
   image_url: string | null
   title: string | null
   description: string | null
+  updated_at?: string
 }
 
 interface Props {
@@ -135,7 +137,7 @@ export default function ModernFeaturedGrid({ items, watermark }: Props) {
                   <div style={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
                     {item.image_url && isValidHttpsUrl(item.image_url) ? (
                       <Image
-                        src={watermark && item.image_url ? `/api/gallery/image?url=${encodeURIComponent(item.image_url)}` : (item.image_url ?? '')}
+                        src={watermark && item.image_url ? watermarkSrc(item.image_url, watermark, item.updated_at) : (item.image_url ?? '')}
                         alt={item.title ?? ''}
                         fill
                         sizes="(max-width: 480px) 100vw, (max-width: 768px) 50vw, 25vw"
