@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'image/jpeg',
-        'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
+        'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=3600',
       },
     })
   }
@@ -157,7 +157,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse(new Uint8Array(watermarked), {
       headers: {
         'Content-Type': 'image/jpeg',
-        'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
+        'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=3600',
       },
     })
   } catch (err) {
@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'image/jpeg',
-        'Cache-Control': 'public, max-age=60',
+        'Cache-Control': 'public, max-age=60, s-maxage=300',
       },
     })
   }
