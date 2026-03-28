@@ -3,6 +3,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server'
 import { isValidHttpsUrl } from '@/lib/validate'
 import Link from 'next/link'
 import type { Product } from '@/lib/supabase/types'
+import { watermarkSrc } from '@/lib/image-url'
 
 interface Props {
   prefetchedFeatured?: Product[]
@@ -60,7 +61,7 @@ export default async function GalleryScroller({ prefetchedFeatured, maxItems: ma
                 <div style={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
                   {product.images[0] && isValidHttpsUrl(product.images[0]) ? (
                     <Image
-                      src={watermark ? `/api/gallery/image?url=${encodeURIComponent(product.images[0])}` : product.images[0]}
+                      src={watermark ? watermarkSrc(product.images[0], watermark, product.updated_at) : product.images[0]}
                       alt={product.name}
                       fill
                       sizes="(max-width: 600px) 50vw, (max-width: 1200px) 25vw, 200px"
