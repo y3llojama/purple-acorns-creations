@@ -18,7 +18,7 @@ as $$
       where event_type = 'page_view' and created_at >= since
     ),
     'topPage', (
-      select json_build_object('path', page_path, 'views', cnt)
+      select json_build_object('path', coalesce(page_path, '(unknown)'), 'views', cnt)
       from (
         select page_path, count(*) as cnt
         from analytics_events
@@ -61,3 +61,7 @@ as $$
     )
   );
 $$;
+
+-- Restrict to service_role — matches table-level RLS (no public SELECT).
+revoke execute on function analytics_summary(timestamptz) from public;
+grant execute on function analytics_summary(timestamptz) to service_role;
