@@ -43,6 +43,7 @@ const nextConfig = {
   // doesn't try to bundle it (which fails on non-ECMAScript assets).
   serverExternalPackages: ['@resvg/resvg-js'],
   images: {
+    minimumCacheTTL: 3600,
     localPatterns: [
       { pathname: '/gallery/**' },
       { pathname: '/craft/**' },
