@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import ImageUploader from './ImageUploader'
 import type { Product, Category } from '@/lib/supabase/types'
 
@@ -54,13 +54,46 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
   const [gallerySortOrder, setGallerySortOrder] = useState(product?.gallery_sort_order ? String(product.gallery_sort_order) : '')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const dragIndexRef = useRef<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
 
   async function handleUpload(url: string) {
     setImages(prev => [...prev, url])
   }
 
-  function removeImage(url: string) {
-    setImages(prev => prev.filter(u => u !== url))
+  function removeImage(index: number) {
+    setImages(prev => prev.filter((_, i) => i !== index))
+  }
+
+  function handleDragStart(index: number) {
+    dragIndexRef.current = index
+  }
+
+  function handleDragOver(e: React.DragEvent, index: number) {
+    e.preventDefault()
+    setDragOverIndex(index)
+  }
+
+  function handleDrop(index: number) {
+    const from = dragIndexRef.current
+    if (from === null || from === index) {
+      dragIndexRef.current = null
+      setDragOverIndex(null)
+      return
+    }
+    setImages(prev => {
+      const next = [...prev]
+      const [moved] = next.splice(from, 1)
+      next.splice(index, 0, moved)
+      return next
+    })
+    dragIndexRef.current = null
+    setDragOverIndex(null)
+  }
+
+  function handleDragEnd() {
+    dragIndexRef.current = null
+    setDragOverIndex(null)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -186,13 +219,45 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
         <p style={{ ...labelStyle, marginBottom: '8px' }}>Images</p>
         {images.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
-            {images.map(url => (
-              <div key={url} style={{ position: 'relative', display: 'inline-block' }}>
+            {images.map((url, i) => (
+              <div
+                key={`${url}-${i}`}
+                draggable
+                onDragStart={() => handleDragStart(i)}
+                onDragOver={(e) => handleDragOver(e, i)}
+                onDrop={() => handleDrop(i)}
+                onDragEnd={handleDragEnd}
+                style={{
+                  position: 'relative',
+                  display: 'inline-block',
+                  cursor: 'grab',
+                  opacity: dragOverIndex === i ? 0.5 : 1,
+                  outline: dragOverIndex === i ? '2px dashed var(--color-primary)' : 'none',
+                  outlineOffset: '2px',
+                  borderRadius: '4px',
+                  transition: 'opacity 0.15s',
+                }}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt="Product" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--color-border)' }} />
+                <img src={url} alt={`Product image ${i + 1}`} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--color-border)', pointerEvents: 'none' }} />
+                {i === 0 && (
+                  <span style={{
+                    position: 'absolute',
+                    bottom: '2px',
+                    left: '2px',
+                    background: 'var(--color-primary)',
+                    color: 'var(--color-accent)',
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    padding: '1px 5px',
+                    borderRadius: '3px',
+                  }}>
+                    Main
+                  </span>
+                )}
                 <button
                   type="button"
-                  onClick={() => removeImage(url)}
+                  onClick={() => removeImage(i)}
                   aria-label="Remove image"
                   style={{
                     position: 'absolute',
@@ -202,10 +267,10 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                     color: 'var(--color-error-text)',
                     border: 'none',
                     borderRadius: '50%',
-                    width: '32px',
-                    height: '32px',
-                    minWidth: '32px',
-                    minHeight: '32px',
+                    width: '48px',
+                    height: '48px',
+                    minWidth: '48px',
+                    minHeight: '48px',
                     cursor: 'pointer',
                     fontSize: '12px',
                     display: 'flex',
@@ -218,6 +283,11 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
               </div>
             ))}
           </div>
+        )}
+        {images.length > 1 && (
+          <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '0 0 8px' }}>
+            Drag to reorder. First image is the main photo shown in listings.
+          </p>
         )}
         <ImageUploader
           bucket="products"
