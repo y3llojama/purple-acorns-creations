@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Image from 'next/image'
 import { watermarkSrc } from '@/lib/image-url'
 
@@ -12,14 +12,32 @@ interface ImageCarouselProps {
 
 export default function ImageCarousel({ images, alt, watermark }: ImageCarouselProps) {
   const [current, setCurrent] = useState(0)
+  const [zoomed, setZoomed] = useState(false)
 
+  const toggleZoom = useCallback(() => {
+    setZoomed((z) => !z)
+  }, [])
+
+  // Reset zoom when switching images
   const prev = useCallback(() => {
+    setZoomed(false)
     setCurrent((c) => (c === 0 ? images.length - 1 : c - 1))
   }, [images.length])
 
   const next = useCallback(() => {
+    setZoomed(false)
     setCurrent((c) => (c === images.length - 1 ? 0 : c + 1))
   }, [images.length])
+
+  // Close zoom on Escape key
+  useEffect(() => {
+    if (!zoomed) return
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setZoomed(false)
+    }
+    document.addEventListener('keydown', handleEsc)
+    return () => document.removeEventListener('keydown', handleEsc)
+  }, [zoomed])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -62,8 +80,9 @@ export default function ImageCarousel({ images, alt, watermark }: ImageCarouselP
           position: 'relative',
           aspectRatio: '1',
           borderRadius: '8px',
-          overflow: 'hidden',
+          overflow: zoomed ? 'visible' : 'hidden',
           background: 'var(--color-surface)',
+          zIndex: zoomed ? 10 : 'auto',
         }}
       >
         <Image
@@ -71,11 +90,20 @@ export default function ImageCarousel({ images, alt, watermark }: ImageCarouselP
           alt={`${alt} — image ${current + 1} of ${images.length}`}
           fill
           sizes="(max-width: 768px) 100vw, 50vw"
-          style={{ objectFit: 'cover' }}
+          onClick={toggleZoom}
+          style={{
+            objectFit: 'cover',
+            cursor: zoomed ? 'zoom-out' : 'zoom-in',
+            transform: zoomed ? 'scale(1.8)' : 'scale(1)',
+            transition: 'transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+            transformOrigin: 'center center',
+            zIndex: zoomed ? 10 : 'auto',
+            borderRadius: zoomed ? '8px' : '0',
+          }}
         />
 
-        {/* Prev / Next arrows — only when more than 1 image */}
-        {images.length > 1 && (
+        {/* Prev / Next arrows — only when more than 1 image and not zoomed */}
+        {images.length > 1 && !zoomed && (
           <>
             <button
               aria-label="Previous image"
@@ -147,7 +175,7 @@ export default function ImageCarousel({ images, alt, watermark }: ImageCarouselP
               role="tab"
               aria-selected={i === current}
               aria-label={`Go to image ${i + 1}`}
-              onClick={() => setCurrent(i)}
+              onClick={() => { setZoomed(false); setCurrent(i) }}
               style={{
                 width: '10px',
                 height: '10px',
