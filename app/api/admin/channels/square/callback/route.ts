@@ -97,6 +97,12 @@ export async function GET(request: Request) {
 
   if (dbError) {
     console.error('[square/callback] db update failed:', dbError.code, dbError.message, dbError.details)
+    const errMsg = encodeURIComponent(`${dbError.code}: ${dbError.message}`)
+    const response = NextResponse.redirect(
+      `${(process.env.NEXT_PUBLIC_APP_URL ?? '').trim()}/admin/channels?error=square_db&detail=${errMsg}`
+    )
+    response.cookies.set('__Host-square_oauth_state', '', { maxAge: 0, path: '/', secure: true })
+    return response
   }
 
   const response = NextResponse.redirect(
