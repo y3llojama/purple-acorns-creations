@@ -919,18 +919,26 @@ export default function ModernHeader({ logoUrl, businessName, squareStoreUrl, na
 
         {NAV_ITEMS.map(item => (
           <div key={item.label}>
-            <button
-              className="mh-mobile-item-btn"
-              onClick={() => setMobileOpenItem(prev => prev === item.label ? null : item.label)}
-              aria-expanded={mobileOpenItem === item.label}
-            >
-              {item.label}
-              {item.mobile || item.columns ? (
+            {item.mobile || item.columns ? (
+              <button
+                className="mh-mobile-item-btn"
+                onClick={() => setMobileOpenItem(prev => prev === item.label ? null : item.label)}
+                aria-expanded={mobileOpenItem === item.label}
+              >
+                {item.label}
                 <span className="mh-mobile-item-toggle" aria-hidden="true">
                   {mobileOpenItem === item.label ? '−' : '+'}
                 </span>
-              ) : null}
-            </button>
+              </button>
+            ) : (
+              <Link
+                href={item.href}
+                className="mh-mobile-item-btn"
+                onClick={() => { setMobileOpen(false); setMobileOpenItem(null) }}
+              >
+                {item.label}
+              </Link>
+            )}
             <div className={`mh-mobile-children${mobileOpenItem === item.label ? ' open' : ''}`}>
               {item.mobile
                 ? item.mobile.map(link => (
