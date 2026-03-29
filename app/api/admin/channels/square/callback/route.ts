@@ -96,7 +96,7 @@ export async function GET(request: Request) {
   })
 
   if (dbError) {
-    console.error('[square/callback] db update failed:', dbError.code)
+    console.error('[square/callback] db update failed:', dbError.code, dbError.message, dbError.details)
   }
 
   const response = NextResponse.redirect(
