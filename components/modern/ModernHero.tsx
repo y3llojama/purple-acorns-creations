@@ -17,7 +17,7 @@ export default function ModernHero({ tagline, subtext, slides, transition, inter
         .modern-hero {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          min-height: 480px;
+          min-height: clamp(480px, 60vh, 800px);
         }
 
         @media (max-width: 768px) {

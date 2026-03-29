@@ -41,7 +41,7 @@ export default function HeroCarousel({ slides, transition, intervalMs }: Props) 
     return (
       <div style={{
         background: 'linear-gradient(135deg, var(--color-accent) 0%, #e8d5a0 50%, var(--color-secondary, var(--color-accent)) 100%)',
-        minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <p style={{ fontStyle: 'italic', color: 'var(--color-primary)', opacity: 0.4, fontSize: '24px', margin: 0 }}>
           Handmade with love
@@ -54,7 +54,7 @@ export default function HeroCarousel({ slides, transition, intervalMs }: Props) 
 
   return (
     <div
-      style={{ position: 'relative', width: '100%', minHeight: '400px', overflow: 'hidden' }}
+      style={{ position: 'relative', width: '100%', height: '100%', minHeight: '100%', overflow: 'hidden' }}
       onMouseEnter={() => { pausedRef.current = true }}
       onMouseLeave={() => { pausedRef.current = false }}
     >
@@ -72,7 +72,7 @@ export default function HeroCarousel({ slides, transition, intervalMs }: Props) 
         return (
           <div
             key={slide.id}
-            style={{ ...style, width: '100%', height: '100%', minHeight: '400px' }}
+            style={{ ...style, width: '100%', height: '100%', minHeight: '100%', background: 'var(--color-accent)' }}
           >
             <Image
               src={slide.url}
@@ -80,7 +80,7 @@ export default function HeroCarousel({ slides, transition, intervalMs }: Props) 
               fill
               sizes="100vw"
               priority={i === 0}
-              style={{ objectFit: 'cover' }}
+              style={{ objectFit: 'cover', objectPosition: 'center' }}
             />
           </div>
         )
