@@ -13,6 +13,9 @@ export async function getSquareClient(): Promise<{ client: SquareClient; locatio
 
   const environment = data.square_environment ?? process.env.SQUARE_ENVIRONMENT
   const isProd = environment === 'production'
+  // DEBUG: remove after production cutover
+  const debugToken = decryptToken(data.square_access_token)
+  console.log('[square/client] env:', environment, 'isProd:', isProd, 'tokenStarts:', debugToken.substring(0, 10))
   const baseUrl = isProd ? 'https://connect.squareup.com' : 'https://connect.squareupsandbox.com'
 
   // Refresh the access token if it expires within the next 24 hours
