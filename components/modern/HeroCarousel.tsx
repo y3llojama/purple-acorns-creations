@@ -63,24 +63,44 @@ export default function HeroCarousel({ slides, transition, intervalMs }: Props) 
         {slides[current]?.alt_text}
       </div>
 
-      {/* Slides */}
+      {/* Slides — first slide uses intrinsic sizing to set panel height; rest are absolute overlays */}
       {slides.map((slide, i) => {
         const isActive = i === current
-        const style: React.CSSProperties = transition === 'crossfade'
-          ? { position: i === 0 ? 'relative' : 'absolute', inset: 0, opacity: isActive ? 1 : 0, ...transitionStyle }
-          : { position: i === 0 ? 'relative' : 'absolute', inset: 0, transform: `translateX(${(i - current) * 100}%)`, ...transitionStyle }
+        const isFirst = i === 0
+        const layerStyle: React.CSSProperties = transition === 'crossfade'
+          ? { opacity: isActive ? 1 : 0, ...transitionStyle }
+          : { transform: `translateX(${(i - current) * 100}%)`, ...transitionStyle }
+
+        if (isFirst) {
+          return (
+            <div
+              key={slide.id}
+              style={{ position: 'relative', width: '100%', background: 'var(--color-accent)', ...layerStyle }}
+            >
+              <Image
+                src={slide.url}
+                alt={slide.alt_text}
+                width={1440}
+                height={960}
+                priority
+                sizes="(max-width: 768px) 100vw, 50vw"
+                style={{ width: '100%', height: 'auto', display: 'block' }}
+              />
+            </div>
+          )
+        }
+
         return (
           <div
             key={slide.id}
-            style={{ ...style, width: '100%', height: '100%', minHeight: '100%', background: 'var(--color-accent)' }}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', background: 'var(--color-accent)', ...layerStyle }}
           >
             <Image
               src={slide.url}
               alt={slide.alt_text}
               fill
-              sizes="100vw"
-              priority={i === 0}
-              style={{ objectFit: 'cover', objectPosition: 'center' }}
+              sizes="(max-width: 768px) 100vw, 50vw"
+              style={{ objectFit: 'contain', objectPosition: 'center' }}
             />
           </div>
         )
