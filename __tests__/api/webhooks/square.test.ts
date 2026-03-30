@@ -134,3 +134,97 @@ describe('POST /api/webhooks/square', () => {
     expect((await POST(req())).status).toBe(429)
   })
 })
+
+// ── handleInventoryUpdate write-target tests ─────────────────────────────────
+
+describe('handleInventoryUpdate — write target', () => {
+  const mockFromHandler = jest.fn()
+  const mockInsert = jest.fn()
+
+  beforeEach(() => {
+    jest.resetAllMocks()
+    mockInsert.mockReturnValue({
+      then: (resolve: (v: unknown) => void) => resolve({ data: null, error: null }),
+    })
+  })
+
+  it('writes stock update to product_variations, not products', async () => {
+    // Dynamic import to get fresh module with our mocks
+    jest.resetModules()
+    jest.mock('@/lib/supabase/server', () => ({
+      createServiceRoleClient: () => ({
+        from: (...args: unknown[]) => mockFromHandler(...args),
+      }),
+    }))
+
+    const { handleInventoryUpdate } = await import('@/lib/channels/square/webhook')
+
+    const updateBuilder = {
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      then: (resolve: (v: unknown) => void) => resolve({ data: null, error: null }),
+    }
+
+    mockFromHandler.mockImplementation((table: string) => {
+      if (table === 'product_variations') return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        maybeSingle: jest.fn().mockResolvedValue({
+          data: { id: 'v1', product_id: 'p1', stock_count: 5 },
+        }),
+        ...updateBuilder,
+      }
+      if (table === 'stock_movements') return { insert: mockInsert }
+      return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis() }
+    })
+
+    await handleInventoryUpdate({
+      data: { object: { inventory_counts: [
+        { catalog_object_id: 'sq-var-1', quantity: '8' },
+      ] } },
+    })
+
+    const fromCalls = mockFromHandler.mock.calls.map((c: unknown[]) => c[0])
+    expect(fromCalls).toContain('product_variations')
+    expect(fromCalls).not.toContain('products')
+  })
+
+  it('creates stock_movements entry on inventory webhook', async () => {
+    jest.resetModules()
+    jest.mock('@/lib/supabase/server', () => ({
+      createServiceRoleClient: () => ({
+        from: (...args: unknown[]) => mockFromHandler(...args),
+      }),
+    }))
+
+    const { handleInventoryUpdate } = await import('@/lib/channels/square/webhook')
+
+    mockFromHandler.mockImplementation((table: string) => {
+      if (table === 'product_variations') return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        maybeSingle: jest.fn().mockResolvedValue({
+          data: { id: 'v1', product_id: 'p1', stock_count: 5 },
+        }),
+        update: jest.fn().mockReturnThis(),
+        then: (resolve: (v: unknown) => void) => resolve({ data: null, error: null }),
+      }
+      if (table === 'stock_movements') return { insert: mockInsert }
+      return { select: jest.fn().mockReturnThis() }
+    })
+
+    await handleInventoryUpdate({
+      data: { object: { inventory_counts: [
+        { catalog_object_id: 'sq-var-1', quantity: '8' },
+      ] } },
+    })
+
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        variation_id: 'v1',
+        reason: 'sync_correction',
+        source: 'square',
+      }),
+    )
+  })
+})
