@@ -1,12 +1,12 @@
 # Square Options & Product Variations
 
 **Date:** 2026-03-30
-**Status:** Approved
+**Status:** Approved (rev 2 — incorporates domain architect, store owner, and CPA reviews)
 **Approach:** Hybrid — relational options, lightweight variations (Approach C)
 
 ## Overview
 
-Add support for product variations (size, color, stone type, pattern, etc.) managed via reusable option sets in the admin UI, with bidirectional sync to Square's Item Options API. Products without variations continue working unchanged.
+Add support for product variations (size, color, stone type, pattern, etc.) managed via reusable option sets in the admin UI, with bidirectional sync to Square's Item Options API. Products without variations continue working unchanged in the UI — but all products use `product_variations` as the single authoritative source for price and stock.
 
 ## Context
 
@@ -22,6 +22,15 @@ Purple Acorns sells handmade artisan goods. Most products are one-of-a-kind (sin
 
 Square tracks inventory at the `CatalogItemVariation` level. Each variation has its own `price_money`, `sku`, and `track_inventory` flag. Up to 250 variations per item.
 
+## Key Architectural Decision: Single Stock Authority
+
+**All products — including simple ones — use `product_variations` as the single authoritative source for price, stock, and Square variation ID.** Simple products have exactly one variation row (their "Regular" variation). This eliminates the dual-stock state problem where `products.stock_count` and `product_variations.stock_count` could diverge during migration.
+
+After migration:
+- `products.price`, `products.stock_count`, `products.stock_reserved`, `products.square_variation_id` become **unused columns** (retained temporarily for rollback safety, then dropped)
+- All code paths (checkout, webhooks, sync, private sales) read/write `product_variations` exclusively
+- One set of RPCs, one source of truth, no dual-write window
+
 ## Data Model
 
 ### New Tables
@@ -32,7 +41,8 @@ Square tracks inventory at the `CatalogItemVariation` level. Each variation has 
 CREATE TABLE item_options (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name            TEXT NOT NULL,                    -- e.g., "Size", "Color"
-  display_name    TEXT,                             -- customer-facing label (defaults to name)
+  display_name    TEXT NOT NULL DEFAULT '',         -- customer-facing label (empty = use name)
+  is_reusable     BOOLEAN NOT NULL DEFAULT true,   -- false = per-product custom option
   square_option_id TEXT,                            -- Square CatalogItemOption ID
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -53,6 +63,8 @@ CREATE TABLE item_option_values (
 );
 ```
 
+**Delete protection on values:** Before deleting an `item_option_values` row, the application must check `variation_option_values` references. Block the delete if count > 0 and show which products/variations use that value. This prevents orphaned variations losing their option-value links.
+
 #### `product_options` — Which options are attached to a product
 
 ```sql
@@ -64,7 +76,7 @@ CREATE TABLE product_options (
 );
 ```
 
-#### `product_variations` — Sellable SKUs with own price/inventory
+#### `product_variations` — Single authoritative source for price/stock (ALL products)
 
 ```sql
 CREATE TABLE product_variations (
@@ -72,6 +84,7 @@ CREATE TABLE product_variations (
   product_id          UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   sku                 TEXT,
   price               NUMERIC(10,2) NOT NULL,
+  cost                NUMERIC(10,2),                 -- manufacturing/wholesale cost (for COGS)
   stock_count         INTEGER NOT NULL DEFAULT 0 CHECK (stock_count >= 0),
   stock_reserved      INTEGER NOT NULL DEFAULT 0 CHECK (stock_reserved >= 0),
   is_default          BOOLEAN NOT NULL DEFAULT false,
@@ -93,17 +106,61 @@ CREATE TABLE variation_option_values (
 );
 ```
 
+**Variation uniqueness:** A trigger on `variation_option_values` INSERT verifies no existing active variation for the same product shares the identical set of option values (using `array_agg` comparison). Prevents duplicate "Large, Blue" rows.
+
+#### `stock_movements` — Inventory audit trail
+
+```sql
+CREATE TABLE stock_movements (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  variation_id    UUID NOT NULL REFERENCES product_variations(id) ON DELETE CASCADE,
+  quantity_change  INTEGER NOT NULL,                 -- positive = stock in, negative = stock out
+  reason          TEXT NOT NULL CHECK (reason IN (
+    'sale', 'return', 'manual_adjustment', 'sync_correction',
+    'shrinkage', 'reserved', 'released', 'initial_stock'
+  )),
+  source          TEXT NOT NULL CHECK (source IN ('website', 'square', 'admin_manual', 'system')),
+  note            TEXT,                              -- optional free-text (e.g., "damaged at Savannah market")
+  admin_user_id   TEXT,                              -- who made the change (for manual adjustments)
+  square_order_id TEXT,                              -- link to Square order if applicable
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+#### `orders` / `order_line_items` — Local sales ledger
+
+```sql
+CREATE TABLE orders (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  square_order_id TEXT,
+  channel         TEXT NOT NULL CHECK (channel IN ('website', 'square_pos')),
+  total_amount    NUMERIC(10,2) NOT NULL,
+  status          TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('completed', 'refunded', 'partial_refund')),
+  customer_email  TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE order_line_items (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id        UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  product_id      UUID NOT NULL REFERENCES products(id),
+  variation_id    UUID NOT NULL REFERENCES product_variations(id),
+  quantity        INTEGER NOT NULL CHECK (quantity > 0),
+  unit_price      NUMERIC(10,2) NOT NULL,            -- price at time of sale (snapshot)
+  unit_cost       NUMERIC(10,2),                     -- cost at time of sale (snapshot, for COGS)
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
 ### Changes to `products` Table
 
 ```sql
--- Generated column — always consistent, zero maintenance
--- Actual implementation: use a trigger since Postgres generated columns
--- cannot reference other tables. Trigger on product_options INSERT/DELETE
--- updates has_options on the parent product.
 ALTER TABLE products ADD COLUMN has_options BOOLEAN NOT NULL DEFAULT false;
 ```
 
-`has_options` is maintained by a trigger on `product_options` INSERT/DELETE rather than application code, preventing drift. Existing `price`, `stock_count`, `stock_reserved`, `square_variation_id` remain for simple products.
+`has_options` is maintained by a trigger on `product_options` INSERT/DELETE. It means "option selectors should be shown in the UI," not "variations exist" (all products have at least one variation).
+
+After migration, `products.price`, `products.stock_count`, `products.stock_reserved`, and `products.square_variation_id` are **retained but unused** — all reads/writes go through `product_variations`. These columns are dropped in a later cleanup migration after validation.
 
 ### Required Indexes
 
@@ -121,9 +178,21 @@ CREATE INDEX idx_vov_variation ON variation_option_values(variation_id);
 CREATE INDEX idx_vov_option_value ON variation_option_values(option_value_id);
 CREATE INDEX idx_iov_option ON item_option_values(option_id);
 
+-- Product options reverse lookup (usage count, delete protection)
+CREATE INDEX idx_po_option_id ON product_options(option_id);
+
 -- Square ID lookups (pull sync)
 CREATE INDEX idx_io_square_id ON item_options(square_option_id) WHERE square_option_id IS NOT NULL;
 CREATE INDEX idx_iov_square_id ON item_option_values(square_option_value_id) WHERE square_option_value_id IS NOT NULL;
+
+-- Stock movements (audit queries)
+CREATE INDEX idx_sm_variation ON stock_movements(variation_id);
+CREATE INDEX idx_sm_created ON stock_movements(created_at);
+
+-- Orders
+CREATE INDEX idx_orders_square ON orders(square_order_id) WHERE square_order_id IS NOT NULL;
+CREATE INDEX idx_oli_variation ON order_line_items(variation_id);
+CREATE INDEX idx_oli_order ON order_line_items(order_id);
 ```
 
 ### Database View for Product Listings
@@ -135,13 +204,19 @@ SELECT
   pv.id          AS default_variation_id,
   pv.price       AS effective_price,
   pv.stock_count AS effective_stock,
-  pv.sku         AS default_sku
+  pv.sku         AS default_sku,
+  EXISTS (
+    SELECT 1 FROM product_variations pv2
+    WHERE pv2.product_id = p.id
+      AND pv2.is_active = true
+      AND pv2.stock_count - pv2.stock_reserved > 0
+  ) AS any_in_stock
 FROM products p
 LEFT JOIN product_variations pv
   ON pv.product_id = p.id AND pv.is_default = true;
 ```
 
-Shop listing APIs query this view to avoid N+1 queries for default variation data.
+Shop listing APIs query this view to avoid N+1 queries. `any_in_stock` powers the product card stock badge without exposing exact counts.
 
 ### New RPC Functions
 
@@ -156,8 +231,25 @@ RETURNS SETOF product_variations AS $$
   SET stock_count = stock_count - qty,
       updated_at = now()
   WHERE id = var_id
+    AND qty > 0
     AND stock_count - stock_reserved >= qty
     AND is_active = true
+  RETURNING *;
+$$ LANGUAGE sql SECURITY DEFINER;
+```
+
+#### `increment_variation_stock`
+
+For checkout rollback:
+
+```sql
+CREATE OR REPLACE FUNCTION increment_variation_stock(var_id UUID, qty INTEGER)
+RETURNS SETOF product_variations AS $$
+  UPDATE product_variations
+  SET stock_count = stock_count + qty,
+      updated_at = now()
+  WHERE id = var_id
+    AND qty > 0
   RETURNING *;
 $$ LANGUAGE sql SECURITY DEFINER;
 ```
@@ -166,16 +258,32 @@ $$ LANGUAGE sql SECURITY DEFINER;
 
 `create_private_sale_variation`, `release_private_sale_variation_stock`, `fulfill_private_sale_variation` — same `FOR UPDATE` locking pattern as existing private sale functions, operating on `product_variations.stock_reserved`.
 
+**Lock order:** Always lock `product_variations` rows. Never touch `products.stock_reserved` after migration. This prevents deadlocks from cross-table lock acquisition.
+
+#### At-least-one-default enforcement
+
+Deferred constraint trigger that fires at transaction end: if any product has `has_options = true` (or any `product_variations` rows) but zero default variations, the trigger auto-promotes the first active variation to default. If no active variations exist, it raises an exception.
+
 ### Related Table Changes
 
 ```sql
--- Sync log: per-variation error tracking + conflict fields
+-- Sync log: per-variation tracking + conflict fields
+-- Unique constraint updated to accommodate variation-level entries
 ALTER TABLE channel_sync_log
   ADD COLUMN variation_id UUID REFERENCES product_variations(id) ON DELETE CASCADE,
   ADD COLUMN last_synced_at TIMESTAMPTZ,
   ADD COLUMN remote_updated_at TIMESTAMPTZ,
   ADD COLUMN conflict_source TEXT CHECK (conflict_source IN ('square', 'website')),
   ADD COLUMN conflict_detail JSONB;
+
+-- Replace existing unique constraint with variation-aware one
+-- Product-level: (product_id, channel) WHERE variation_id IS NULL
+-- Variation-level: (product_id, variation_id, channel) WHERE variation_id IS NOT NULL
+DROP INDEX IF EXISTS channel_sync_log_product_id_channel_key;
+CREATE UNIQUE INDEX idx_csl_product_channel
+  ON channel_sync_log(product_id, channel) WHERE variation_id IS NULL;
+CREATE UNIQUE INDEX idx_csl_variation_channel
+  ON channel_sync_log(product_id, variation_id, channel) WHERE variation_id IS NOT NULL;
 
 -- Saved lists: remember specific variation
 ALTER TABLE saved_list_items
@@ -192,36 +300,37 @@ ALTER TABLE private_sale_items
 
 New section in admin settings (alongside Categories):
 
-- **List view** — all reusable option sets with usage count badge (number of products using each)
+- **List view** — all reusable option sets (`is_reusable = true`) with usage count badge
 - **Create/edit** — name the option, add/reorder/remove values via drag handles
-- **Delete protection** — cannot delete an option set that is in use by products; show which products use it
+- **Delete protection** — cannot delete an option set in use; show which products use it
+- **Value-level delete protection** — cannot remove a value that is used by any variation; show which products/variations use it
 
 ### Product Form Changes
 
 #### When `has_options` is OFF (default)
 
-Current form unchanged — single price, single stock count. Simple products stay simple.
+Current form unchanged — single price, single stock count. Under the hood these read/write the product's sole `product_variations` row, but the UI is identical to today.
 
 #### When `has_options` is toggled ON
 
 - Price and stock fields replaced with inline message: **"Prices and stock are managed per variation below"**
 - **Options panel** appears:
-  - Attach existing option sets from dropdown, OR create a custom inline option
+  - Attach existing option sets from dropdown, OR create a custom inline option (`is_reusable = false`)
   - Reorder attached options (drag handle)
   - Remove an option from this product
 - **Variations table** appears below:
-  - Columns (left to right): Default (radio), Option values, Price, Stock, SKU, Active (toggle)
+  - Columns (left to right): Default (radio), Option values, Price, Cost (optional), Stock, SKU, Active (toggle)
   - **"Add variation"** button — pick option values from dropdowns, set price/stock
     - Option value dropdowns include a **"+ Create new value"** entry at the bottom — prompts: "Add to shared [Color] set, or just this product?"
-  - **"Generate all combinations"** button — fills the table with cross-product, but all generated rows default to `is_active: false` and `stock_count: 0`. Clear label: "Review and activate each variation before saving."
-  - **"Clone"** button per row — duplicates with `stock: 0, active: false` (efficient for large option sets like stone types)
-  - Inline editing for price/stock
+  - **"Generate all combinations"** button — fills the table with cross-product. Generated rows default to `is_active: false`, `stock_count: 0`, and **price pre-populated from the product's current price** (from the existing default variation). Clear label: "Review and activate each variation before saving."
+  - **"Clone"** button per row — duplicates with `stock: 0, active: false`
+  - Inline editing for price/stock/cost
   - Bulk select + delete for cleaning up unwanted generated combinations
   - First variation auto-selected as default; save validation enforces exactly one default
 
 #### Toggling `has_options` back OFF
 
-Prompt: "Which variation's price should become the product price?" with a dropdown of existing variations.
+Prompt: "Which variation's price should become the product price?" with a dropdown of existing variations. The selected variation becomes the sole "Regular" variation; others are deactivated.
 
 #### Unsaved Changes Protection
 
@@ -232,7 +341,36 @@ When `has_options` is on and the variations table has data, disable the modal ba
 - Products with variations show a **"3 variations"** badge in the list view
 - Expanding a product row shows variation-level: option values, stock, price, sync status
 - **"Mark sold"** fast action button on each expanded variation row (sets `stock_count = 0`)
-- **"Quick Stock Update" mode** — toggle at the top of the inventory list that makes stock count fields inline-editable across all visible products/variations, with a single "Save all" button. Primary use case: post-craft-fair stock adjustments.
+- **"Sold X"** action — enter quantity sold, system decrements (writes `stock_movements` entry with reason `manual_adjustment`)
+- **"Quick Stock Update" mode** — toggle at the top of the inventory list:
+  - Desktop: inline-editable stock fields across all visible products/variations
+  - Mobile: simplified view showing only product name, variation name, and stock field
+  - Single "Save all" button submits all changes in one batch
+  - Every change writes a `stock_movements` ledger entry with reason `manual_adjustment`
+- **SKU nudges** — variations without SKUs show a subtle "No SKU" badge. Bulk "Generate SKUs" action creates from pattern (e.g., `KNTH-SM-BLU`)
+
+### Mobile-First Admin Design
+
+The entire admin UI must be fully usable on mobile (phone screens, 375px+). Key patterns:
+
+- **Inventory Manager list:** Single-column card layout on mobile. Each product card shows name, category, stock badge, and expand chevron. Expanded state shows variations as stacked rows (not a horizontal table).
+- **Product Form:** Variations table becomes a card stack on mobile — each card shows the option values as a header, with price/stock/SKU as labeled fields below. Default radio and active toggle are prominent at the top of each card.
+- **Quick Stock Update:** Mobile view is a flat list of product/variation names with a numeric input next to each. No columns for price, SKU, sync status — just name and stock.
+- **Option Sets:** List with swipe-to-delete on values. Add value via bottom sheet, not modal.
+- **Inventory Report:** Card-based layout on mobile. Filters in a collapsible header. CSV export button sticky at bottom.
+- **Conflict Resolution:** Full-width comparison cards — "Square: 3" vs "Website: 5" side by side with large tap targets for resolution buttons.
+- **Touch targets:** 48px minimum throughout (per CLAUDE.md accessibility requirement).
+
+### Concurrent Update Detection
+
+When the admin saves changes to a product or variation, the system detects if the data was modified by another source (Square webhook, another admin session) since it was loaded:
+
+- **Mechanism:** On load, the admin UI captures `updated_at` for each variation. On save, the API checks: `WHERE id = var_id AND updated_at = captured_updated_at`. If the row was modified in between (by a webhook or another session), the UPDATE matches zero rows.
+- **On conflict detected:** The save is rejected with a clear message:
+  - **"This item was updated by Square while you were editing. Square set stock to 3. Your change: 5. Which value should we keep?"**
+  - Or: **"Another admin session updated this item. Reload to see the latest values?"**
+- **Applies to:** All variation fields (price, stock, cost, is_active, is_default) and option value names
+- **Stock movements:** The concurrent update itself is logged as a `stock_movements` entry so the audit trail captures both the webhook/external change and the admin's resolution
 
 ### Conflict Resolution UI
 
@@ -241,18 +379,19 @@ When sync conflicts exist, a warning badge appears on the affected product in th
 - Per-field comparison framed as: **"Square says 3 in stock. Website says 5. Which is correct?"**
 - Shows which side (Square / Website) made the last change
 - Two buttons to resolve: "Use Square value" / "Use Website value"
-- Resolving updates the local value and pushes to Square (or vice versa), clearing the conflict
+- Resolving updates the local value, writes a `stock_movements` entry with reason `sync_correction`, and pushes to Square (or vice versa), clearing the conflict
 
 ## Public Shop UI
 
 ### Product Card (`ProductCard.tsx`)
 
 - Displays the **default variation's price** (via `products_with_default` view)
-- Stock badge: "In Stock" if any variation has `stock_count - stock_reserved > 0`, "Out of Stock" if all depleted
+- Stock badge uses `any_in_stock` from the view: "In Stock" or "Out of Stock"
+- No exact stock counts exposed publicly
 
 ### Product Detail Page (`ProductDetail.tsx`)
 
-- **Option selectors** below product name — one button group per attached option
+- **Option selectors** below product name — one button group per attached option (only shown when `has_options = true`)
 - Default variation pre-selected on load
 - On selection change:
   - Price updates to selected variation's price
@@ -261,13 +400,15 @@ When sync conflicts exist, a warning badge appears on the affected product in th
 - **Unavailable combinations greyed out** with dimmed styling + "Sold out" tooltip
   - A combination is unavailable if: no active variation exists for it, OR the variation's `stock_count - stock_reserved <= 0`
   - Smart cascading: selecting "Small" recalculates which colors are available for "Small"
-- **Add to Cart** sends `product_id` + `variation_id`
-- Products without options: no selectors, behaves exactly as today
+  - Availability matrix returned in a single joined query per product (not per-selection)
+- **Add to Cart** sends `product_id` + `variation_id` (always — even simple products send their sole variation ID)
+- Products without options: no selectors shown, behaves exactly as today visually
+- **Deactivated variation in cart:** If a variation becomes inactive while in a customer's cart, checkout returns a clear error: "Sorry, [Variation Name] is no longer available" (not a generic error)
 
 ### Public API Security
 
 - `GET /api/shop/products/[id]` returns variation data with only: `id`, `price`, `is_default`, `is_active`, `in_stock` (boolean, computed server-side), option value names
-- **Never expose** `stock_count`, `stock_reserved`, or `sku` publicly
+- **Never expose** `stock_count`, `stock_reserved`, `sku`, or `cost` publicly
 - Validate `variation_id` against `UUID_RE` pattern before any DB query
 - Rate limit unchanged (existing rate limiter on the endpoint)
 
@@ -275,23 +416,28 @@ When sync conflicts exist, a warning badge appears on the affected product in th
 
 ### Cart Changes (`CartContext.tsx`)
 
-- Cart items reference both `product_id` and `variation_id` (nullable for simple products)
-- Display: product name + selected option values (e.g., "Kantha Jacket — Small, Blue")
+- Cart items always reference both `product_id` and `variation_id`
+- Display: product name + selected option values (e.g., "Kantha Jacket — Small, Blue"). Simple products show just the product name.
 - Two items with same product but different variations are separate line items
 - Price read from variation, not parent product
 
 ### Checkout Validation
 
 1. Validate `variation_id` is a valid UUID
-2. Verify `variation_id` belongs to the given `product_id` (`product_variations.product_id = product_id`)
-3. Verify `product_variations.is_active = true`
-4. Resolve price from `product_variations.price` server-side — **never trust client-supplied price**
+2. Fetch `product_variations` row — verify it exists, `is_active = true`, and `product_id` matches
+3. Resolve price from `product_variations.price` server-side — **never trust client-supplied price**
+4. Snapshot `unit_cost` from `product_variations.cost` (for COGS tracking in `order_line_items`)
 5. Call `decrement_variation_stock(variation_id, qty)` — atomic, returns empty set if insufficient stock
-6. Rollback loop: if any line item fails, re-increment all previously decremented variations
+6. Write `stock_movements` entry: `reason: 'sale', source: 'website'`
+7. Push inventory to Square using `product_variations.square_variation_id` (not `products.square_variation_id`)
+8. Write `orders` + `order_line_items` records locally (with `channel: 'website'`)
+9. Rollback on failure: call `increment_variation_stock` for all previously decremented variations, write compensating `stock_movements` entries
 
 ### Private Sales
 
-`stock_reserved` on `product_variations` works identically to `products.stock_reserved`. Variation-aware RPCs handle the reserve/release/fulfill cycle.
+`stock_reserved` on `product_variations` is the sole authority. Variation-aware RPCs handle the reserve/release/fulfill cycle. Reserved-but-not-sold inventory remains the business's inventory (not revenue, not liability).
+
+**Reservation expiration:** `private_sale_items` should track `reserved_at`. A scheduled cleanup job alerts the admin (or auto-releases) reservations older than a configurable threshold (default: 7 days).
 
 ### Saved Lists
 
@@ -303,7 +449,7 @@ When sync conflicts exist, a warning badge appears on the affected product in th
 
 #### Simple products (no options)
 
-Same as today — one `CatalogItem` with one "Regular" `CatalogItemVariation`.
+One `CatalogItem` with one `CatalogItemVariation` ("Regular"). **No delete-then-recreate for products that have Square order history.** Use version-based upsert (pass existing `version` field from Square) for idempotent updates.
 
 #### Products with options
 
@@ -311,9 +457,10 @@ Same as today — one `CatalogItem` with one "Regular" `CatalogItemVariation`.
 2. For new options: upsert `CatalogItemOption` with deterministic idempotency key (`option-push-{optionId}`)
 3. Upsert `CatalogItemOptionValue` objects for any values missing `square_option_value_id`
 4. Upsert `CatalogItem` with `item_options` referencing the option IDs
-5. Upsert each `CatalogItemVariation` with `item_option_values`, price, SKU
-6. Set inventory per variation via `inventory.batchCreateChanges()`
-7. Store returned Square IDs back in our tables
+5. **Never delete-then-recreate a CatalogItem that has options** — destroys Square order history. Use upsert with version field.
+6. Upsert each `CatalogItemVariation` with `item_option_values`, price, SKU
+7. Set inventory per variation via `inventory.batchCreateChanges()`
+8. Store returned Square IDs back in our tables
 
 #### Sync locking
 
@@ -323,46 +470,50 @@ Before starting a push for a product, acquire an advisory lock:
 SELECT pg_try_advisory_xact_lock(hashtext(product_id::text))
 ```
 
-If the lock is held (concurrent sync in progress), skip this product and log a warning. Same lock used for pull. Prevents concurrent push/pull from corrupting state during the multi-step API call window.
+If the lock is held (concurrent sync in progress), skip this product and log a warning. Same lock used for pull.
 
 ### Pull (Square -> Website)
 
 1. Fetch all `ITEM`, `ITEM_OPTION`, and `ITEM_VARIATION` catalog objects (iterate all pages)
 2. Match options by `square_option_id` — upsert into `item_options` / `item_option_values`
-3. **Sanitize all string fields** from Square (`sanitizeText()` on option names, value names, variation names, SKUs) before upserting
-4. For each item with options:
-   - Set `has_options = true` via trigger (inserting `product_options` rows triggers it)
+3. **Sanitize all string fields** from Square (`sanitizeText()`) before upserting
+4. For each item:
+   - If it has options: set `has_options = true` via trigger (inserting `product_options` rows)
    - Upsert `product_variations` with price, SKU, Square IDs
    - Upsert `variation_option_values` links
    - Iterate **all** variations (not just `[0]` as current code does)
-5. Pull inventory counts per variation
+5. Pull inventory counts per variation — write `stock_movements` entries with reason `sync_correction` for any changes
 6. If no default variation is set, mark the first active one as default
 
 ### Conflict Detection
 
-Two-condition check (not raw `updated_at` comparison):
+**Catalog-level conflicts** (name, description, options) use Square's `CatalogItem.updated_at`:
+1. Store `remote_updated_at` (Square's item-level `updated_at`) in the product-level `channel_sync_log` row
+2. A conflict exists when both sides changed since last sync
 
-1. Store `last_synced_at` and `remote_updated_at` (Square's `updated_at`) per sync log entry
-2. A conflict exists when BOTH conditions are true:
-   - Square's `updated_at` > `remote_updated_at` (Square changed since last sync)
-   - Supabase's `updated_at` > `last_synced_at` (website changed since last sync)
-3. On conflict: write to `channel_sync_log` with:
-   - `status: 'conflict'`
-   - `conflict_source`: whichever side has the more recent `updated_at`
-   - `conflict_detail`: JSON of field-level diffs (e.g., `{ "price": { "website": 1200, "square": 1500 } }`)
-4. Do NOT auto-resolve — surface in admin UI for manual resolution
+**Inventory-level conflicts** (stock counts) use Square's inventory count timestamps (`calculated_at`):
+1. Compare per-variation, using the inventory counts API's timestamps
+2. This avoids false positives where editing one variation flags all siblings
+
+On conflict:
+- Write to `channel_sync_log` with `status: 'conflict'`, `conflict_source` (most recent side), `conflict_detail` (field-level diffs)
+- Do NOT auto-resolve — surface in admin UI
 
 ### Webhook Handler Update
 
-`lib/channels/square/webhook.ts` must become variation-aware:
+`lib/channels/square/webhook.ts` operates on `product_variations` exclusively:
 
 ```
 1. Receive inventory count update with catalog_object_id
-2. Try: UPDATE product_variations SET stock_count = qty WHERE square_variation_id = catalog_object_id
-3. If no rows matched: fall back to UPDATE products SET stock_count = qty WHERE square_variation_id = catalog_object_id
+2. UPDATE product_variations SET stock_count = qty WHERE square_variation_id = catalog_object_id
+3. Write stock_movements entry: reason 'sale', source 'square'
 ```
 
-This ensures both new variation products and legacy simple products receive webhook inventory updates.
+No fallback to `products` table needed — all products have variation rows after migration.
+
+### Offline/Delayed Webhooks
+
+Square retries webhooks for up to 72 hours on failure. If the website is unreachable during a market (no signal), Square queues the events. When connectivity returns, webhooks arrive and stock updates. As a safety net, the manual "Sync from Square" button in the inventory manager performs a full inventory pull that catches any missed webhooks.
 
 ## Inventory Report
 
@@ -370,74 +521,114 @@ New report in the admin reports section.
 
 ### Content
 
-- **Scope:** All products with `has_options = true`
-- **Grouped by product** with variation rows nested underneath
+- **Scope: ALL products** — both simple and variation products, unified in one view
+- Simple products appear as a single row; variation products are grouped with nested variation rows
 - **View toggle:** "Items only" (no prices) vs "Items + Prices"
-- **Columns (Items + Prices mode):** Product name, Option values, SKU, Price, Stock, Reserved, Available, Sync status
+- **Columns (Items + Prices mode):** Product name, Option values, SKU, Price, Cost, Stock, Reserved, Available, Sync status
 - **Columns (Items only mode):** Product name, Option values, Stock, Reserved, Available, Sync status
 - **Summary row per product:** Total stock, number of out-of-stock variations
+- **Grand total row** at the bottom: total items across all products
 - **Filters:** Category, stock status (All / Low stock / Out of stock), sync status (All / Synced / Conflict)
 - **Sync status column:** Conditionally hidden when `squareSyncEnabled` is false
 - **Low stock highlighting:** Red (0 available), Amber (<=3 available)
-- **CSV export**
+- **CSV export — two formats:**
+  1. **Inventory Status** — operational view (current design)
+  2. **Accounting Export** — QuickBooks/Xero compatible: Item Name, SKU, Description, Sales Price, Cost, Quantity On Hand, with sensible account name defaults
+
+### Additional Financial Reports (future, enabled by new data model)
+
+The `orders`, `order_line_items`, `stock_movements`, and `cost` fields enable these reports without schema changes:
+- **Inventory Valuation:** On-hand inventory at cost (for Schedule C / Form 1125-A)
+- **COGS Report:** Beginning inventory + purchases - ending inventory
+- **Sales by Variation:** Revenue, units sold, average price per variation per period
+- **Channel Sales Summary:** Revenue by channel (website vs Square POS) per period
+- **Sell-Through Rate:** Units sold / (sold + on hand) per variation
 
 ## Migration Strategy
 
-Two-phase migration to ensure zero downtime:
+### Single-phase migration with reconciliation script
 
-### Phase 1: Create tables, backfill, deploy
-
-**Migration A:**
-1. Create all new tables (`item_options`, `item_option_values`, `product_options`, `product_variations`, `variation_option_values`)
-2. Create indexes, constraints, view, RPCs
-3. Add trigger on `product_options` to maintain `products.has_options`
+**Migration:**
+1. Create all new tables (`item_options`, `item_option_values`, `product_options`, `product_variations`, `variation_option_values`, `stock_movements`, `orders`, `order_line_items`)
+2. Create indexes, constraints, triggers, view, RPCs
+3. Add `has_options` column + trigger to `products`
 4. Alter `channel_sync_log`, `saved_list_items`, `private_sale_items`
-5. **Backfill:** For every existing product with `square_variation_id`, insert one `product_variations` row copying `price`, `stock_count`, `stock_reserved`, `square_variation_id` with `is_default = true`
-6. **Do NOT drop** `products.square_variation_id`, `products.price`, `products.stock_count`, `products.stock_reserved`
+5. **Backfill ALL products** (not just those with `square_variation_id`):
+   - For each product, insert one `product_variations` row copying `price`, `stock_count`, `stock_reserved`, `square_variation_id` with `is_default = true`, `is_active = true`
+   - Products without `square_variation_id` get a variation row with `square_variation_id = NULL`
+   - Write a `stock_movements` entry per product: `reason: 'initial_stock', source: 'system'`
+6. Retain `products.price/stock_count/stock_reserved/square_variation_id` as unused columns
 
-**Deploy:** Update all code paths to prefer `product_variations` with fallback to `products` columns:
-- Checkout: branch on `variation_id` presence
-- Webhook handler: try `product_variations` first, fall back to `products`
-- Shop API: use `products_with_default` view
-- Sync: iterate all variations on pull
+**Reconciliation script** (`scripts/reconcile-variation-stock.sh`):
+- Run immediately before code deploy
+- Re-reads current `products.stock_count` for each product and updates the backfilled `product_variations` row if it diverged during the migration window
+- Logs any discrepancies found
 
-### Phase 2: Cleanup (later, after validation)
+**Deploy:** All code paths switch to `product_variations` exclusively. No fallbacks to `products` columns.
 
-**Migration B:**
-- For simple products (`has_options = false`): `products.price`/`stock_count`/`stock_reserved` remain as the canonical source
-- For variation products: these columns become unused (application code no longer reads them)
-- Optionally drop `products.square_variation_id` for variation products or leave it as a denormalized reference
+**Cleanup migration (later):**
+- Entry criteria (all must pass before running):
+  ```sql
+  -- No stock divergence between old and new columns
+  SELECT COUNT(*) FROM products p
+  JOIN product_variations pv ON pv.product_id = p.id AND pv.is_default = true
+  WHERE p.stock_count != pv.stock_count;
+  -- Must return 0
+
+  -- All products have at least one variation
+  SELECT COUNT(*) FROM products p
+  WHERE NOT EXISTS (SELECT 1 FROM product_variations pv WHERE pv.product_id = p.id);
+  -- Must return 0
+
+  -- At least one full sync cycle completed after deploy
+  -- (verify via channel_sync_log timestamps)
+  ```
+- Drop `products.price`, `products.stock_count`, `products.stock_reserved`, `products.square_variation_id`
+- Drop old `decrement_stock` / `increment_stock` RPCs
+
+**Rollback plan for migration:**
+- DOWN migration script drops all new tables, columns, triggers, and view
+- Safety assertion at top: `IF (SELECT COUNT(*) FROM order_line_items) > 0 THEN RAISE EXCEPTION 'Cannot rollback after orders have been recorded'`
+- Must be executed within the deploy window before any variation-specific data is written
 
 ## Multi-Channel Considerations
 
-### Pinterest
+### Channel Adapter Interface
 
-The `ChannelAdapter` interface gains an optional `pushVariation` method:
+Use a capability-check pattern instead of optional methods:
 
 ```typescript
 export interface ChannelAdapter {
   push(product: Product): Promise<SyncResult>
-  pushVariation?(product: Product, variation: ProductVariation): Promise<SyncResult>
   fullSync(products: Product[]): Promise<SyncResult[]>
 }
-```
 
-Pinterest's catalog supports item groups with `item_group_id`. Variation products push as grouped items with per-variation price and availability.
+export interface VariationAwareAdapter extends ChannelAdapter {
+  pushVariation(product: Product, variation: ProductVariation): Promise<SyncResult>
+}
+
+// Usage: if ('pushVariation' in adapter) { ... }
+```
 
 `SyncResult` gains `variationId?: string` for per-variation tracking.
 
+### Pinterest
+
+Pinterest's catalog supports item groups with `item_group_id`. Variation products push as grouped items with per-variation price and availability. Rate limiting must be respected (Pinterest allows ~10 req/s).
+
 ### Etsy (future)
 
-Etsy uses per-listing variations (not shared options). The `item_options` reusability is a Square/DB concept — Etsy sync will denormalize at push time. The schema supports this without changes.
+Etsy uses per-listing variations (not shared options). The `is_reusable` flag on `item_options` helps the Etsy adapter distinguish shared sets from per-product custom options. Etsy sync denormalizes at push time. The schema supports this without changes.
 
 ## Input Validation & Security
 
 - **Admin endpoints:** All new CRUD routes call `requireAdminSession()`
 - **Sanitization:** `sanitizeText()` on all string fields (option names, value names, display names, SKUs) before insert/update — both from admin input and Square pull
-- **Checkout:** Price resolved server-side from `product_variations.price`; `variation_id` validated against `UUID_RE` and verified to belong to the `product_id`
-- **Public API:** Strip `stock_count`, `stock_reserved`, `sku` from responses; return computed `in_stock: boolean`
-- **Rate limiting:** Existing rate limiter on `/api/shop/products/[id]` covers variation data (same endpoint, joined query)
+- **Checkout:** Price resolved server-side from `product_variations.price`; `variation_id` validated against `UUID_RE` and verified to belong to the `product_id`; `variation.is_active` must be `true`
+- **Public API:** Strip `stock_count`, `stock_reserved`, `sku`, and `cost` from responses; return computed `in_stock: boolean`
+- **Rate limiting:** Existing rate limiter on `/api/shop/products/[id]` covers variation data
 - **RLS:** New tables follow existing pattern — all writes via service role client, no public write access
+- **Stock movements:** Every stock change writes a ledger entry — provides full audit trail
 
 ## Out of Scope (Future)
 
@@ -446,3 +637,5 @@ Etsy uses per-listing variations (not shared options). The `item_options` reusab
 - Configurable low-stock threshold (currently hardcoded at 3)
 - CSV import for bulk stock updates
 - Etsy channel adapter
+- Batch "add new value to all products using option X" workflow
+- Financial reports UI (data model supports them; UI deferred)
