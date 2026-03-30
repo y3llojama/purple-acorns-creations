@@ -110,6 +110,8 @@ CREATE TABLE variation_option_values (
 
 #### `image_embeddings` — CLIP vectors for visual search (pgvector)
 
+**Prerequisite:** Enable the `vector` extension via Supabase Dashboard (Database > Extensions) before running this migration. `CREATE EXTENSION` alone will fail with a permissions error on hosted Supabase.
+
 ```sql
 CREATE EXTENSION IF NOT EXISTS vector;
 
@@ -119,15 +121,19 @@ CREATE TABLE image_embeddings (
   variation_id    UUID REFERENCES product_variations(id) ON DELETE CASCADE,  -- null = product-level image
   image_url       TEXT NOT NULL,                     -- the image this embedding represents
   embedding       vector(512) NOT NULL,              -- CLIP ViT-B/32 produces 512-dim vectors
-  model_version   TEXT NOT NULL DEFAULT 'clip-vit-base-patch32',  -- track which model generated this
+  model_version   TEXT NOT NULL DEFAULT 'clip-vit-base-patch32',
+  status          TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'indexed', 'failed')),
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_ie_product ON image_embeddings(product_id);
 CREATE INDEX idx_ie_variation ON image_embeddings(variation_id) WHERE variation_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_ie_unique_image ON image_embeddings(product_id, image_url);
 ```
 
-At this catalog scale (hundreds of images), cosine similarity via sequential scan is fast enough. Add an HNSW index only if the catalog grows past ~10K images:
+The unique index on `(product_id, image_url)` prevents duplicate embeddings from concurrent inserts (backfill + async upload race). Both paths use `INSERT ... ON CONFLICT DO NOTHING`.
+
+At this catalog scale (hundreds of images), cosine similarity via sequential scan is fast enough (~0.5ms at 500 rows, ~5ms at 2K). Add an HNSW index when `image_embeddings` exceeds 5K rows (monitor via periodic count check):
 
 ```sql
 -- Future: CREATE INDEX idx_ie_embedding ON image_embeddings USING hnsw (embedding vector_cosine_ops);
@@ -456,99 +462,132 @@ Camera-based product lookup for the admin. Photograph an item, find its matching
 
 ### Image Embedding Pipeline
 
-#### On Upload (real-time)
+#### On Upload (queue-based)
+
+Vercel serverless functions terminate after the response — fire-and-forget async calls are unreliable. Instead, use a **queue table** pattern:
 
 When an admin uploads or changes a product/variation image:
 
-1. After image is stored in Supabase Storage, fire an async embedding job
-2. Call Hugging Face Inference API (`clip-vit-base-patch32` model) with the image
-3. Store the 512-dim vector in `image_embeddings` table
-4. If replacing an existing image, delete the old embedding row and insert new
+1. Image is stored in Supabase Storage (existing flow)
+2. Insert a row into `image_embeddings` with `status: 'pending'` and `embedding: NULL` (use a zero vector placeholder for the NOT NULL constraint, or make embedding nullable with a CHECK that `status = 'indexed' implies embedding IS NOT NULL`)
+3. Return the upload response immediately — UI shows "Indexing for search..." indicator on the thumbnail
+4. A **separate API endpoint** `/api/admin/inventory/process-embeddings` (called via Vercel Cron or triggered by the upload handler with a non-blocking fetch):
+   - Queries all `status = 'pending'` rows
+   - For each: downloads the image, calls HF API, validates response is 512-dim (`assert(embedding.length === 512)`), normalizes, updates row to `status: 'indexed'` with the embedding
+   - On HF failure (timeout, 503, rate limit): set `status: 'failed'`, log error. Retry on next cron run.
+5. UI polls the embedding status — transitions thumbnail indicator to search icon (indexed) or warning icon (failed)
+6. If replacing an existing image, delete the old embedding row and insert new pending row
 
-Embedding generation is async — it does not block the image upload response. A brief "Indexing for search..." indicator appears on the image thumbnail, replaced by a small search icon when complete.
+**HF response validation:** The handler must extract the pooled embedding from the HF `feature-extraction` response and assert `length === 512`. If the response shape is unexpected (e.g., token-level `[1, 50, 768]`), reject it and set `status: 'failed'` rather than inserting garbage.
+
+**HF cold starts:** Free tier models may take 10-30s to load after idle. The processing endpoint handles this gracefully — it's not blocking the user's upload. Failed attempts due to cold-start timeouts are retried on the next cron cycle.
+
+**Graceful degradation:** When HF API is unavailable, Snap to Find shows: "Visual search is temporarily unavailable. Search by name instead." with the standard text search input pre-focused. Error is returned with machine-readable code `embedding_unavailable`.
 
 #### On Query (Snap to Find)
 
 1. Admin snaps/uploads a photo
-2. Photo is sent to `/api/admin/inventory/visual-search` (POST, multipart)
-3. Server generates embedding via HF Inference API (same model)
-4. Query pgvector:
+2. Photo is sent to `POST /api/admin/inventory/visual-search` (multipart)
+3. **Server-side validation before processing:**
+   - `requireAdminSession()` — admin auth required
+   - Check `Content-Length` header — reject if > 5MB (HTTP 413)
+   - Read first 12 bytes — verify magic bytes match JPEG (`FF D8 FF`), PNG (`89 50 4E 47`), or WebP (`52 49 46 46...57 45 42 50`). Reject SVG and all other formats.
+   - If image came as a URL (not raw bytes), validate it matches `https://*.supabase.co/storage/*` — prevents SSRF
+4. **Rate limit:** 5 requests per 60-second window per authenticated admin user
+5. Generate embedding via HF Inference API (same model). Validate `length === 512`.
+6. Query pgvector:
    ```sql
-   SELECT ie.*, p.name AS product_name, pv.id AS variation_id,
+   SELECT ie.product_id, ie.image_url, ie.variation_id,
+          p.name AS product_name, p.images,
+          pv.price, pv.is_active AS variation_active,
           1 - (ie.embedding <=> $1) AS similarity
    FROM image_embeddings ie
    JOIN products p ON p.id = ie.product_id
    LEFT JOIN product_variations pv ON pv.id = ie.variation_id
    WHERE p.is_active = true
+     AND (pv.is_active = true OR pv.id IS NULL)
+     AND ie.status = 'indexed'
+     AND ie.model_version = $2
    ORDER BY ie.embedding <=> $1
    LIMIT 10;
    ```
-5. Return ranked results with similarity scores
+   Note: explicit column list — never `pv.*`. Does not return `cost`, `stock_count`, `stock_reserved`, or `sku` in the visual search response. Admin navigates to the full product form for sensitive details.
+7. Return ranked results with similarity scores
 
 #### Backfill Script (containerized)
 
 `scripts/backfill-embeddings/` — a standalone Docker container that:
 
-1. Queries all product/variation images that have no corresponding `image_embeddings` row
+1. Queries all product/variation images that have no `image_embeddings` row with `status = 'indexed'`
 2. Downloads each image from Supabase Storage
 3. Generates CLIP embedding via HF Inference API
-4. Inserts into `image_embeddings` table
-5. Respects HF rate limits (throttles to ~10 req/s)
-6. Logs progress and errors
-7. Idempotent — safe to re-run; skips images that already have embeddings
+4. Validates response shape (`length === 512`)
+5. Inserts into `image_embeddings` using `INSERT ... ON CONFLICT (product_id, image_url) DO UPDATE SET embedding = $vec, status = 'indexed'`
+6. Respects HF rate limits — **exponential backoff on 429 responses**, respects `Retry-After` header. Does NOT use a naive fixed-rate sleep.
+7. Logs progress, errors, and quota exhaustion explicitly
+8. Idempotent — safe to re-run
+9. **Zombie cleanup pass:** identifies embeddings whose `image_url` no longer appears in any product's `images[]` array or variation's `image_url`. Deletes orphaned rows and logs them.
+10. Accepts `--model-version` parameter. Only deletes/replaces embeddings matching the old version during upgrades, never drops all rows.
 
 **Container design:**
 ```
 scripts/backfill-embeddings/
 ├── Dockerfile
-├── backfill.py          # Python script (requests + psycopg2)
-├── requirements.txt     # requests, psycopg2-binary
-└── README.md            # Usage: docker build + docker run with env vars
+├── backfill.py          # Python script (requests + supabase-py)
+├── requirements.txt     # requests, supabase
+├── .env.example         # Template with placeholder values
+└── README.md            # Usage, security warnings
 ```
 
+**Uses Supabase REST API (not psycopg2)** — avoids direct Postgres connection issues with Supabase's connection pooling. The `supabase-py` client uses the REST API with the service key, which works on all Supabase plans without firewall concerns.
+
 **Environment variables:**
-- `SUPABASE_URL` — Supabase project URL
-- `SUPABASE_SERVICE_KEY` — service role key (for DB + Storage access)
+- `SUPABASE_URL` — Supabase project URL (REST API)
+- `SUPABASE_SERVICE_KEY` — service role key
 - `HF_API_TOKEN` — Hugging Face Inference API token (free tier)
 - `BATCH_SIZE` — images per batch (default: 50)
 - `DRY_RUN` — if set, log what would be processed without writing
+- `MODEL_VERSION` — CLIP model version (default: `clip-vit-base-patch32`)
 
-**Offloading:** The container is self-contained with no dependency on the Next.js app. Run it on any machine with Docker and network access to Supabase and HF:
+**Security requirements (documented in README):**
+- **NEVER** bake `SUPABASE_SERVICE_KEY` or `HF_API_TOKEN` into the Docker image or Dockerfile
+- **NEVER** commit `.env` to git — `scripts/backfill-embeddings/.env` is in `.gitignore`
+- Pass secrets via runtime env vars or Docker secrets, not build args
+- Consider creating a narrow-scope Postgres role with access limited to `SELECT` on `products`/`product_variations` and `INSERT`/`UPDATE`/`DELETE` on `image_embeddings` only
+
+**Offloading:** Run on any machine with Docker and network access to Supabase and HF:
 
 ```bash
 docker build -t pac-backfill scripts/backfill-embeddings/
-docker run --rm \
-  -e SUPABASE_URL=... \
-  -e SUPABASE_SERVICE_KEY=... \
-  -e HF_API_TOKEN=... \
-  pac-backfill
+docker run --rm --env-file .env pac-backfill
 ```
 
-#### Smart Embedding Strategy: LAN Detection
+#### Smart Embedding Strategy: Batch Detection
 
-When managing inventory from a local network (e.g., at home after a craft fair, bulk-uploading photos), hitting the HF API per-image from Vercel is wasteful. The system detects this and recommends the more efficient path:
+When managing inventory, the system detects unindexed images and recommends the most efficient path:
 
-**Detection:** The admin UI calls a lightweight `/api/admin/health/network` endpoint that returns whether unindexed images exist. The admin settings page shows:
+**Detection:** The admin UI calls `/api/admin/health/embedding-status` — returns **only** the integer count of unindexed images (status = 'pending' or 'failed'). **This endpoint never returns any environment variable values.**
 
-- **"X images pending search indexing"** — count of images without embeddings
-- If count > 5: **"Run the backfill container for faster indexing"** with a copy-pasteable `docker run` command pre-filled with the correct env vars (minus secrets, which the admin fills in)
-- If count <= 5: on-upload async embedding handles it transparently
+The admin settings page shows:
+
+- **"X images pending search indexing"** — count of pending/failed embeddings
+- If count > 5: **"Run the backfill container for faster indexing"** with a `docker run` command template using **placeholder text for all secrets** (`<your-service-key-here>`, `<your-hf-token-here>`). Only `SUPABASE_URL` is pre-populated (it's publicly visible in Supabase-hosted projects).
+- If count <= 5: queue-based processing handles it via cron
 
 **Behavior by context:**
 | Scenario | Embedding strategy |
 |---|---|
-| Admin uploads 1-5 images (normal editing) | Async on-upload via HF API from serverless |
-| Admin uploads 6+ images in a session (bulk after fair) | Banner appears: "You've uploaded several images. Run the backfill container for faster search indexing." |
-| Backfill container running | Processes all unindexed images in batch, respects rate limits, logs progress |
-| Image uploaded while backfill is running | Backfill picks it up — idempotent, no conflict |
-
-This avoids wasting HF free-tier quota on large batch uploads and leverages the containerized approach when it makes sense.
+| Admin uploads 1-5 images (normal editing) | Queue table + cron processing |
+| Admin uploads 6+ images in a session (bulk after fair) | Banner: "Run the backfill container for faster search indexing." |
+| Backfill container running | Processes all pending/failed images in batch |
+| Concurrent upload + backfill | `ON CONFLICT DO NOTHING` / `DO UPDATE` prevents duplicates |
 
 #### Embedding Maintenance
 
 - **Image deleted:** `ON DELETE CASCADE` from `product_variations` / `products` handles cleanup automatically
-- **Image replaced:** Upload handler deletes old embedding, generates new one
-- **Model upgrade:** Change `model_version`, re-run backfill container. Old embeddings with different `model_version` are deleted before inserting new ones. Query-time embedding must use the same model version as stored embeddings.
+- **Image replaced:** Upload handler deletes old embedding row, inserts new pending row
+- **Zombie detection:** Backfill container's cleanup pass removes embeddings for images no longer referenced by any product
+- **Model upgrade:** Run backfill with `--model-version new-version`. Old-version embeddings are replaced. During transition, visual search query filters on current `model_version` — returns fewer results until backfill completes (graceful degradation, not garbage results).
 
 ### Conflict Resolution UI
 
