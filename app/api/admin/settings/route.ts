@@ -85,6 +85,18 @@ export async function POST(request: Request) {
     const env = String(body.square_environment ?? '')
     update.square_environment = ['sandbox', 'production'].includes(env) ? env : 'sandbox'
   }
+  if (body.square_log_level !== undefined) {
+    const val = String(body.square_log_level ?? '')
+    update.square_log_level = ['none', 'basic', 'full'].includes(val) ? val : 'none'
+  }
+  if (body.square_log_duration_mins !== undefined) {
+    const mins = Math.max(0, Math.min(1500, parseInt(String(body.square_log_duration_mins), 10) || 0))
+    if (mins > 0 && update.square_log_level && update.square_log_level !== 'none') {
+      update.square_log_expires_at = new Date(Date.now() + mins * 60 * 1000).toISOString()
+    } else if (update.square_log_level === 'none') {
+      update.square_log_expires_at = null
+    }
+  }
   if (body.ai_provider !== undefined) {
     const val = String(body.ai_provider ?? '')
     update.ai_provider = ['claude', 'openai', 'groq'].includes(val) ? val : null
