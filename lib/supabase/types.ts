@@ -145,6 +145,61 @@ export interface Product {
   updated_at: string
 }
 
+export interface ProductVariation {
+  id: string
+  product_id: string
+  sku: string | null
+  price: number
+  cost: number | null
+  stock_count: number
+  stock_reserved: number
+  is_default: boolean
+  is_active: boolean
+  image_url: string | null
+  square_variation_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ItemOption {
+  id: string
+  name: string
+  display_name: string
+  is_reusable: boolean
+  square_option_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ItemOptionValue {
+  id: string
+  option_id: string
+  name: string
+  sort_order: number
+  square_option_value_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface StockMovement {
+  id: string
+  variation_id: string
+  quantity_change: number
+  reason: 'sale' | 'return' | 'manual_adjustment' | 'sync_correction' | 'shrinkage' | 'reserved' | 'released' | 'initial_stock'
+  source: 'website' | 'square' | 'admin_manual' | 'system'
+  reference_id: string | null
+  note: string | null
+  created_at: string
+}
+
+export interface ProductWithDefault extends Product {
+  default_variation_id: string | null
+  effective_price: number
+  effective_stock: number
+  default_sku: string | null
+  any_in_stock: boolean
+}
+
 export interface ShippingAddress {
   name: string
   address1: string
