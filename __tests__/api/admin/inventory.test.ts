@@ -35,3 +35,37 @@ describe('POST /api/admin/inventory', () => {
     expect((await POST(req)).status).toBe(201)
   })
 })
+
+describe('POST /api/admin/inventory — variation creation (R16/R17)', () => {
+  it('creates a default product_variations row when creating a product', async () => {
+    const fromCalls: string[] = []
+    const { createServiceRoleClient } = require('@/lib/supabase/server')
+    createServiceRoleClient.mockReturnValueOnce({
+      from: jest.fn((table: string) => {
+        fromCalls.push(table)
+        return {
+          select: jest.fn().mockReturnThis(),
+          insert: jest.fn().mockReturnThis(),
+          update: jest.fn().mockReturnThis(),
+          delete: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          order: jest.fn().mockReturnThis(),
+          ilike: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({
+            data: { id: 'p-new', name: 'New Ring', price: 50 },
+            error: null,
+          }),
+        }
+      }),
+    })
+
+    const { POST } = await import('@/app/api/admin/inventory/route')
+    const req = new Request('http://localhost/api/admin/inventory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'New Ring', price: 50, stock_count: 5 }),
+    })
+    await POST(req)
+    expect(fromCalls).toContain('product_variations')
+  })
+})
