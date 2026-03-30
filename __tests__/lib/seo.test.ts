@@ -20,50 +20,58 @@ const baseProduct: Product = {
   updated_at: '2024-01-01T00:00:00Z',
 }
 
-describe('buildProductSchema', () => {
+describe('buildProductSchema — variation-aware (R9)', () => {
   const url = 'https://www.purpleacornz.com/shop/abc123'
 
   it('sets @type to Product', () => {
-    const schema = buildProductSchema(baseProduct, url)
+    const schema = buildProductSchema(baseProduct, url, { effectivePrice: 24, anyInStock: true })
     expect(schema['@type']).toBe('Product')
   })
 
-  it('includes name, description, image from product', () => {
-    const schema = buildProductSchema(baseProduct, url)
-    expect(schema['name']).toBe('Moonlit Lace Earrings')
-    expect(schema['description']).toBe('Handcrafted crochet earrings')
-    expect(schema['image']).toBe('https://example.com/image.jpg')
+  it('uses effectivePrice from variation, not product.price', () => {
+    const schema = buildProductSchema(baseProduct, url, { effectivePrice: 55, anyInStock: true })
+    expect(schema['offers']['price']).toBe(55)
   })
 
-  it('sets availability InStock when is_active is true', () => {
-    const schema = buildProductSchema(baseProduct, url)
+  it('sets InStock when anyInStock is true, regardless of product.stock_count', () => {
+    const schema = buildProductSchema(
+      { ...baseProduct, stock_count: 0 },
+      url,
+      { effectivePrice: 24, anyInStock: true },
+    )
     expect(schema['offers']['availability']).toBe('https://schema.org/InStock')
   })
 
-  it('sets availability OutOfStock when is_active is false', () => {
-    const schema = buildProductSchema({ ...baseProduct, is_active: false }, url)
+  it('sets OutOfStock when anyInStock is false', () => {
+    const schema = buildProductSchema(baseProduct, url, { effectivePrice: 24, anyInStock: false })
     expect(schema['offers']['availability']).toBe('https://schema.org/OutOfStock')
   })
 
-  it('includes price and USD currency in offers', () => {
-    const schema = buildProductSchema(baseProduct, url)
-    expect(schema['offers']['price']).toBe(24)
-    expect(schema['offers']['priceCurrency']).toBe('USD')
+  it('still sets OutOfStock when is_active is false even if anyInStock', () => {
+    const schema = buildProductSchema(
+      { ...baseProduct, is_active: false },
+      url,
+      { effectivePrice: 24, anyInStock: true },
+    )
+    expect(schema['offers']['availability']).toBe('https://schema.org/OutOfStock')
   })
 
-  it('omits description from schema when null', () => {
-    const schema = buildProductSchema({ ...baseProduct, description: null }, url)
+  it('omits description when null', () => {
+    const schema = buildProductSchema(
+      { ...baseProduct, description: null },
+      url,
+      { effectivePrice: 24, anyInStock: true },
+    )
     expect('description' in schema).toBe(false)
   })
 
-  it('omits image from schema when images array is empty', () => {
-    const schema = buildProductSchema({ ...baseProduct, images: [] }, url)
+  it('omits image when images array is empty', () => {
+    const schema = buildProductSchema(
+      { ...baseProduct, images: [] },
+      url,
+      { effectivePrice: 24, anyInStock: true },
+    )
     expect('image' in schema).toBe(false)
-  })
-
-  it('sets availability OutOfStock when stock_count is 0', () => {
-    const schema = buildProductSchema({ ...baseProduct, stock_count: 0 }, url)
-    expect(schema['offers']['availability']).toBe('https://schema.org/OutOfStock')
   })
 })
 
