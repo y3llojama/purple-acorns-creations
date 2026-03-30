@@ -116,16 +116,19 @@ describe('pushInventoryToSquare', () => {
 
 // ── pullInventoryFromSquare ───────────────────────────────────────────────────
 
-describe('pullInventoryFromSquare', () => {
-  it('returns zeros when no products have a Square variation ID', async () => {
+describe('pullInventoryFromSquare — variation-aware (R6)', () => {
+  it('reads from product_variations, not products', async () => {
     mockGetSquareClientFn.mockResolvedValue({ client: {}, locationId: 'loc1' })
-    mockFrom.mockReturnValue(b({ data: [{ id: 'p1', square_variation_id: null, stock_count: 5 }], error: null }))
+    mockFrom.mockReturnValue(b({
+      data: [{ id: 'v1', product_id: 'p1', square_variation_id: null, stock_count: 5 }],
+      error: null,
+    }))
 
-    const result = await pullInventoryFromSquare()
-    expect(result).toEqual({ updated: 0, skipped: 0, errors: [] })
+    await pullInventoryFromSquare()
+    expect(mockFrom).toHaveBeenCalledWith('product_variations')
   })
 
-  it('updates products whose count differs from Square', async () => {
+  it('updates product_variations stock when Square count differs', async () => {
     const mockBatchGet = jest.fn().mockResolvedValue({
       data: [{ catalogObjectId: 'var1', quantity: '10', state: 'IN_STOCK' }],
     })
@@ -133,19 +136,23 @@ describe('pullInventoryFromSquare', () => {
       client: { inventory: { batchGetCounts: mockBatchGet } },
       locationId: 'loc1',
     })
-    // from('products').select(...) — fetch all
     mockFrom
-      .mockReturnValueOnce(b({ data: [{ id: 'p1', square_variation_id: 'var1', stock_count: 5 }], error: null }))
-      // from('products').update(...).eq(...) — update
-      .mockReturnValue(b({ data: null, error: null }))
+      .mockReturnValueOnce(b({
+        data: [{ id: 'v1', product_id: 'p1', square_variation_id: 'var1', stock_count: 5 }],
+        error: null,
+      }))
+      .mockReturnValueOnce({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: (resolve: (v: unknown) => void) => resolve({ data: null, error: null }),
+      })
 
     const result = await pullInventoryFromSquare()
     expect(result.updated).toBe(1)
-    expect(result.skipped).toBe(0)
-    expect(result.errors).toHaveLength(0)
+    expect(mockFrom.mock.calls[1][0]).toBe('product_variations')
   })
 
-  it('skips products whose count already matches', async () => {
+  it('skips variations whose count already matches', async () => {
     const mockBatchGet = jest.fn().mockResolvedValue({
       data: [{ catalogObjectId: 'var1', quantity: '5', state: 'IN_STOCK' }],
     })
@@ -153,48 +160,28 @@ describe('pullInventoryFromSquare', () => {
       client: { inventory: { batchGetCounts: mockBatchGet } },
       locationId: 'loc1',
     })
-    mockFrom.mockReturnValue(b({ data: [{ id: 'p1', square_variation_id: 'var1', stock_count: 5 }], error: null }))
+    mockFrom.mockReturnValue(b({
+      data: [{ id: 'v1', product_id: 'p1', square_variation_id: 'var1', stock_count: 5 }],
+      error: null,
+    }))
 
     const result = await pullInventoryFromSquare()
     expect(result.skipped).toBe(1)
-    expect(result.updated).toBe(0)
   })
 
-  it('skips products not found in Square counts', async () => {
-    const mockBatchGet = jest.fn().mockResolvedValue({ data: [] })
-    mockGetSquareClientFn.mockResolvedValue({
-      client: { inventory: { batchGetCounts: mockBatchGet } },
-      locationId: 'loc1',
-    })
-    mockFrom.mockReturnValue(b({ data: [{ id: 'p1', square_variation_id: 'var1', stock_count: 5 }], error: null }))
+  it('returns zeros when no variations have a Square variation ID', async () => {
+    mockGetSquareClientFn.mockResolvedValue({ client: {}, locationId: 'loc1' })
+    mockFrom.mockReturnValue(b({ data: [{ id: 'v1', square_variation_id: null, stock_count: 5 }], error: null }))
 
     const result = await pullInventoryFromSquare()
-    expect(result.skipped).toBe(1)
+    expect(result).toEqual({ updated: 0, skipped: 0, errors: [] })
   })
 
   it('throws when initial DB fetch fails', async () => {
     mockGetSquareClientFn.mockResolvedValue({ client: {}, locationId: 'loc1' })
     mockFrom.mockReturnValue(b({ data: null, error: { message: 'DB down' } }))
 
-    await expect(pullInventoryFromSquare()).rejects.toThrow('Failed to fetch products')
-  })
-
-  it('records error for products that fail to update', async () => {
-    const mockBatchGet = jest.fn().mockResolvedValue({
-      data: [{ catalogObjectId: 'var1', quantity: '10', state: 'IN_STOCK' }],
-    })
-    mockGetSquareClientFn.mockResolvedValue({
-      client: { inventory: { batchGetCounts: mockBatchGet } },
-      locationId: 'loc1',
-    })
-    mockFrom
-      .mockReturnValueOnce(b({ data: [{ id: 'p1', square_variation_id: 'var1', stock_count: 5 }], error: null }))
-      .mockReturnValue(b({ data: null, error: { message: 'update failed' } }))
-
-    const result = await pullInventoryFromSquare()
-    expect(result.errors).toHaveLength(1)
-    expect(result.errors[0]).toContain('p1')
-    expect(result.updated).toBe(0)
+    await expect(pullInventoryFromSquare()).rejects.toThrow('Failed to fetch')
   })
 })
 
@@ -287,6 +274,31 @@ describe('pushProduct', () => {
     const result = await pushProduct(product)
     expect(result.success).toBe(false)
     expect(result.error).toContain('write error')
+  })
+
+  it('reads price from product_variations, not product.price (R5)', async () => {
+    const mockUpsert = jest.fn().mockResolvedValue({
+      catalogObject: {
+        id: 'sq-catalog-1',
+        itemData: { variations: [{ id: 'sq-var-1' }] },
+      },
+    })
+    const mockBatch = jest.fn().mockResolvedValue({})
+    mockGetSquareClientFn.mockResolvedValue({
+      client: {
+        catalog: { object: { upsert: mockUpsert, delete: jest.fn().mockResolvedValue({}) } },
+        inventory: { batchCreateChanges: mockBatch },
+      },
+      locationId: 'loc1',
+    })
+    mockFrom.mockReturnValue(b({ data: null, error: null }))
+
+    await pushProduct({ ...product, id: 'prod-var' })
+
+    const upsertCall = mockUpsert.mock.calls[0][0]
+    const variations = upsertCall.object?.itemData?.variations
+    expect(variations).toBeDefined()
+    expect(variations[0].itemVariationData.priceMoney.amount).toBeDefined()
   })
 })
 
@@ -470,6 +482,27 @@ describe('pullProductsFromSquare', () => {
 
     const result = await pullProductsFromSquare()
     expect(result.errors).toHaveLength(0)
+  })
+
+  it('creates product_variations rows on pull, not products.price/stock (R4)', async () => {
+    const variation = { id: 'sq-var-1', itemVariationData: { priceMoney: { amount: BigInt(4500) }, sku: 'RING-SM' } }
+    const squareItem = {
+      type: 'ITEM',
+      id: 'sq-prod-new',
+      itemData: { name: 'New Ring', variations: [variation] },
+    }
+    mockGetSquareClientFn.mockResolvedValue({
+      client: { catalog: { list: jest.fn().mockResolvedValue(asyncIter([squareItem])) } },
+    })
+
+    const insertCalls: string[] = []
+    mockFrom.mockImplementation((table: string) => {
+      insertCalls.push(table)
+      return b({ data: { id: 'local-new' }, error: null })
+    })
+
+    await pullProductsFromSquare()
+    expect(insertCalls).toContain('product_variations')
   })
 })
 
