@@ -6,6 +6,10 @@ jest.mock('@/lib/channels', () => ({
   syncAllProducts: jest.fn().mockResolvedValue([]),
 }))
 
+jest.mock('@/lib/channels/square/logger', () => ({
+  cleanupOldLogs: jest.fn().mockResolvedValue(0),
+}))
+
 describe('GET /api/cron/sync', () => {
   it('returns 401 with no Authorization header', async () => {
     const { GET } = await import('@/app/api/cron/sync/route')

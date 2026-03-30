@@ -80,8 +80,7 @@ export async function cleanupOldLogs(): Promise<number> {
   const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
   const { count } = await supabase
     .from('square_api_log')
-    .delete()
+    .delete({ count: 'exact' })
     .lt('created_at', cutoff)
-    .select('id', { count: 'exact', head: true })
   return count ?? 0
 }
