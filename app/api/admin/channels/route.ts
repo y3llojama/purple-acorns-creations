@@ -7,7 +7,7 @@ export async function GET() {
   if (error) return error
   const supabase = createServiceRoleClient()
   const [{ data: settings, error: settingsError }, { data: conflicts }, { data: recentErrors }] = await Promise.all([
-    supabase.from('settings').select('square_sync_enabled,pinterest_sync_enabled,square_location_id,pinterest_catalog_id,square_access_token,pinterest_access_token,square_application_id,square_application_secret,square_environment').single(),
+    supabase.from('settings').select('square_sync_enabled,pinterest_sync_enabled,square_location_id,pinterest_catalog_id,square_access_token,pinterest_access_token,square_application_id,square_application_secret,square_environment,square_log_level,square_log_expires_at').single(),
     supabase.from('channel_sync_log').select('product_id,channel,error,created_at,products(name)').eq('status', 'conflict'),
     supabase.from('channel_sync_log').select('product_id,channel,error,created_at').eq('status', 'error').order('created_at', { ascending: false }).limit(10),
   ])
@@ -23,6 +23,8 @@ export async function GET() {
         locationId: settings?.square_location_id ?? null,
         hasAppCredentials: !!(settings?.square_application_id && settings?.square_application_secret),
         environment: settings?.square_environment ?? (process.env.SQUARE_ENVIRONMENT ?? 'sandbox'),
+        logLevel: settings?.square_log_level ?? 'none',
+        logExpiresAt: settings?.square_log_expires_at ?? null,
       },
       conflicts: allConflicts.filter(c => c.channel === 'square'),
       recentErrors: allErrors.filter(e => e.channel === 'square'),
