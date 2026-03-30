@@ -630,6 +630,64 @@ Etsy uses per-listing variations (not shared options). The `is_reusable` flag on
 - **RLS:** New tables follow existing pattern — all writes via service role client, no public write access
 - **Stock movements:** Every stock change writes a ledger entry — provides full audit trail
 
+## Prerequisite: Existing Inventory Management Gaps
+
+The audit revealed that mobile responsiveness and concurrent update detection are missing from the **existing** inventory management system. These must be addressed as part of this work — not just for the new variations UI, but for all existing admin screens.
+
+### Mobile Gaps in Existing Code
+
+| Component | File | Issue |
+|---|---|---|
+| **Product table** | `InventoryManager.tsx:297-368` | 7-column table with no responsive breakpoint. Needs card layout on mobile. |
+| **Product form modal** | `InventoryManager.tsx:371-407` | `maxWidth: 600px`, no mobile breakpoint. Overflows on <600px screens. |
+| **Toolbar** | `InventoryManager.tsx:191-278` | Search input `maxWidth: 240px` + button group `marginLeft: auto` fails when wrapped on small screens. |
+| **Image drag-and-drop** | `ProductForm.tsx:220-286` | 80px images with 6px-offset remove button. No touch-friendly drag handle. Desktop-centric drag UX. |
+| **Form inputs** | `ProductForm.tsx:332` | Gallery sort order hardcoded `width: 120px`. |
+| **Category drag handle** | `CategoryManager.tsx:188-227` | Braille character "⠿" is ~14px wide — impossible to tap on mobile. |
+| **Category form** | `CategoryManager.tsx:363-388` | Fixed-position form at 639px breakpoint, no safe-area padding for notched phones. |
+| **Category buttons** | `CategoryManager.tsx:218-219` | `minHeight: 44px` but `padding: 4px 10px` — odd proportions, cramped on mobile. |
+| **Global admin CSS** | `globals.css` | No responsive styles for admin tables, modals, buttons, or input fields. |
+
+**Fixes required (included in this implementation):**
+
+1. **Product list → card layout** on screens <=640px. Single-column cards with product image, name, price, stock badge, and expand chevron. Action buttons as icon buttons in card header.
+2. **Product form modal → full-screen on mobile.** `position: fixed; inset: 0` below 640px with safe-area padding.
+3. **Toolbar → stacked layout** on mobile. Search full-width, filter dropdown below, action buttons as a bottom-fixed bar.
+4. **Image management → touch-friendly.** Larger remove buttons (32px, no negative offset). Replace drag-and-drop with long-press reorder or up/down arrow buttons on mobile.
+5. **Category drag → mobile-friendly handle.** Replace braille character with a visible grip icon (hamburger lines), minimum 44px tap target. On mobile, use up/down arrow buttons instead of drag.
+6. **Category form → full-screen on mobile** with safe-area padding for notched phones.
+7. **Global admin responsive CSS.** Add `@media (max-width: 640px)` rules for admin table cells, modal widths, button font sizes, and input field sizing (16px minimum to prevent iOS auto-zoom).
+
+### Concurrent Update Gaps in Existing Code
+
+| Component | File:Line | Issue |
+|---|---|---|
+| **Product PATCH** | `inventory/[id]/route.ts:43` | Blindly calls `.update()` — no `updated_at` check. Two admins editing the same product: last write silently wins. |
+| **Square webhook** | `webhook.ts:30-33` | Updates `stock_count` without checking if admin is mid-edit. Webhook change can be silently overwritten when admin saves. |
+| **Checkout** | `checkout/route.ts:62,85` | Does not fetch `updated_at`; `decrement_stock` RPC has no version check. |
+| **Product create** | `inventory/route.ts:33-40` | No idempotency key. Network timeout + retry creates duplicate products. |
+| **Category PATCH** | `categories/[id]` | Same pattern as product PATCH — no version check. |
+| **Category reorder** | `CategoryManager.tsx:177-182` | Two-update swap not atomic. Concurrent reorders can interleave. |
+| **All admin forms** | `ProductForm`, `CategoryManager` | No UI feedback when data was modified by another session or webhook since the form loaded. |
+
+**Fixes required (included in this implementation):**
+
+1. **Optimistic locking on all PATCH endpoints.** Client sends `updated_at` with every save. Server adds `.eq('updated_at', clientUpdatedAt)` to the update query. If zero rows match, return HTTP 409 Conflict with the current server state.
+
+2. **Conflict UI in all admin forms.** When a 409 is received:
+   - Show: "This item was modified while you were editing."
+   - If source is identifiable (webhook vs admin): "Updated by Square" or "Updated by another admin session."
+   - Options: "Reload latest" (discard local changes) or "Overwrite" (force save with current `updated_at`).
+   - For stock-specific conflicts: show both values — "Your value: 5. Current value: 3 (updated by Square). Which to keep?"
+
+3. **Webhook writes include timestamp logging.** After updating stock, write a `stock_movements` entry. Admin forms can detect "stock changed since you loaded" and show an inline alert even before save.
+
+4. **Product create idempotency.** Client generates a UUID request ID, sent as `Idempotency-Key` header. Server checks for duplicate within a 5-minute window before inserting.
+
+5. **Category reorder atomicity.** Replace two separate updates with a single Supabase RPC that swaps `sort_order` values in one transaction.
+
+6. **Checkout version awareness.** The `decrement_variation_stock` RPC (new) is inherently safe (atomic WHERE clause). But the price fetched at checkout start should be re-verified at charge time — if price changed between page load and checkout submit, show "Price has been updated to $X. Continue?"
+
 ## Out of Scope (Future)
 
 - Per-variation multiple images (beyond single `image_url`)
