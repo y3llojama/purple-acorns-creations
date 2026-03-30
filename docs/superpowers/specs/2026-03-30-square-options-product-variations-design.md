@@ -108,6 +108,31 @@ CREATE TABLE variation_option_values (
 
 **Variation uniqueness:** A trigger on `variation_option_values` INSERT verifies no existing active variation for the same product shares the identical set of option values (using `array_agg` comparison). Prevents duplicate "Large, Blue" rows.
 
+#### `image_embeddings` — CLIP vectors for visual search (pgvector)
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE image_embeddings (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id      UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  variation_id    UUID REFERENCES product_variations(id) ON DELETE CASCADE,  -- null = product-level image
+  image_url       TEXT NOT NULL,                     -- the image this embedding represents
+  embedding       vector(512) NOT NULL,              -- CLIP ViT-B/32 produces 512-dim vectors
+  model_version   TEXT NOT NULL DEFAULT 'clip-vit-base-patch32',  -- track which model generated this
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_ie_product ON image_embeddings(product_id);
+CREATE INDEX idx_ie_variation ON image_embeddings(variation_id) WHERE variation_id IS NOT NULL;
+```
+
+At this catalog scale (hundreds of images), cosine similarity via sequential scan is fast enough. Add an HNSW index only if the catalog grows past ~10K images:
+
+```sql
+-- Future: CREATE INDEX idx_ie_embedding ON image_embeddings USING hnsw (embedding vector_cosine_ops);
+```
+
 #### `stock_movements` — Inventory audit trail
 
 ```sql
@@ -371,6 +396,159 @@ When the admin saves changes to a product or variation, the system detects if th
   - Or: **"Another admin session updated this item. Reload to see the latest values?"**
 - **Applies to:** All variation fields (price, stock, cost, is_active, is_default) and option value names
 - **Stock movements:** The concurrent update itself is logged as a `stock_movements` entry so the audit trail captures both the webhook/external change and the admin's resolution
+
+### Snap to Find — Visual Product Search
+
+Camera-based product lookup for the admin. Photograph an item, find its matching variation (or similar items), then manage it or create a new variation.
+
+#### Entry Points
+
+1. **Camera icon in inventory manager toolbar** — next to the search bar. Tap to open the Snap to Find overlay.
+2. **Dedicated full-screen mode** — the overlay itself is a focused, mobile-optimized experience.
+
+#### Workflow
+
+```
+[Camera viewfinder]
+       │
+       ▼ (snap photo)
+[Generating embedding...]
+       │
+       ▼ (query pgvector)
+┌──────────────────────────┐
+│  Best Match (≥0.85)      │  ← tap to open product/variation editor
+│  "Kantha Jacket - S, Blue" │
+│  Similarity: 94%          │
+├──────────────────────────┤
+│  Similar Items            │  ← ranked list, tap any to manage
+│  1. Kantha Jacket - M, Blue (89%) │
+│  2. Kantha Jacket - S, Pink (82%) │
+│  3. Denim Jacket - S (71%)│
+├──────────────────────────┤
+│  [Create New Variation]   │  ← if none match, start fresh
+│  [Create New Product]     │  ← entirely new item
+│  [Retake Photo]           │
+└──────────────────────────┘
+```
+
+#### UI Details
+
+- **Camera viewfinder:** Uses `<input type="file" accept="image/*" capture="environment">` for maximum mobile compatibility (opens native camera). Desktop falls back to file picker.
+- **Results screen:**
+  - Best match shown as a large card with product image side-by-side with the photo taken, product name, variation details, price, and stock
+  - Similarity percentage shown as a badge (cosmetic — helps the admin judge confidence)
+  - "Similar Items" list below — up to 10 results, sorted by similarity descending
+  - Each result is tappable → opens that product/variation in the editor
+  - If best match similarity < 0.60, show "No close matches found" and promote the "Create New" actions
+- **Threshold behavior:**
+  - ≥ 0.85 similarity: highlight as "Likely match" with green badge
+  - 0.60–0.84: show as "Possible match" with amber badge
+  - < 0.60: grey out, show at bottom of list
+- **Mobile-first:** Full-screen overlay with large tap targets. Photo preview at top, results scrollable below. Back button returns to inventory manager.
+- **Desktop:** Opens as a centered modal (same layout, no camera auto-open — user picks a file).
+
+#### Actions from Results
+
+- **Tap a match** → opens the product form with that variation selected. Admin can update stock, price, etc.
+- **"Create New Variation"** → opens the product form for the matched product with a new variation row pre-populated. The photo is offered as the variation's `image_url`.
+- **"Create New Product"** → opens a blank product form. The photo is offered as the first product image.
+- **"Retake Photo"** → returns to camera.
+
+### Image Embedding Pipeline
+
+#### On Upload (real-time)
+
+When an admin uploads or changes a product/variation image:
+
+1. After image is stored in Supabase Storage, fire an async embedding job
+2. Call Hugging Face Inference API (`clip-vit-base-patch32` model) with the image
+3. Store the 512-dim vector in `image_embeddings` table
+4. If replacing an existing image, delete the old embedding row and insert new
+
+Embedding generation is async — it does not block the image upload response. A brief "Indexing for search..." indicator appears on the image thumbnail, replaced by a small search icon when complete.
+
+#### On Query (Snap to Find)
+
+1. Admin snaps/uploads a photo
+2. Photo is sent to `/api/admin/inventory/visual-search` (POST, multipart)
+3. Server generates embedding via HF Inference API (same model)
+4. Query pgvector:
+   ```sql
+   SELECT ie.*, p.name AS product_name, pv.id AS variation_id,
+          1 - (ie.embedding <=> $1) AS similarity
+   FROM image_embeddings ie
+   JOIN products p ON p.id = ie.product_id
+   LEFT JOIN product_variations pv ON pv.id = ie.variation_id
+   WHERE p.is_active = true
+   ORDER BY ie.embedding <=> $1
+   LIMIT 10;
+   ```
+5. Return ranked results with similarity scores
+
+#### Backfill Script (containerized)
+
+`scripts/backfill-embeddings/` — a standalone Docker container that:
+
+1. Queries all product/variation images that have no corresponding `image_embeddings` row
+2. Downloads each image from Supabase Storage
+3. Generates CLIP embedding via HF Inference API
+4. Inserts into `image_embeddings` table
+5. Respects HF rate limits (throttles to ~10 req/s)
+6. Logs progress and errors
+7. Idempotent — safe to re-run; skips images that already have embeddings
+
+**Container design:**
+```
+scripts/backfill-embeddings/
+├── Dockerfile
+├── backfill.py          # Python script (requests + psycopg2)
+├── requirements.txt     # requests, psycopg2-binary
+└── README.md            # Usage: docker build + docker run with env vars
+```
+
+**Environment variables:**
+- `SUPABASE_URL` — Supabase project URL
+- `SUPABASE_SERVICE_KEY` — service role key (for DB + Storage access)
+- `HF_API_TOKEN` — Hugging Face Inference API token (free tier)
+- `BATCH_SIZE` — images per batch (default: 50)
+- `DRY_RUN` — if set, log what would be processed without writing
+
+**Offloading:** The container is self-contained with no dependency on the Next.js app. Run it on any machine with Docker and network access to Supabase and HF:
+
+```bash
+docker build -t pac-backfill scripts/backfill-embeddings/
+docker run --rm \
+  -e SUPABASE_URL=... \
+  -e SUPABASE_SERVICE_KEY=... \
+  -e HF_API_TOKEN=... \
+  pac-backfill
+```
+
+#### Smart Embedding Strategy: LAN Detection
+
+When managing inventory from a local network (e.g., at home after a craft fair, bulk-uploading photos), hitting the HF API per-image from Vercel is wasteful. The system detects this and recommends the more efficient path:
+
+**Detection:** The admin UI calls a lightweight `/api/admin/health/network` endpoint that returns whether unindexed images exist. The admin settings page shows:
+
+- **"X images pending search indexing"** — count of images without embeddings
+- If count > 5: **"Run the backfill container for faster indexing"** with a copy-pasteable `docker run` command pre-filled with the correct env vars (minus secrets, which the admin fills in)
+- If count <= 5: on-upload async embedding handles it transparently
+
+**Behavior by context:**
+| Scenario | Embedding strategy |
+|---|---|
+| Admin uploads 1-5 images (normal editing) | Async on-upload via HF API from serverless |
+| Admin uploads 6+ images in a session (bulk after fair) | Banner appears: "You've uploaded several images. Run the backfill container for faster search indexing." |
+| Backfill container running | Processes all unindexed images in batch, respects rate limits, logs progress |
+| Image uploaded while backfill is running | Backfill picks it up — idempotent, no conflict |
+
+This avoids wasting HF free-tier quota on large batch uploads and leverages the containerized approach when it makes sense.
+
+#### Embedding Maintenance
+
+- **Image deleted:** `ON DELETE CASCADE` from `product_variations` / `products` handles cleanup automatically
+- **Image replaced:** Upload handler deletes old embedding, generates new one
+- **Model upgrade:** Change `model_version`, re-run backfill container. Old embeddings with different `model_version` are deleted before inserting new ones. Query-time embedding must use the same model version as stored embeddings.
 
 ### Conflict Resolution UI
 
