@@ -1,19 +1,19 @@
 import { SquareClient, SquareEnvironment } from 'square'
 import { decryptToken, encryptToken, decryptValue } from '@/lib/crypto'
 import { createServiceRoleClient } from '@/lib/supabase/server'
+import { shouldLog, buildLogEntry, writeLogEntry } from './logger'
 
 export async function getSquareClient(): Promise<{ client: SquareClient; locationId: string }> {
   const supabase = createServiceRoleClient()
   const { data } = await supabase
     .from('settings')
-    .select('id, square_access_token, square_refresh_token, square_token_expires_at, square_location_id, square_application_id, square_application_secret, square_environment')
+    .select('id, square_access_token, square_refresh_token, square_token_expires_at, square_location_id, square_application_id, square_application_secret, square_environment, square_log_level, square_log_expires_at')
     .single()
 
   if (!data?.square_access_token) throw new Error('Square not connected')
 
   const environment = data.square_environment ?? process.env.SQUARE_ENVIRONMENT
   const isProd = environment === 'production'
-
   const baseUrl = isProd ? 'https://connect.squareup.com' : 'https://connect.squareupsandbox.com'
 
   // Refresh the access token if it expires within the next 24 hours
@@ -57,9 +57,45 @@ export async function getSquareClient(): Promise<{ client: SquareClient; locatio
     }
   }
 
+  // Determine log level from settings (already fetched)
+  const logLevel = data.square_log_level ?? 'none'
+  const logActive = shouldLog(logLevel, data.square_log_expires_at)
+
+  // Build a logging fetch wrapper using the SDK's `fetch` option (native fetch signature)
+  const loggingFetch: typeof globalThis.fetch | undefined = logActive
+    ? async (input, init) => {
+        const start = Date.now()
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : (input as Request).url
+        const method = init?.method ?? 'GET'
+        const path = url.replace(/^https:\/\/connect\.(squareup|squareupsandbox)\.com/, '')
+
+        let requestBody: unknown = null
+        if (logLevel === 'full' && init?.body) {
+          try { requestBody = JSON.parse(String(init.body)) } catch { requestBody = null }
+        }
+
+        const response = await globalThis.fetch(input, init)
+        const duration = Date.now() - start
+
+        let responseBody: unknown = null
+        const responseClone = response.clone()
+        try {
+          responseBody = await responseClone.json()
+        } catch {
+          responseBody = null
+        }
+
+        const entry = buildLogEntry(logLevel, method, path, response.status, duration, requestBody, responseBody)
+        writeLogEntry(entry) // fire-and-forget
+
+        return response
+      }
+    : undefined
+
   const client = new SquareClient({
     token: accessToken,
     environment: isProd ? SquareEnvironment.Production : SquareEnvironment.Sandbox,
+    ...(loggingFetch ? { fetch: loggingFetch } : {}),
   })
 
   // Auto-discover and persist location ID if missing
