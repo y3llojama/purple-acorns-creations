@@ -905,6 +905,75 @@ The audit revealed that mobile responsiveness and concurrent update detection ar
 
 6. **Checkout version awareness.** The `decrement_variation_stock` RPC (new) is inherently safe (atomic WHERE clause). But the price fetched at checkout start should be re-verified at charge time — if price changed between page load and checkout submit, show "Price has been updated to $X. Continue?"
 
+## Risk Assessment: Impact on Existing Features
+
+The single-stock-authority migration touches every code path that reads/writes `products.price`, `products.stock_count`, `products.stock_reserved`, or `products.square_variation_id`. **20 files** must be updated atomically.
+
+### Critical (will break in production)
+
+| # | Feature | File | What breaks |
+|---|---|---|---|
+| R1 | Checkout | `checkout/route.ts` | Wrong RPC (`decrement_stock`), stale price, wrong Square variation ID on inventory push |
+| R2 | Cart model | `CartContext.tsx` | No `variation_id` in `CartItem` — checkout structurally incompatible |
+| R3 | Square webhook | `webhook.ts` | Writes stock to dead column — POS sales stop updating web inventory |
+| R4 | Square pull sync | `catalog.ts` | New Square products get zero working variations |
+| R5 | Square push sync | `catalog.ts` | Square catalog receives stale prices/stock |
+| R6 | Square inventory pull | `catalog.ts` | "Sync from Square" button silently does nothing |
+| R7 | Private sale RPCs | `038_migration.sql` | Lock/write dead columns — double-selling possible |
+| R8 | Admin PATCH | `inventory/[id]/route.ts` | Price/stock edits silently ignored by live store |
+
+### High (likely to break)
+
+| # | Feature | File | What breaks |
+|---|---|---|---|
+| R9 | SEO/Schema.org | `lib/seo.tsx` | Google Shopping gets stale price + wrong availability |
+| R10 | Shop sort by price | `shop/products/route.ts` | `ORDER BY products.price` returns wrong order |
+| R11 | Sold-out badge | `ProductCard.tsx` | Dead `stock_count` — sold items show as available |
+| R12 | Product detail | `ProductDetail.tsx` | Stale price, wrong Add to Cart enabled state |
+| R13 | Saved lists | `saved-lists/route.ts` | Favorites show stale prices and availability |
+| R14 | Sync log upsert | `channels/index.ts` | Old unique constraint dropped — all sync logging errors |
+| R15 | Pinterest sync | `pinterest/catalog.ts` | Stale prices sent to Pinterest catalog |
+
+### Medium (behavior changes)
+
+| # | Feature | What changes |
+|---|---|---|
+| R16 | Admin inventory table | Shows frozen price/stock values |
+| R17 | Product form pre-populate | Initializes with stale values |
+| R18 | Cron sync job | Pushes stale data to all channels on every tick |
+| R19 | HeartButton | Stores stale price in optimistic state |
+| R20 | Private sale sync log | Same root cause as R14 |
+
+### Low (safe or cosmetic)
+
+R21: Channel types — TypeScript confusion, no runtime break. R22: View count — unaffected. R23: Private sale price display — uses `custom_price`, not `products.price`.
+
+### Deployment Sequencing
+
+1. **Migration** — create tables, backfill variations, create view + RPCs
+2. **Reconciliation script** — re-sync stock changes from migration window
+3. **Code deploy** — all 20 files updated atomically
+4. **Validation** — monitor `products.stock_count` for 48h (should stop changing)
+5. **Cleanup migration** — drop dead columns after confirmed clean
+
+### Test Coverage Required
+
+| Risk | Existing Test | Action |
+|---|---|---|
+| R1 Checkout | `checkout.test.ts` | Rewrite mock for `decrement_variation_stock`, add oversell scenario |
+| R2 Cart | None | New `CartContext` test + E2E checkout payload |
+| R3 Webhook | `square.test.ts` | Extend to verify write target is `product_variations` |
+| R4 Pull sync | `catalog.test.ts` | Assert `product_variations` upsert |
+| R5 Push sync | `catalog.test.ts` | Assert variation ID write target |
+| R6 Inventory pull | None | New `pullInventoryFromSquare` test |
+| R7 Private sale | `private-sale-checkout.test.ts` | Update mocks, add double-sell test |
+| R8 Admin PATCH | `inventory.test.ts` | Assert writes go to `product_variations` |
+| R9 SEO | `seo.test.ts` | Update `buildProductSchema` signature |
+| R10 Sort | None | New price sort test via view |
+| R11 Sold-out | None | New `ProductCard` render test |
+| R14 Sync log | None | New upsert conflict key test |
+| R15 Pinterest | None | New Pinterest catalog test |
+
 ## Out of Scope (Future)
 
 - Per-variation multiple images (beyond single `image_url`)
