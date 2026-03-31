@@ -4,9 +4,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PLIST_NAME="com.purpleacorns.backup"
-PLIST_PATH="$HOME/Library/LaunchAgents/${PLIST_NAME}.plist"
+PLIST_PATH="/Library/LaunchDaemons/${PLIST_NAME}.plist"
 BACKUP_SCRIPT="$SCRIPT_DIR/backup.sh"
 LOG_FILE="$PROJECT_ROOT/backups/backup.log"
+RUN_AS_USER="${SUDO_USER:-$(whoami)}"
 
 DB_HOST="db.jfovputrcntthmesmjmh.supabase.co"
 DB_PORT="5432"
@@ -94,10 +95,17 @@ if ! psql "$DATABASE_URL" -c "SELECT 1;" &>/dev/null; then
 fi
 echo "  Database connection verified."
 
-# --- Write launchd plist ---
-echo "Installing launchd plist..."
+# --- Write launchd plist (LaunchDaemon — requires sudo) ---
+echo "Installing LaunchDaemon plist..."
 
-mkdir -p "$HOME/Library/LaunchAgents"
+if [[ "$(id -u)" -ne 0 ]]; then
+  echo ""
+  echo "ERROR: LaunchDaemons require root. Re-run with sudo:"
+  echo "  sudo bash scripts/backup-install.sh"
+  exit 1
+fi
+
+HOMEDIR=$(eval echo "~${RUN_AS_USER}")
 
 cat > "$PLIST_PATH" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -106,6 +114,9 @@ cat > "$PLIST_PATH" <<PLIST
 <dict>
   <key>Label</key>
   <string>${PLIST_NAME}</string>
+
+  <key>UserName</key>
+  <string>${RUN_AS_USER}</string>
 
   <key>ProgramArguments</key>
   <array>
@@ -120,6 +131,8 @@ cat > "$PLIST_PATH" <<PLIST
   <dict>
     <key>PATH</key>
     <string>/opt/homebrew/opt/libpq/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>HOME</key>
+    <string>${HOMEDIR}</string>
   </dict>
 
   <key>StartCalendarInterval</key>
@@ -144,22 +157,25 @@ cat > "$PLIST_PATH" <<PLIST
 </plist>
 PLIST
 
+chmod 644 "$PLIST_PATH"
+chown root:wheel "$PLIST_PATH"
+
 echo "  Written to $PLIST_PATH"
 
 # --- Load plist ---
-# Unload first if already loaded (ignore errors)
-launchctl unload "$PLIST_PATH" 2>/dev/null || true
-launchctl load "$PLIST_PATH"
-echo "  Loaded into launchctl"
+launchctl bootout system/$PLIST_NAME 2>/dev/null || true
+launchctl bootstrap system "$PLIST_PATH"
+echo "  Loaded into launchctl (system domain)"
 
 echo ""
 echo "=== Installation complete ==="
 echo ""
 echo "  Schedule : Daily at 5:00 AM"
+echo "  Runs as  : $RUN_AS_USER"
 echo "  Script   : $BACKUP_SCRIPT"
 echo "  Log      : $LOG_FILE"
 echo "  Plist    : $PLIST_PATH"
-echo "  Creds    : ~/.pgpass (encrypted at rest via FileVault)"
+echo "  Creds    : ~${RUN_AS_USER}/.pgpass (mode 600)"
 echo ""
 
 # --- Offer test run ---
