@@ -32,9 +32,6 @@ describe('POST /api/admin/categories', () => {
     })
     expect((await POST(req)).status).toBe(400)
   })
-
-    expect((await POST(req)).status).toBe(400)
-  })
 })
 
 describe('DELETE /api/admin/categories/[id]', () => {
