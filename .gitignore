@@ -57,8 +57,12 @@ infra/terraform.tfstate
 infra/terraform.tfstate.backup
 infra/*.tfvars
 
-# Backups — settings contains API keys, never commit
+# Backups — contain production data, never commit
 backups/settings.sql
+backups/*.sql
 backups/*.sql.gz
+backups/*.json
+backups/*.json.tar.gz
+backups/*.json.tar.gz.sha256
 backups/*.sha256
 backups/backup.log

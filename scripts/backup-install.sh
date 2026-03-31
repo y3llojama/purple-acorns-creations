@@ -11,10 +11,7 @@ LOG_FILE="$PROJECT_ROOT/backups/backup.log"
 RUN_AS_USER="$(whoami)"
 HOMEDIR="$HOME"
 
-DB_HOST="db.jfovputrcntthmesmjmh.supabase.co"
-DB_PORT="5432"
-DB_NAME="postgres"
-DB_USER="postgres"
+SUPABASE_REF="jfovputrcntthmesmjmh"
 
 echo "=== Purple Acorns Backup Installer ==="
 echo ""
@@ -23,7 +20,7 @@ echo ""
 echo "Checking prerequisites..."
 MISSING=()
 
-for cmd in pg_dump psql createdb dropdb gzip curl; do
+for cmd in curl jq gzip tar; do
   if ! command -v "$cmd" &>/dev/null; then
     MISSING+=("$cmd")
   fi
@@ -34,68 +31,48 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
   echo "ERROR: Missing required commands: ${MISSING[*]}"
   echo ""
   echo "Install with:"
-  echo "  brew install libpq    # provides pg_dump, psql, createdb, dropdb"
-  echo "  (gzip and curl are built into macOS)"
+  echo "  brew install jq       # JSON processor"
+  echo "  (curl, gzip, tar are built into macOS)"
   exit 1
 fi
 echo "  All prerequisites found."
 
-# --- Check database credentials (.pgpass → .env.local → prompt) ---
-echo "Checking database credentials..."
-PGPASS_FILE="$HOME/.pgpass"
-DB_PASS=""
-
-# 1. Check existing .pgpass
-if [[ -f "$PGPASS_FILE" ]]; then
-  DB_PASS=$(grep "^${DB_HOST}:${DB_PORT}:${DB_NAME}:${DB_USER}:" "$PGPASS_FILE" 2>/dev/null | head -1 | cut -d':' -f5 || true)
-fi
-
-# 2. Fall back to .env.local
-ENV_FILE="$PROJECT_ROOT/.env.local"
-if [[ -z "$DB_PASS" && -f "$ENV_FILE" ]]; then
-  DATABASE_URL=$(grep '^DATABASE_URL=' "$ENV_FILE" 2>/dev/null | head -1 | cut -d'=' -f2- | tr -d '"' || true)
-  if [[ -n "${DATABASE_URL:-}" ]]; then
-    DB_PASS=$(echo "$DATABASE_URL" | sed -n 's|.*://[^:]*:\([^@]*\)@.*|\1|p')
+# Soft-check for restore test dependencies (psql, createdb, dropdb)
+RESTORE_WARN=()
+for cmd in psql createdb dropdb; do
+  if ! command -v "$cmd" &>/dev/null; then
+    RESTORE_WARN+=("$cmd")
   fi
+done
+if [[ ${#RESTORE_WARN[@]} -gt 0 ]]; then
+  echo "  WARNING: Missing ${RESTORE_WARN[*]} — monthly restore test requires these."
+  echo "  Install with: brew install libpq"
 fi
 
-# 3. Prompt if still missing
-if [[ -z "$DB_PASS" ]]; then
-  echo ""
-  read -rsp "Enter Supabase database password: " DB_PASS
-  echo ""
-fi
-
-if [[ -z "$DB_PASS" ]]; then
-  echo "ERROR: No database credentials found."
-  echo "  Provide via ~/.pgpass, .env.local, or enter when prompted."
+# --- Check service role key in terraform.tfvars ---
+echo "Checking credentials..."
+TFVARS_FILE="$PROJECT_ROOT/infra/terraform.tfvars"
+if [[ ! -f "$TFVARS_FILE" ]]; then
+  echo "ERROR: $TFVARS_FILE not found — backup needs the service role key."
   exit 1
 fi
-
-# Write/update ~/.pgpass
-PGPASS_LINE="${DB_HOST}:${DB_PORT}:${DB_NAME}:${DB_USER}:${DB_PASS}"
-if [[ -f "$PGPASS_FILE" ]]; then
-  # Remove old entry for this host if present
-  sed -i '' "\|^${DB_HOST}:${DB_PORT}:${DB_NAME}:${DB_USER}:|d" "$PGPASS_FILE"
-fi
-echo "$PGPASS_LINE" >> "$PGPASS_FILE"
-chmod 600 "$PGPASS_FILE"
-echo "  Password stored in ~/.pgpass (mode 600)"
-
-# Remove plaintext password from .env.local if present
-if [[ -f "$ENV_FILE" ]] && grep -q '^DATABASE_URL=' "$ENV_FILE"; then
-  sed -i '' '/^DATABASE_URL=/d' "$ENV_FILE"
-  echo "  Removed plaintext DATABASE_URL from .env.local"
-fi
-
-# Verify connection
-DATABASE_URL="postgresql://${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
-echo "  Verifying database connection..."
-if ! psql "$DATABASE_URL" -c "SELECT 1;" &>/dev/null; then
-  echo "ERROR: Cannot connect to database. Check your password."
+SRK=$(grep 'supabase_service_role_key' "$TFVARS_FILE" | head -1 | sed 's/.*= *"//;s/".*//' || true)
+if [[ -z "$SRK" ]]; then
+  echo "ERROR: supabase_service_role_key not found in $TFVARS_FILE"
   exit 1
 fi
-echo "  Database connection verified."
+echo "  Service role key found in terraform.tfvars"
+
+# Verify Supabase REST API connectivity
+echo "  Verifying Supabase API connectivity..."
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+  -H "apikey: ${SRK}" \
+  "https://${SUPABASE_REF}.supabase.co/rest/v1/")
+if [[ "$HTTP_CODE" != "200" ]]; then
+  echo "ERROR: Supabase API returned HTTP $HTTP_CODE — check service role key."
+  exit 1
+fi
+echo "  Supabase API connection verified."
 
 # --- Stage the plist (no root needed) ---
 echo "Staging LaunchDaemon plist..."
@@ -124,7 +101,7 @@ cat > "$STAGED_PLIST" <<PLIST
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
-    <string>/opt/homebrew/opt/libpq/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <string>/opt/homebrew/bin:/opt/homebrew/opt/libpq/bin:/usr/local/bin:/usr/bin:/bin</string>
     <key>HOME</key>
     <string>${HOMEDIR}</string>
   </dict>
@@ -180,7 +157,7 @@ echo "  Runs as  : $RUN_AS_USER"
 echo "  Script   : $BACKUP_SCRIPT"
 echo "  Log      : $LOG_FILE"
 echo "  Daemon   : $DAEMON_PATH"
-echo "  Creds    : ~/.pgpass (mode 600)"
+echo "  Creds    : infra/terraform.tfvars (service role key)"
 echo ""
 echo "  Test manually:  bash $BACKUP_SCRIPT"
 echo "  Test via daemon: sudo launchctl kickstart system/$PLIST_NAME"

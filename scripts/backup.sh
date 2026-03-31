@@ -72,7 +72,7 @@ TEMP_ARCHIVE=""
 
 cleanup() {
   rm -rf "$TEMP_DIR"
-  [[ -n "$TEMP_ARCHIVE" ]] && rm -f "$TEMP_ARCHIVE"
+  if [[ -n "$TEMP_ARCHIVE" ]]; then rm -f "$TEMP_ARCHIVE"; fi
 }
 trap cleanup EXIT
 
@@ -103,14 +103,21 @@ fi
 log "Backup started — target: ${DAY_NAME}.json.tar.gz"
 ntfy "Backup started"
 
-OPENAPI_JSON=$(curl -sf \
+OPENAPI_HTTP=$(curl -s -o "$TEMP_DIR/.openapi.json" -w "%{http_code}" \
   -H "apikey: ${SERVICE_ROLE_KEY}" \
   -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
-  "${API_BASE}/rest/v1/" 2>>"$LOG_FILE") || {
-  log "ERROR: Failed to fetch OpenAPI schema from ${API_BASE}/rest/v1/"
-  ntfy "Backup FAILED — cannot reach Supabase REST API"
+  "${API_BASE}/rest/v1/" 2>>"$LOG_FILE") || OPENAPI_HTTP="000"
+
+if [[ "$OPENAPI_HTTP" == "401" || "$OPENAPI_HTTP" == "403" ]]; then
+  log "ERROR: Credential failure (HTTP ${OPENAPI_HTTP}) — service role key may be invalid or rotated"
+  ntfy "Backup FAILED — credential failure (HTTP ${OPENAPI_HTTP})"
   exit 1
-}
+elif [[ "$OPENAPI_HTTP" != "200" ]]; then
+  log "ERROR: Failed to fetch OpenAPI schema (HTTP ${OPENAPI_HTTP})"
+  ntfy "Backup FAILED — cannot reach Supabase REST API (HTTP ${OPENAPI_HTTP})"
+  exit 1
+fi
+OPENAPI_JSON=$(cat "$TEMP_DIR/.openapi.json")
 
 # Extract table names: paths that don't start with /rpc/
 TABLES=$(echo "$OPENAPI_JSON" | jq -r '.paths | keys[] | select(startswith("/rpc/") | not) | ltrimstr("/")' | sort)
@@ -303,13 +310,23 @@ if [[ "$RESTORE_TEST" == true ]]; then
     log "WARNING: No migrations directory found at $MIGRATION_DIR"
   fi
 
-  # Record baseline row counts (from migration seeds) BEFORE inserting backup data
-  declare -A BASELINE_COUNTS
-  for TABLE in content events settings; do
-    BASELINE=$(psql -w -t -A "$RESTORE_URL" -c "SELECT count(*) FROM public.${TABLE};" 2>/dev/null || echo "0")
-    BASELINE_COUNTS[$TABLE]="${BASELINE// /}"
-  done
-  log "  Baseline counts: content=${BASELINE_COUNTS[content]}, events=${BASELINE_COUNTS[events]}, settings=${BASELINE_COUNTS[settings]}"
+  # Truncate all public tables so backup inserts don't conflict with migration seeds
+  psql -w -q "$RESTORE_URL" -c "
+    SET session_replication_role = replica;
+    DO \$\$ DECLARE r RECORD;
+    BEGIN
+      FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+        EXECUTE 'TRUNCATE TABLE public.' || quote_ident(r.tablename) || ' CASCADE';
+      END LOOP;
+    END \$\$;
+    SET session_replication_role = DEFAULT;
+  " >>"$LOG_FILE" 2>&1
+  log "  Tables truncated (clearing migration seeds)"
+
+  # Record baseline row counts AFTER truncate (should be 0)
+  BASELINE_CONTENT=$(psql -w -t -A "$RESTORE_URL" -c "SELECT count(*) FROM public.content;" 2>/dev/null | tr -d ' ' || echo "0")
+  BASELINE_EVENTS=$(psql -w -t -A "$RESTORE_URL" -c "SELECT count(*) FROM public.events;" 2>/dev/null | tr -d ' ' || echo "0")
+  BASELINE_SETTINGS=$(psql -w -t -A "$RESTORE_URL" -c "SELECT count(*) FROM public.settings;" 2>/dev/null | tr -d ' ' || echo "0")
 
   # Extract backup into a temp restore directory
   RESTORE_DATA_DIR=$(mktemp -d "$BACKUP_DIR/.restore_tmp_XXXXXX")
@@ -377,15 +394,22 @@ if [[ "$RESTORE_TEST" == true ]]; then
 
   # Sanity checks: certain tables must have rows exceeding baseline
   RESTORE_PASS=true
-  for TABLE in content events settings; do
-    CURRENT=$(psql -w -t -A "$RESTORE_URL" -c "SELECT count(*) FROM public.${TABLE};" 2>/dev/null || echo "0")
-    CURRENT="${CURRENT// /}"
-    BASELINE="${BASELINE_COUNTS[$TABLE]}"
-    if [[ "$CURRENT" -le "$BASELINE" ]]; then
-      log "ERROR: Restore check failed — ${TABLE} has ${CURRENT} rows (baseline was ${BASELINE})"
-      RESTORE_PASS=false
-    fi
-  done
+  CURRENT_CONTENT=$(psql -w -t -A "$RESTORE_URL" -c "SELECT count(*) FROM public.content;" 2>/dev/null | tr -d ' ' || echo "0")
+  CURRENT_EVENTS=$(psql -w -t -A "$RESTORE_URL" -c "SELECT count(*) FROM public.events;" 2>/dev/null | tr -d ' ' || echo "0")
+  CURRENT_SETTINGS=$(psql -w -t -A "$RESTORE_URL" -c "SELECT count(*) FROM public.settings;" 2>/dev/null | tr -d ' ' || echo "0")
+
+  if [[ "$CURRENT_CONTENT" -le "$BASELINE_CONTENT" ]]; then
+    log "ERROR: Restore check failed — content has ${CURRENT_CONTENT} rows (baseline was ${BASELINE_CONTENT})"
+    RESTORE_PASS=false
+  fi
+  if [[ "$CURRENT_EVENTS" -le "$BASELINE_EVENTS" ]]; then
+    log "ERROR: Restore check failed — events has ${CURRENT_EVENTS} rows (baseline was ${BASELINE_EVENTS})"
+    RESTORE_PASS=false
+  fi
+  if [[ "$CURRENT_SETTINGS" -le "$BASELINE_SETTINGS" ]]; then
+    log "ERROR: Restore check failed — settings has ${CURRENT_SETTINGS} rows (baseline was ${BASELINE_SETTINGS})"
+    RESTORE_PASS=false
+  fi
 
   # Get final counts for reporting
   CONTENT_ROWS=$(psql -w -t -A "$RESTORE_URL" -c "SELECT count(*) FROM public.content;" 2>>"$LOG_FILE" || echo "?")
