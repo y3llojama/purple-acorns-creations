@@ -41,6 +41,12 @@ ntfy() {
 }
 
 # --- Load DATABASE_URL ---
+# Password is read automatically from ~/.pgpass by pg_dump/psql
+DB_HOST="db.jfovputrcntthmesmjmh.supabase.co"
+DB_PORT="5432"
+DB_NAME="postgres"
+DB_USER="postgres"
+
 if [[ -z "${DATABASE_URL:-}" ]]; then
   ENV_FILE="$PROJECT_ROOT/.env.local"
   if [[ -f "$ENV_FILE" ]]; then
@@ -48,16 +54,15 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
   fi
 fi
 
-# Fall back to macOS Keychain
-if [[ -z "${DATABASE_URL:-}" ]] && command -v security &>/dev/null; then
-  DB_PASS=$(security find-generic-password -s "purpleacorns-db" -a "postgres" -w 2>/dev/null || true)
-  if [[ -n "$DB_PASS" ]]; then
-    DATABASE_URL="postgresql://postgres:${DB_PASS}@db.jfovputrcntthmesmjmh.supabase.co:5432/postgres"
+# Fall back to passwordless URL (relies on ~/.pgpass)
+if [[ -z "${DATABASE_URL:-}" ]]; then
+  if [[ -f "$HOME/.pgpass" ]] && grep -q "^${DB_HOST}:" "$HOME/.pgpass" 2>/dev/null; then
+    DATABASE_URL="postgresql://${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
   fi
 fi
 
 if [[ -z "${DATABASE_URL:-}" ]]; then
-  log "ERROR: DATABASE_URL is not set (checked .env.local and macOS Keychain)."
+  log "ERROR: DATABASE_URL is not set (checked .env.local and ~/.pgpass)."
   ntfy "Backup FAILED — DATABASE_URL not set"
   exit 1
 fi

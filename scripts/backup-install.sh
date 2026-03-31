@@ -8,6 +8,11 @@ PLIST_PATH="$HOME/Library/LaunchAgents/${PLIST_NAME}.plist"
 BACKUP_SCRIPT="$SCRIPT_DIR/backup.sh"
 LOG_FILE="$PROJECT_ROOT/backups/backup.log"
 
+DB_HOST="db.jfovputrcntthmesmjmh.supabase.co"
+DB_PORT="5432"
+DB_NAME="postgres"
+DB_USER="postgres"
+
 echo "=== Purple Acorns Backup Installer ==="
 echo ""
 
@@ -32,58 +37,56 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
 fi
 echo "  All prerequisites found."
 
-# --- Check DATABASE_URL (Keychain → .env.local → prompt) ---
+# --- Check database credentials (.pgpass → .env.local → prompt) ---
 echo "Checking database credentials..."
-DATABASE_URL=""
+PGPASS_FILE="$HOME/.pgpass"
 DB_PASS=""
 
-# 1. Check macOS Keychain
-if command -v security &>/dev/null; then
-  DB_PASS=$(security find-generic-password -s "purpleacorns-db" -a "postgres" -w 2>/dev/null || true)
+# 1. Check existing .pgpass
+if [[ -f "$PGPASS_FILE" ]]; then
+  DB_PASS=$(grep "^${DB_HOST}:${DB_PORT}:${DB_NAME}:${DB_USER}:" "$PGPASS_FILE" 2>/dev/null | head -1 | cut -d':' -f5 || true)
 fi
 
 # 2. Fall back to .env.local
 ENV_FILE="$PROJECT_ROOT/.env.local"
 if [[ -z "$DB_PASS" && -f "$ENV_FILE" ]]; then
   DATABASE_URL=$(grep '^DATABASE_URL=' "$ENV_FILE" 2>/dev/null | head -1 | cut -d'=' -f2- | tr -d '"' || true)
-  if [[ -n "$DATABASE_URL" ]]; then
-    # Extract password from URL and store in Keychain
+  if [[ -n "${DATABASE_URL:-}" ]]; then
     DB_PASS=$(echo "$DATABASE_URL" | sed -n 's|.*://[^:]*:\([^@]*\)@.*|\1|p')
   fi
 fi
 
 # 3. Prompt if still missing
-if [[ -z "$DB_PASS" && -z "$DATABASE_URL" ]]; then
+if [[ -z "$DB_PASS" ]]; then
   echo ""
   read -rsp "Enter Supabase database password: " DB_PASS
   echo ""
 fi
 
-if [[ -z "$DB_PASS" && -z "$DATABASE_URL" ]]; then
+if [[ -z "$DB_PASS" ]]; then
   echo "ERROR: No database credentials found."
-  echo "  Provide via Keychain, .env.local, or enter when prompted."
+  echo "  Provide via ~/.pgpass, .env.local, or enter when prompted."
   exit 1
 fi
 
-# Store password in Keychain (add or update)
-if [[ -n "$DB_PASS" ]] && command -v security &>/dev/null; then
-  security delete-generic-password -s "purpleacorns-db" -a "postgres" 2>/dev/null || true
-  security add-generic-password -s "purpleacorns-db" -a "postgres" -w "$DB_PASS"
-  echo "  Password stored in macOS Keychain (purpleacorns-db)"
+# Write/update ~/.pgpass
+PGPASS_LINE="${DB_HOST}:${DB_PORT}:${DB_NAME}:${DB_USER}:${DB_PASS}"
+if [[ -f "$PGPASS_FILE" ]]; then
+  # Remove old entry for this host if present
+  sed -i '' "\|^${DB_HOST}:${DB_PORT}:${DB_NAME}:${DB_USER}:|d" "$PGPASS_FILE"
+fi
+echo "$PGPASS_LINE" >> "$PGPASS_FILE"
+chmod 600 "$PGPASS_FILE"
+echo "  Password stored in ~/.pgpass (mode 600)"
 
-  # Build DATABASE_URL from Keychain password if not already set
-  if [[ -z "$DATABASE_URL" ]]; then
-    DATABASE_URL="postgresql://postgres:${DB_PASS}@db.jfovputrcntthmesmjmh.supabase.co:5432/postgres"
-  fi
-
-  # Remove plaintext password from .env.local if present
-  if [[ -f "$ENV_FILE" ]] && grep -q '^DATABASE_URL=' "$ENV_FILE"; then
-    sed -i '' '/^DATABASE_URL=/d' "$ENV_FILE"
-    echo "  Removed plaintext DATABASE_URL from .env.local"
-  fi
+# Remove plaintext password from .env.local if present
+if [[ -f "$ENV_FILE" ]] && grep -q '^DATABASE_URL=' "$ENV_FILE"; then
+  sed -i '' '/^DATABASE_URL=/d' "$ENV_FILE"
+  echo "  Removed plaintext DATABASE_URL from .env.local"
 fi
 
 # Verify connection
+DATABASE_URL="postgresql://${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 echo "  Verifying database connection..."
 if ! psql "$DATABASE_URL" -c "SELECT 1;" &>/dev/null; then
   echo "ERROR: Cannot connect to database. Check your password."
@@ -112,6 +115,12 @@ cat > "$PLIST_PATH" <<PLIST
 
   <key>WorkingDirectory</key>
   <string>${PROJECT_ROOT}</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/opt/libpq/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
 
   <key>StartCalendarInterval</key>
   <dict>
@@ -150,6 +159,7 @@ echo "  Schedule : Daily at 5:00 AM"
 echo "  Script   : $BACKUP_SCRIPT"
 echo "  Log      : $LOG_FILE"
 echo "  Plist    : $PLIST_PATH"
+echo "  Creds    : ~/.pgpass (encrypted at rest via FileVault)"
 echo ""
 
 # --- Offer test run ---
