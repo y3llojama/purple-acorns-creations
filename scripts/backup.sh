@@ -103,8 +103,17 @@ if ! echo "$CONTENT" | grep -q "CREATE TABLE"; then
   exit 1
 fi
 
+# pg_dump uses COPY (not INSERT INTO) by default
+if ! echo "$CONTENT" | grep -q "COPY .* FROM stdin"; then
+  log "ERROR: SQL content missing COPY/data statements"
+  ntfy "Backup FAILED — SQL missing data statements"
+  exit 1
+fi
+
 if ! echo "$CONTENT" | grep -q "ROW LEVEL SECURITY\|ENABLE ROW LEVEL SECURITY"; then
-  log "WARNING: No RLS policies found in dump (non-fatal)"
+  log "ERROR: SQL content missing ROW LEVEL SECURITY policies"
+  ntfy "Backup FAILED — SQL missing RLS policies"
+  exit 1
 fi
 
 log "  Content validation: OK"
