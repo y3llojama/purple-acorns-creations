@@ -107,21 +107,25 @@ if ! gunzip -t "$TEMP_FILE" 2>>"$LOG_FILE"; then
 fi
 log "  Gzip integrity: OK"
 
-# --- Verify: Content validation (stream directly, avoid loading into memory) ---
-if ! gunzip -c "$TEMP_FILE" | grep -q "CREATE TABLE"; then
+# --- Verify: Content validation ---
+# Note: grep -q with pipefail causes false failures (SIGPIPE closes gunzip early).
+# Use grep -c instead and check the count.
+TABLE_COUNT=$(gunzip -c "$TEMP_FILE" | grep -c "CREATE TABLE" || true)
+if [[ "$TABLE_COUNT" -eq 0 ]]; then
   log "ERROR: SQL content missing CREATE TABLE statements"
   ntfy "Backup FAILED — SQL missing CREATE TABLE"
   exit 1
 fi
 
-# pg_dump uses COPY (not INSERT INTO) by default
-if ! gunzip -c "$TEMP_FILE" | grep -q "COPY .* FROM stdin"; then
+COPY_COUNT=$(gunzip -c "$TEMP_FILE" | grep -c "COPY .* FROM stdin" || true)
+if [[ "$COPY_COUNT" -eq 0 ]]; then
   log "ERROR: SQL content missing COPY/data statements"
   ntfy "Backup FAILED — SQL missing data statements"
   exit 1
 fi
 
-if ! gunzip -c "$TEMP_FILE" | grep -q "ROW LEVEL SECURITY\|ENABLE ROW LEVEL SECURITY"; then
+RLS_COUNT=$(gunzip -c "$TEMP_FILE" | grep -c "ROW LEVEL SECURITY\|ENABLE ROW LEVEL SECURITY" || true)
+if [[ "$RLS_COUNT" -eq 0 ]]; then
   log "ERROR: SQL content missing ROW LEVEL SECURITY policies"
   ntfy "Backup FAILED — SQL missing RLS policies"
   exit 1
