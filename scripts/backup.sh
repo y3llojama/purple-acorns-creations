@@ -162,7 +162,7 @@ if [[ "$RESTORE_TEST" == true ]]; then
   # Use local Docker Postgres for restore test (brevi stack)
   RESTORE_HOST="${RESTORE_TEST_HOST:-localhost}"
   RESTORE_PORT="${RESTORE_TEST_PORT:-9432}"
-  RESTORE_USER="${RESTORE_TEST_USER:-postgres}"
+  RESTORE_USER="${RESTORE_TEST_USER:-brevi}"
   RESTORE_CONN="postgresql://${RESTORE_USER}@${RESTORE_HOST}:${RESTORE_PORT}"
 
   log "Monthly restore test started (${RESTORE_HOST}:${RESTORE_PORT})"
