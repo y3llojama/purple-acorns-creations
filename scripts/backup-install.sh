@@ -4,10 +4,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PLIST_NAME="com.purpleacorns.backup"
-PLIST_PATH="/Library/LaunchDaemons/${PLIST_NAME}.plist"
+DAEMON_PATH="/Library/LaunchDaemons/${PLIST_NAME}.plist"
+STAGED_PLIST="$PROJECT_ROOT/backups/${PLIST_NAME}.plist"
 BACKUP_SCRIPT="$SCRIPT_DIR/backup.sh"
 LOG_FILE="$PROJECT_ROOT/backups/backup.log"
-RUN_AS_USER="${SUDO_USER:-$(whoami)}"
+RUN_AS_USER="$(whoami)"
+HOMEDIR="$HOME"
 
 DB_HOST="db.jfovputrcntthmesmjmh.supabase.co"
 DB_PORT="5432"
@@ -95,19 +97,11 @@ if ! psql "$DATABASE_URL" -c "SELECT 1;" &>/dev/null; then
 fi
 echo "  Database connection verified."
 
-# --- Write launchd plist (LaunchDaemon — requires sudo) ---
-echo "Installing LaunchDaemon plist..."
+# --- Stage the plist (no root needed) ---
+echo "Staging LaunchDaemon plist..."
+mkdir -p "$PROJECT_ROOT/backups"
 
-if [[ "$(id -u)" -ne 0 ]]; then
-  echo ""
-  echo "ERROR: LaunchDaemons require root. Re-run with sudo:"
-  echo "  sudo bash scripts/backup-install.sh"
-  exit 1
-fi
-
-HOMEDIR=$(eval echo "~${RUN_AS_USER}")
-
-cat > "$PLIST_PATH" <<PLIST
+cat > "$STAGED_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -157,30 +151,37 @@ cat > "$PLIST_PATH" <<PLIST
 </plist>
 PLIST
 
-chmod 644 "$PLIST_PATH"
-chown root:wheel "$PLIST_PATH"
+echo "  Staged at $STAGED_PLIST"
 
-echo "  Written to $PLIST_PATH"
-
-# --- Load plist ---
-launchctl bootout system/$PLIST_NAME 2>/dev/null || true
-launchctl bootstrap system "$PLIST_PATH"
-echo "  Loaded into launchctl (system domain)"
+# --- Install daemon if running as root, otherwise print instructions ---
+if [[ "$(id -u)" -eq 0 ]]; then
+  cp "$STAGED_PLIST" "$DAEMON_PATH"
+  chmod 644 "$DAEMON_PATH"
+  chown root:wheel "$DAEMON_PATH"
+  launchctl bootout system/$PLIST_NAME 2>/dev/null || true
+  launchctl bootstrap system "$DAEMON_PATH"
+  echo "  Installed and loaded into launchctl (system domain)"
+else
+  echo ""
+  echo "  ┌─────────────────────────────────────────────────┐"
+  echo "  │ Run these two commands as admin to finish setup: │"
+  echo "  └─────────────────────────────────────────────────┘"
+  echo ""
+  echo "  sudo cp $STAGED_PLIST $DAEMON_PATH && sudo chown root:wheel $DAEMON_PATH && sudo chmod 644 $DAEMON_PATH"
+  echo "  sudo launchctl bootstrap system $DAEMON_PATH"
+  echo ""
+fi
 
 echo ""
-echo "=== Installation complete ==="
+echo "=== Setup complete ==="
 echo ""
 echo "  Schedule : Daily at 5:00 AM"
 echo "  Runs as  : $RUN_AS_USER"
 echo "  Script   : $BACKUP_SCRIPT"
 echo "  Log      : $LOG_FILE"
-echo "  Plist    : $PLIST_PATH"
-echo "  Creds    : ~${RUN_AS_USER}/.pgpass (mode 600)"
+echo "  Daemon   : $DAEMON_PATH"
+echo "  Creds    : ~/.pgpass (mode 600)"
 echo ""
-
-# --- Offer test run ---
-read -rp "Run a test backup now? (y/N) " confirm
-if [[ "$confirm" =~ ^[Yy]$ ]]; then
-  echo ""
-  bash "$BACKUP_SCRIPT"
-fi
+echo "  Test manually:  bash $BACKUP_SCRIPT"
+echo "  Test via daemon: sudo launchctl kickstart system/$PLIST_NAME"
+echo ""
