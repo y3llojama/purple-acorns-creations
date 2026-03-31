@@ -21,20 +21,27 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   // Fetch product from view + variations (safe public fields only)
   const [{ data: product, error }, { data: variations }] = await Promise.all([
     supabase.from('products_with_default').select('*').eq('id', id).eq('is_active', true).single(),
-    supabase.from('product_variations').select('id,price,is_default,is_active,image_url').eq('product_id', id).eq('is_active', true),
+    supabase.from('product_variations')
+      .select('id,price,stock_count,is_default,is_active,image_url,option_values:variation_option_values(value:item_option_values(id,name,option:item_options(name)))')
+      .eq('product_id', id).eq('is_active', true),
   ])
 
   if (error || !product) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   // Compute in_stock boolean per variation (never expose stock_count publicly)
-  const safeVariations = (variations ?? []).map(v => ({
-    id: v.id,
-    price: v.price,
-    is_default: v.is_default,
-    is_active: v.is_active,
-    image_url: v.image_url,
-    in_stock: true,
-  }))
+  const safeVariations = (variations ?? []).map(v => {
+    const optVals = (v as any).option_values ?? []
+    const label = optVals.map((ov: any) => `${ov.value?.option?.name}: ${ov.value?.name}`).filter((s: string) => s !== 'undefined: undefined').join(' / ')
+    return {
+      id: v.id,
+      price: v.price,
+      is_default: v.is_default,
+      is_active: v.is_active,
+      image_url: v.image_url,
+      label: label || undefined,
+      in_stock: (v as any).stock_count > 0,
+    }
+  })
 
   return NextResponse.json({ ...product, variations: safeVariations })
 }
