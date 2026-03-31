@@ -169,7 +169,7 @@ if [[ "$RESTORE_TEST" == true ]]; then
   ntfy "Monthly restore test started"
 
   # Create temp database
-  if ! createdb -h "$RESTORE_HOST" -p "$RESTORE_PORT" -U "$RESTORE_USER" "$RESTORE_DB" 2>>"$LOG_FILE"; then
+  if ! createdb -w -h "$RESTORE_HOST" -p "$RESTORE_PORT" -U "$RESTORE_USER" "$RESTORE_DB" 2>>"$LOG_FILE"; then
     log "ERROR: Failed to create temp database $RESTORE_DB"
     ntfy "Restore test FAILED — could not create temp database"
     # Restore test failure is non-fatal to the backup itself
@@ -178,7 +178,7 @@ if [[ "$RESTORE_TEST" == true ]]; then
 
   # Restore
   RESTORE_OK=true
-  if ! gunzip -c "$TARGET_FILE" | psql -q "${RESTORE_CONN}/${RESTORE_DB}" >>"$LOG_FILE" 2>&1; then
+  if ! gunzip -c "$TARGET_FILE" | psql -w -q "${RESTORE_CONN}/${RESTORE_DB}" >>"$LOG_FILE" 2>&1; then
     log "ERROR: Failed to restore backup into $RESTORE_DB"
     ntfy "Restore test FAILED — psql restore error"
     RESTORE_OK=false
@@ -187,11 +187,11 @@ if [[ "$RESTORE_TEST" == true ]]; then
   if [[ "$RESTORE_OK" == true ]]; then
     # Sanity checks
     RESTORE_URL="${RESTORE_CONN}/${RESTORE_DB}"
-    TABLE_COUNT=$(psql -t -A "$RESTORE_URL" -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE';" 2>>"$LOG_FILE" || echo "0")
-    CONTENT_ROWS=$(psql -t -A "$RESTORE_URL" -c "SELECT count(*) FROM public.content;" 2>>"$LOG_FILE" || echo "?")
-    GALLERY_ROWS=$(psql -t -A "$RESTORE_URL" -c "SELECT count(*) FROM public.gallery;" 2>>"$LOG_FILE" || echo "?")
-    EVENTS_ROWS=$(psql -t -A "$RESTORE_URL" -c "SELECT count(*) FROM public.events;" 2>>"$LOG_FILE" || echo "?")
-    SETTINGS_EXISTS=$(psql -t -A "$RESTORE_URL" -c "SELECT count(*) FROM public.settings;" 2>>"$LOG_FILE" || echo "0")
+    TABLE_COUNT=$(psql -w -t -A "$RESTORE_URL" -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE';" 2>>"$LOG_FILE" || echo "0")
+    CONTENT_ROWS=$(psql -w -t -A "$RESTORE_URL" -c "SELECT count(*) FROM public.content;" 2>>"$LOG_FILE" || echo "?")
+    GALLERY_ROWS=$(psql -w -t -A "$RESTORE_URL" -c "SELECT count(*) FROM public.gallery;" 2>>"$LOG_FILE" || echo "?")
+    EVENTS_ROWS=$(psql -w -t -A "$RESTORE_URL" -c "SELECT count(*) FROM public.events;" 2>>"$LOG_FILE" || echo "?")
+    SETTINGS_EXISTS=$(psql -w -t -A "$RESTORE_URL" -c "SELECT count(*) FROM public.settings;" 2>>"$LOG_FILE" || echo "0")
 
     if [[ "$TABLE_COUNT" -gt 0 && "$SETTINGS_EXISTS" -gt 0 ]]; then
       log "Restore test passed — ${TABLE_COUNT} tables, content=${CONTENT_ROWS}, gallery=${GALLERY_ROWS}, events=${EVENTS_ROWS}"
@@ -203,7 +203,7 @@ if [[ "$RESTORE_TEST" == true ]]; then
   fi
 
   # Cleanup temp database
-  dropdb --if-exists -h "$RESTORE_HOST" -p "$RESTORE_PORT" -U "$RESTORE_USER" "$RESTORE_DB" 2>>"$LOG_FILE" || true
+  dropdb -w --if-exists -h "$RESTORE_HOST" -p "$RESTORE_PORT" -U "$RESTORE_USER" "$RESTORE_DB" 2>>"$LOG_FILE" || true
   log "Restore test cleanup complete"
 fi
 
