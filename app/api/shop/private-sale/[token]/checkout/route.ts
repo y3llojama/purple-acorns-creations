@@ -162,6 +162,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     return NextResponse.json({ error: message }, { status: 402 })
   }
 
+  // Decrement variation stock for each sale item (single stock authority)
+  for (const item of sale.items) {
+    const i = item as { product_id: string; quantity: number; custom_price: number }
+    // Look up default variation for this product
+    const { data: defaultVar } = await supabase
+      .from('product_variations')
+      .select('id')
+      .eq('product_id', i.product_id)
+      .eq('is_default', true)
+      .maybeSingle()
+    if (defaultVar) {
+      await supabase.rpc('decrement_variation_stock', { var_id: defaultVar.id, qty: i.quantity })
+    }
+  }
+
   // Fulfill atomically — refund if DB fails
   const { error: fulfillError } = await supabase.rpc('fulfill_private_sale', { sale_id: sale.id })
   if (fulfillError) {

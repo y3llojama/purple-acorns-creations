@@ -2,11 +2,11 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import type { Product } from '@/lib/supabase/types'
 
-export interface CartItem { product: Product; quantity: number; variationId?: string }
+export interface CartItem { product: Product; quantity: number; variationId?: string; variationLabel?: string; variationPrice?: number }
 
 interface CartContextValue {
   items: CartItem[]
-  addToCart: (product: Product, variationId?: string) => void
+  addToCart: (product: Product, variationId?: string, variationLabel?: string, variationPrice?: number) => void
   removeFromCart: (productId: string, variationId?: string) => void
   updateQuantity: (productId: string, quantity: number, variationId?: string) => void
   clearCart: () => void
@@ -51,7 +51,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     try { localStorage.setItem('pac_cart', JSON.stringify(items)) } catch {}
   }, [items, hydrated])
 
-  const addToCart = useCallback((product: Product, variationId?: string) => {
+  const addToCart = useCallback((product: Product, variationId?: string, variationLabel?: string, variationPrice?: number) => {
     setItems(prev => {
       const ex = prev.find(matchItem(product.id, variationId))
       if (ex) {
@@ -59,7 +59,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           ? { ...i, quantity: i.quantity + 1 }
           : i)
       }
-      return [...prev, { product, quantity: 1, variationId }]
+      return [...prev, { product, quantity: 1, variationId, variationLabel, variationPrice }]
     })
     setIsOpen(true)
   }, [])
@@ -73,7 +73,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [removeFromCart])
 
   const clearCart = useCallback(() => setItems([]), [])
-  const total = items.reduce((s, i) => s + i.product.price * i.quantity, 0)
+  const total = items.reduce((s, i) => s + (i.variationPrice ?? i.product.price) * i.quantity, 0)
   const count = items.reduce((s, i) => s + i.quantity, 0)
 
   return (

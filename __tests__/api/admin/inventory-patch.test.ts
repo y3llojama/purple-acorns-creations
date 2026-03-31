@@ -30,7 +30,16 @@ describe('PATCH /api/admin/inventory/[id]', () => {
     PATCH = module.PATCH
   })
 
-  beforeEach(() => jest.resetAllMocks())
+  beforeEach(() => {
+    jest.resetAllMocks()
+    // Re-set mocks after resetAllMocks clears their implementations
+    const { requireAdminSession } = jest.requireMock('@/lib/auth') as { requireAdminSession: jest.Mock }
+    requireAdminSession.mockResolvedValue({ error: null })
+    const { createServiceRoleClient } = jest.requireMock('@/lib/supabase/server') as { createServiceRoleClient: jest.Mock }
+    createServiceRoleClient.mockReturnValue({ from: (...args: unknown[]) => mockFrom(...args) })
+    const { syncProduct } = jest.requireMock('@/lib/channels') as { syncProduct: jest.Mock }
+    syncProduct.mockResolvedValue([])
+  })
 
   it('writes price/stock to product_variations, not products table (R8)', async () => {
     const fromCalls: string[] = []

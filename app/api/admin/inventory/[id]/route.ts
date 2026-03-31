@@ -42,9 +42,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const supabase = createServiceRoleClient()
   // Optimistic locking: check updated_at hasn't changed
   if (body.updated_at) {
-    const { data: current } = await supabase.from('products').select('updated_at').eq('id', id).single()
-    if (current && current.updated_at !== body.updated_at) {
-      return NextResponse.json({ error: 'Conflict: product was modified by another session' }, { status: 409 })
+    if (body.variationId) {
+      // Lock against variation's updated_at when variationId is provided
+      const { data: current } = await supabase.from('product_variations').select('updated_at').eq('id', body.variationId).single()
+      if (current && current.updated_at !== body.updated_at) {
+        return NextResponse.json({ error: 'Conflict: product was modified by another session' }, { status: 409 })
+      }
+    } else {
+      const { data: current } = await supabase.from('products').select('updated_at').eq('id', id).single()
+      if (current && current.updated_at !== body.updated_at) {
+        return NextResponse.json({ error: 'Conflict: product was modified by another session' }, { status: 409 })
+      }
     }
   }
   const { data, error: dbError } = await supabase.from('products').update(update).eq('id', id).select().single()

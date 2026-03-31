@@ -12,7 +12,7 @@ export function buildProductSchema(
   variation?: { effectivePrice: number; anyInStock: boolean }
 ): Record<string, unknown> {
   const price = variation?.effectivePrice ?? product.price
-  const inStock = variation ? variation.anyInStock : (product.is_active && product.stock_count > 0)
+  const inStock = product.is_active && (variation ? variation.anyInStock : product.stock_count > 0)
   const schema: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'Product',

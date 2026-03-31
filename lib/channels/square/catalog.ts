@@ -234,15 +234,19 @@ export async function pullInventoryFromSquare(): Promise<{ updated: number; skip
     if (updateError) {
       errors.push(`Variation ${variation.id}: ${updateError.message}`)
     } else {
-      // Write stock movement for audit trail
-      const delta = newQty - variation.stock_count
-      await supabase.from('stock_movements').insert({
-        variation_id: variation.id,
-        quantity_change: delta,
-        reason: 'sync_correction',
-        source: 'square',
-      })
       updated++
+      // Write stock movement for audit trail (non-blocking)
+      const delta = newQty - variation.stock_count
+      try {
+        await supabase.from('stock_movements').insert({
+          variation_id: variation.id,
+          quantity_change: delta,
+          reason: 'sync_correction',
+          source: 'square',
+        })
+      } catch {
+        // Audit trail failure should not block sync
+      }
     }
   }
 
@@ -426,27 +430,31 @@ export async function pullProductsFromSquare(): Promise<{ upserted: number; erro
       if (updateError) {
         errors.push(`Product ${squareCatalogId}: ${updateError.message}`)
       } else {
-        // Upsert default variation
+        upserted++
+        // Upsert default variation (best-effort — don't block pull on variation failures)
         if (variationId) {
-          const { data: existingVar } = await supabase
-            .from('product_variations')
-            .select('id')
-            .eq('product_id', existing.id)
-            .eq('is_default', true)
-            .single()
+          try {
+            const { data: existingVar } = await supabase
+              .from('product_variations')
+              .select('id')
+              .eq('product_id', existing.id)
+              .eq('is_default', true)
+              .single()
 
-          if (existingVar) {
-            await supabase.from('product_variations')
-              .update({ price, square_variation_id: variationId, updated_at: new Date().toISOString() })
-              .eq('id', existingVar.id)
-          } else {
-            await supabase.from('product_variations').insert({
-              product_id: existing.id, price, square_variation_id: variationId,
-              is_default: true, is_active: true, stock_count: 0,
-            })
+            if (existingVar) {
+              await supabase.from('product_variations')
+                .update({ price, square_variation_id: variationId, updated_at: new Date().toISOString() })
+                .eq('id', existingVar.id)
+            } else {
+              await supabase.from('product_variations').insert({
+                product_id: existing.id, price, square_variation_id: variationId,
+                is_default: true, is_active: true, stock_count: 0,
+              })
+            }
+          } catch {
+            // Variation upsert failure should not block product sync
           }
         }
-        upserted++
       }
     } else {
       const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
@@ -470,8 +478,9 @@ export async function pullProductsFromSquare(): Promise<{ upserted: number; erro
           errors.push(`Product ${squareCatalogId}: ${insertError.message}`)
         }
       } else {
-        // Create default variation for new product
-        if (!insertError) {
+        upserted++
+        // Create default variation for new product (best-effort)
+        try {
           const { data: newProduct } = await supabase
             .from('products').select('id').eq('square_catalog_id', squareCatalogId).single()
           if (newProduct) {
@@ -480,8 +489,9 @@ export async function pullProductsFromSquare(): Promise<{ upserted: number; erro
               is_default: true, is_active: true, stock_count: 0,
             })
           }
+        } catch {
+          // Variation creation failure should not block product sync
         }
-        upserted++
       }
     }
   }

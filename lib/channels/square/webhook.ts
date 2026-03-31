@@ -33,7 +33,7 @@ export async function handleInventoryUpdate(payload: unknown): Promise<void> {
       .from('product_variations')
       .select('id,stock_count')
       .eq('square_variation_id', count.catalog_object_id)
-      .single()
+      .maybeSingle()
 
     if (!variation) {
       console.warn('[square-webhook] no variation found for', count.catalog_object_id)
@@ -56,7 +56,7 @@ export async function handleInventoryUpdate(payload: unknown): Promise<void> {
       await supabase.from('stock_movements').insert({
         variation_id: variation.id,
         quantity_change: delta,
-        reason: 'sale',
+        reason: 'sync_correction',
         source: 'square',
       })
     }

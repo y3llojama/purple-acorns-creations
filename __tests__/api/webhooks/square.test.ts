@@ -151,7 +151,8 @@ describe('handleInventoryUpdate — write target', () => {
   it('writes stock update to product_variations, not products', async () => {
     // Dynamic import to get fresh module with our mocks
     jest.resetModules()
-    jest.mock('@/lib/supabase/server', () => ({
+    jest.unmock('@/lib/channels/square/webhook')
+    jest.doMock('@/lib/supabase/server', () => ({
       createServiceRoleClient: () => ({
         from: (...args: unknown[]) => mockFromHandler(...args),
       }),
@@ -191,7 +192,8 @@ describe('handleInventoryUpdate — write target', () => {
 
   it('creates stock_movements entry on inventory webhook', async () => {
     jest.resetModules()
-    jest.mock('@/lib/supabase/server', () => ({
+    jest.unmock('@/lib/channels/square/webhook')
+    jest.doMock('@/lib/supabase/server', () => ({
       createServiceRoleClient: () => ({
         from: (...args: unknown[]) => mockFromHandler(...args),
       }),

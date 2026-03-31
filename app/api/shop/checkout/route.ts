@@ -60,23 +60,21 @@ export async function POST(request: Request) {
 
   const supabase = createServiceRoleClient()
 
-  // Step 1: Fetch variation data + shipping settings (prices only — no stock check here)
+  // Step 1: Fetch variation data (with product name join) + shipping settings
   const variationIds = cart.map(i => i.variationId)
   const [{ data: variations }, { data: settingsRow }] = await Promise.all([
-    supabase.from('product_variations').select('id,product_id,price,square_variation_id,is_active,stock_count,stock_reserved').in('id', variationIds),
+    supabase.from('product_variations').select('id,product_id,price,square_variation_id,is_active,stock_count,stock_reserved,product:products(id,name)').in('id', variationIds),
     supabase.from('settings').select('shipping_mode,shipping_value').limit(1).maybeSingle(),
   ])
   if (!variations) return NextResponse.json({ error: 'Failed to validate cart' }, { status: 500 })
 
-  // Fetch product names for Square line items
-  const productIds = [...new Set(cart.map(i => i.productId))]
-  const { data: products } = await supabase.from('products').select('id,name').in('id', productIds)
-  if (!products) return NextResponse.json({ error: 'Failed to validate cart' }, { status: 500 })
-
   for (const item of cart) {
-    const v = variations.find(v => v.id === item.variationId)
+    const v = variations.find((v: Record<string, unknown>) => v.id === item.variationId) as Record<string, unknown> | undefined
     if (!v) return NextResponse.json({ error: `Variation not found: ${item.variationId}` }, { status: 409 })
-    if (!v.is_active) return NextResponse.json({ error: `${products?.find(p => p.id === item.productId)?.name ?? item.productId} is no longer available` }, { status: 409 })
+    if (!v.is_active) {
+      const prod = v.product as { name?: string } | null
+      return NextResponse.json({ error: `${prod?.name ?? item.productId} is no longer available` }, { status: 409 })
+    }
     if (v.product_id !== item.productId) return NextResponse.json({ error: 'Invalid cart' }, { status: 400 })
   }
 
@@ -107,7 +105,9 @@ export async function POST(request: Request) {
         await supabase.rpc('increment_variation_stock', { var_id: done.variationId, qty: done.quantity })
           .then(({ error }) => { if (error) console.error('[checkout] increment_variation_stock rollback failed for', done.variationId) })
       }
-      const label = products?.find(p => p.id === item.productId)?.name ?? item.productId
+      const v = variations!.find((v: Record<string, unknown>) => v.id === item.variationId) as Record<string, unknown> | undefined
+      const prod = v?.product as { name?: string } | null
+      const label = prod?.name ?? item.productId
       return NextResponse.json({ error: `${label} is sold out`, soldOut: item.productId }, { status: 409 })
     }
     decremented.push(item)
@@ -126,9 +126,9 @@ export async function POST(request: Request) {
         locationId,
         lineItems: [
           ...cart.map(item => {
-            const p = products!.find(p => p.id === item.productId)!
-            const v = variations!.find(v => v.id === item.variationId)!
-            return { name: p.name, quantity: String(item.quantity), basePriceMoney: { amount: BigInt(Math.round(v.price * 100)), currency: 'USD' as const } }
+            const v = variations!.find((v: Record<string, unknown>) => v.id === item.variationId)! as Record<string, unknown>
+            const prod = v.product as { name?: string } | null
+            return { name: prod?.name ?? item.productId, quantity: String(item.quantity), basePriceMoney: { amount: BigInt(Math.round((v.price as number) * 100)), currency: 'USD' as const } }
           }),
           ...(shippingCents > 0 ? [{ name: 'Shipping & Handling', quantity: '1', basePriceMoney: { amount: BigInt(shippingCents), currency: 'USD' as const } }] : []),
         ],
