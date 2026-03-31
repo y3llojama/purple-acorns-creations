@@ -76,10 +76,14 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# --- Day-of-week filename ---
-DAY_NAME=$(date +%A | tr '[:upper:]' '[:lower:]')
-TARGET_FILE="$BACKUP_DIR/${DAY_NAME}.json.tar.gz"
+# --- Date-based filename (30-day rolling retention) ---
+DATE_STAMP=$(date +%Y-%m-%d)
+TARGET_FILE="$BACKUP_DIR/${DATE_STAMP}.json.tar.gz"
 CHECKSUM_FILE="${TARGET_FILE}.sha256"
+
+# Clean up backups older than 30 days
+find "$BACKUP_DIR" -maxdepth 1 -name '*.json.tar.gz' -type f -mtime +30 -delete 2>/dev/null || true
+find "$BACKUP_DIR" -maxdepth 1 -name '*.json.tar.gz.sha256' -type f -mtime +30 -delete 2>/dev/null || true
 
 # --- Staleness check ---
 # Find newest *.json.tar.gz and warn if older than 25 hours
@@ -100,7 +104,7 @@ if [[ -n "$NEWEST_BACKUP" ]]; then
 fi
 
 # --- Discover tables via OpenAPI endpoint ---
-log "Backup started — target: ${DAY_NAME}.json.tar.gz"
+log "Backup started — target: ${DATE_STAMP}.json.tar.gz"
 ntfy "Backup started"
 
 OPENAPI_HTTP=$(curl -s -o "$TEMP_DIR/.openapi.json" -w "%{http_code}" \
@@ -252,17 +256,18 @@ log "  Size sanity: OK (${ARCHIVE_SIZE} bytes)"
 # Atomic move to final location
 mv -f "$TEMP_ARCHIVE" "$TARGET_FILE"
 TEMP_ARCHIVE=""  # prevent cleanup trap from removing the final file
-echo "$CHECKSUM  ${DAY_NAME}.json.tar.gz" > "$CHECKSUM_FILE"
+echo "$CHECKSUM  ${DATE_STAMP}.json.tar.gz" > "$CHECKSUM_FILE"
 
 COMPRESSED_SIZE=$(ls -lh "$TARGET_FILE" | awk '{print $5}')
-log "Backup complete — ${DAY_NAME}.json.tar.gz (${COMPRESSED_SIZE}), ${TABLE_COUNT} tables, checksum OK"
-ntfy "Backup complete — ${DAY_NAME}.json.tar.gz (${COMPRESSED_SIZE}), ${TABLE_COUNT} tables"
+log "Backup complete — ${DATE_STAMP}.json.tar.gz (${COMPRESSED_SIZE}), ${TABLE_COUNT} tables, checksum OK"
+ntfy "Backup complete — ${DATE_STAMP}.json.tar.gz (${COMPRESSED_SIZE}), ${TABLE_COUNT} tables"
 
 # --- Monthly restore test ---
 # Auto-trigger on the 1st of each month, or when --restore-test is passed
-if [[ "$(date +%d)" == "01" ]]; then
+DAY_OF_MONTH=$(date +%d)
+if [[ "$DAY_OF_MONTH" == "01" || "$DAY_OF_MONTH" == "15" ]]; then
   RESTORE_TEST=true
-  log "First of month — auto-triggering restore test"
+  log "Bi-monthly restore test — auto-triggering (day $DAY_OF_MONTH)"
 fi
 
 if [[ "$RESTORE_TEST" == true ]]; then
