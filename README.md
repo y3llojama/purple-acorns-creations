@@ -232,7 +232,7 @@ lib/                  # Core utilities
 cloudflare/
   email-worker/       # Cloudflare Email Worker — fans out hello@purpleacornz.com to Gmail + Resend
 infra/                # Terraform — full Supabase IaC
-backups/              # Database backups (data.sql committed; settings.sql gitignored)
+backups/              # Database backups (JSON archives, gitignored — production data)
 scripts/              # Automation scripts (includes deploy-cf-worker.sh)
 supabase/migrations/  # SQL schema
 docs/                 # Setup guides and design docs
@@ -243,7 +243,8 @@ docs/                 # Setup guides and design docs
 ## Prerequisites
 
 - Node.js 20+
-- `pg_dump` / `psql` (for database backups) — install via `brew install postgresql`
+- `curl`, `jq`, `gzip`, `tar` (for database backups) — `jq` via `brew install jq`; rest built into macOS
+- `psql` (optional, for bi-monthly restore tests) — install via `brew install libpq`
 - Terraform 1.6+ (for infrastructure) — install via `brew install terraform`
 - A Supabase account and project
 - A Google Cloud project with OAuth credentials (for admin login)
@@ -521,41 +522,63 @@ terraform apply      # recreates everything fresh
 
 ## Database Backups
 
-`scripts/backup.sh` dumps the database to SQL files.
+`scripts/backup.sh` backs up the entire Supabase database via the REST API (PostgREST). No direct database connection or port 5432 access required — it uses the service role key from `infra/terraform.tfvars`.
 
-### What gets backed up
+### How it works
 
-| File | Contents | Git |
-|---|---|---|
-| `backups/data.sql` | `content`, `events`, `gallery`, `featured_products` | Committed |
-| `backups/settings.sql` | `settings` table (contains API keys) | Gitignored |
+1. **Discovers all tables** via the OpenAPI schema endpoint (minimum 30-table gate)
+2. **Fetches every row** from each table using paginated HTTP Range requests
+3. **Creates a compressed archive** (`backups/YYYY-MM-DD_HHmmss.json.tar.gz`) with one JSON file per table
+4. **Verifies integrity** — SHA-256 checksum, tar structure, content validation, size sanity check
+5. **Prunes old backups** — rolling 30-day retention window
+
+### Automated schedule (Mac Mini)
+
+| What | When |
+|---|---|
+| Full backup | Daily at 5:00 AM via crontab |
+| Retention cleanup | Every run — deletes archives older than 30 days |
+| Full restore test | 1st and 15th of each month |
+| Alerts | [ntfy.sh](https://ntfy.sh) push notifications on failure |
 
 ### Usage
 
 ```bash
-# Backup to backups/ (default)
-./scripts/backup.sh
+# Run a backup manually
+bash scripts/backup.sh
 
-# Backup to a specific directory (e.g. iCloud Drive)
-./scripts/backup.sh ~/Library/Mobile\ Documents/com~apple~CloudDocs/purple-acorns-backups/
+# Run a backup with a full restore test (uses local Docker Postgres)
+bash scripts/backup.sh --restore-test
 
-# Install a cron job on the current machine
-./scripts/backup.sh --setup-cron "0 2 * * *" ~/backups/purple-acorns
+# Install the backup system on a new machine
+bash scripts/backup-install.sh
 ```
 
-The `--setup-cron` option adds an entry to `crontab` with the given schedule (standard cron syntax). Use this on your always-on machine to schedule automatic backups.
+### Restore test
 
-### Restore
+On the 1st and 15th of each month (or via `--restore-test`), the script:
 
-```bash
-psql $DATABASE_URL < backups/data.sql
-psql $DATABASE_URL < backups/settings.sql   # if available
-```
+1. Starts a local Docker Postgres container
+2. Applies all `supabase/migrations/*.sql` in order
+3. Truncates all tables, records baseline counts
+4. Generates SQL INSERTs from the JSON backup using `jq` and loads them via `psql`
+5. Compares restored row counts against the backup — any mismatch fails the test
 
-### Required env var
+### What gets backed up
 
-`DATABASE_URL` must be set (Supabase connection string). Find it in:
-Supabase dashboard → Project Settings → Database → Connection string (URI mode)
+All tables in the Supabase database — `content`, `events`, `gallery`, `products`, `settings`, `newsletter_subscribers`, `messages`, etc. Each table is saved as a separate JSON file inside the compressed archive.
+
+### Files
+
+| Path | Contents | Git |
+|---|---|---|
+| `backups/*.json.tar.gz` | Compressed JSON archives (one per backup run) | Gitignored |
+| `backups/*.json.tar.gz.sha256` | SHA-256 checksums | Gitignored |
+| `backups/backup.log` | Backup script output log | Gitignored |
+
+### Credentials
+
+The backup script reads `supabase_service_role_key` from `infra/terraform.tfvars` (gitignored). No `.env.local` or `DATABASE_URL` needed.
 
 ---
 
@@ -581,7 +604,7 @@ Deployment is via **Vercel + GitHub**. Pushing to `main` triggers an automatic d
 
 ## Theming
 
-Two themes: `warm-artisan` (default) and `soft-botanical`. Controlled via the `data-theme` attribute on `<html>`.
+Four themes: `warm-artisan`, `soft-botanical`, `modern` (default), and `custom`. Controlled via the `data-theme` attribute on `<html>`.
 
 - All colours defined as CSS custom properties in `app/globals.css`
 - No hardcoded colour values outside `globals.css`
