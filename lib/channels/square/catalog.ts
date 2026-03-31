@@ -107,6 +107,85 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
     const variationPrice = defaultVar?.price ?? product.price
     const variationStock = defaultVar?.stock_count ?? product.stock_count
 
+    // Check if the product has multiple variations (options)
+    const { data: productRow } = await supabase
+      .from('products')
+      .select('has_options')
+      .eq('id', product.id)
+      .single()
+
+    // Build variations payload — multi-variation or single "Regular"
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let variationsPayload: any[]
+
+    if (productRow?.has_options === true) {
+      // Fetch all active variations with option labels
+      const { data: allVars } = await supabase
+        .from('product_variations')
+        .select('id,price,sku,stock_count,square_variation_id,option_values:variation_option_values(value:item_option_values(name))')
+        .eq('product_id', product.id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: true })
+
+      if (allVars && allVars.length > 0) {
+        variationsPayload = allVars.map((v, idx) => {
+          // Build a human-readable name from option values
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const optionNames = (v.option_values as any[] ?? [])
+            .map((ov: any) => ov.value?.name)
+            .filter(Boolean)
+          const varName = optionNames.length > 0
+            ? sanitizeText(optionNames.join(', '))
+            : `Variation ${idx + 1}`
+
+          return {
+            type: 'ITEM_VARIATION',
+            id: `#VAR-${product.id}-${idx}`,
+            itemVariationData: {
+              name: varName,
+              pricingType: 'FIXED_PRICING',
+              priceMoney: {
+                amount: BigInt(Math.round((v.price ?? 0) * 100)),
+                currency: 'USD',
+              },
+              sku: v.sku ?? undefined,
+              locationOverrides: [{ locationId, trackInventory: true }],
+            },
+          }
+        })
+      } else {
+        // Fallback to single variation if no active variations found
+        variationsPayload = [{
+          type: 'ITEM_VARIATION',
+          id: `#VAR-${product.id}`,
+          itemVariationData: {
+            name: 'Regular',
+            pricingType: 'FIXED_PRICING',
+            priceMoney: {
+              amount: BigInt(Math.round(variationPrice * 100)),
+              currency: 'USD',
+            },
+            locationOverrides: [{ locationId, trackInventory: true }],
+          },
+        }]
+      }
+    } else {
+      // Single variation — existing behavior
+      variationsPayload = [{
+        type: 'ITEM_VARIATION',
+        id: `#VAR-${product.id}`,
+        itemVariationData: {
+          name: 'Regular',
+          pricingType: 'FIXED_PRICING',
+          priceMoney: {
+            amount: BigInt(Math.round(variationPrice * 100)),
+            currency: 'USD',
+          },
+          locationOverrides: [{ locationId, trackInventory: true }],
+        },
+      }]
+    }
+
     // Delete-then-recreate to avoid VERSION_MISMATCH
     if (product.square_catalog_id) {
       try {
@@ -127,26 +206,15 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
           name: product.name,
           description: product.description ?? undefined,
           categories: squareCategoryId ? [{ id: squareCategoryId }] : undefined,
-          variations: [{
-            type: 'ITEM_VARIATION',
-            id: `#VAR-${product.id}`,
-            itemVariationData: {
-              name: 'Regular',
-              pricingType: 'FIXED_PRICING',
-              priceMoney: {
-                amount: BigInt(Math.round(variationPrice * 100)),
-                currency: 'USD',
-              },
-              locationOverrides: [{ locationId, trackInventory: true }],
-            },
-          }],
+          variations: variationsPayload,
         },
       },
     })
 
     const catalogObjectId = result.catalogObject?.id
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const variationId = (result.catalogObject as any)?.itemData?.variations?.[0]?.id
+    const returnedVariations = (result.catalogObject as any)?.itemData?.variations ?? []
+    const variationId = returnedVariations[0]?.id ?? null
     if (!catalogObjectId) throw new Error('Square upsert returned no catalog object ID')
 
     const { error: updateError } = await supabase
@@ -155,7 +223,29 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
       .eq('id', product.id)
     if (updateError) throw new Error(`Failed to update product square_catalog_id: ${updateError.message}`)
 
-    if (variationId && defaultVar) {
+    // Map back Square variation IDs to product_variations rows
+    if (productRow?.has_options === true && returnedVariations.length > 0) {
+      try {
+        // Fetch all active variations ordered by created_at to match push order
+        const { data: localVars } = await supabase
+          .from('product_variations')
+          .select('id')
+          .eq('product_id', product.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: true })
+
+        if (localVars) {
+          for (let i = 0; i < Math.min(localVars.length, returnedVariations.length); i++) {
+            await supabase
+              .from('product_variations')
+              .update({ square_variation_id: returnedVariations[i].id })
+              .eq('id', localVars[i].id)
+          }
+        }
+      } catch {
+        // Variation ID mapping failure should not block push
+      }
+    } else if (variationId && defaultVar) {
       await supabase
         .from('product_variations')
         .update({ square_variation_id: variationId })
@@ -163,19 +253,52 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
         .eq('is_default', true)
     }
 
-    if (variationId) {
+    // Push inventory counts for all variations
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const inventoryChanges: any[] = []
+    if (productRow?.has_options === true && returnedVariations.length > 0) {
+      try {
+        const { data: localVars } = await supabase
+          .from('product_variations')
+          .select('stock_count,square_variation_id')
+          .eq('product_id', product.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: true })
+
+        if (localVars) {
+          for (let i = 0; i < Math.min(localVars.length, returnedVariations.length); i++) {
+            inventoryChanges.push({
+              type: 'PHYSICAL_COUNT',
+              physicalCount: {
+                catalogObjectId: returnedVariations[i].id,
+                locationId,
+                quantity: String(localVars[i].stock_count ?? 0),
+                occurredAt: new Date().toISOString(),
+                state: 'IN_STOCK',
+              },
+            })
+          }
+        }
+      } catch {
+        // Inventory count build failure — fall through
+      }
+    } else if (variationId) {
+      inventoryChanges.push({
+        type: 'PHYSICAL_COUNT',
+        physicalCount: {
+          catalogObjectId: variationId,
+          locationId,
+          quantity: String(variationStock),
+          occurredAt: new Date().toISOString(),
+          state: 'IN_STOCK',
+        },
+      })
+    }
+
+    if (inventoryChanges.length > 0) {
       await client.inventory.batchCreateChanges({
         idempotencyKey: `inv-${product.id}-${crypto.randomUUID()}`,
-        changes: [{
-          type: 'PHYSICAL_COUNT',
-          physicalCount: {
-            catalogObjectId: variationId,
-            locationId,
-            quantity: String(variationStock),
-            occurredAt: new Date().toISOString(),
-            state: 'IN_STOCK',
-          },
-        }],
+        changes: inventoryChanges,
       })
     }
 
@@ -392,10 +515,12 @@ export async function pullProductsFromSquare(): Promise<{ upserted: number; erro
     // Price from first variation (cents BigInt → dollars float)
     // variations[] is CatalogObject[] — cast to access itemVariationData
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const variation = itemData.variations?.[0] as any
-    const variationId: string | null = variation?.id ?? null
-    const priceCents = variation?.itemVariationData?.priceMoney?.amount
-    const price = priceCents != null ? Number(priceCents) / 100 : 0
+    const squareVariations = (itemData.variations ?? []) as any[]
+    const firstVariation = squareVariations[0]
+    const firstVariationId: string | null = firstVariation?.id ?? null
+    const firstPriceCents = firstVariation?.itemVariationData?.priceMoney?.amount
+    const price = firstPriceCents != null ? Number(firstPriceCents) / 100 : 0
+    const hasMultipleVariations = squareVariations.length > 1
 
     // Category link via Square category ID
     let categoryId: string | null = null
@@ -415,6 +540,9 @@ export async function pullProductsFromSquare(): Promise<{ upserted: number; erro
       .eq('square_catalog_id', squareCatalogId)
       .single()
 
+    // Track the product ID for multi-variation handling after upsert
+    let productIdForVariations: string | null = null
+
     if (existing) {
       const { error: updateError } = await supabase
         .from('products')
@@ -423,7 +551,7 @@ export async function pullProductsFromSquare(): Promise<{ upserted: number; erro
           description,
           price,
           category_id: categoryId,
-          square_variation_id: variationId,
+          square_variation_id: firstVariationId,
           updated_at: new Date().toISOString(),
         })
         .eq('id', existing.id)
@@ -431,8 +559,9 @@ export async function pullProductsFromSquare(): Promise<{ upserted: number; erro
         errors.push(`Product ${squareCatalogId}: ${updateError.message}`)
       } else {
         upserted++
+        productIdForVariations = existing.id
         // Upsert default variation (best-effort — don't block pull on variation failures)
-        if (variationId) {
+        if (firstVariationId) {
           try {
             const { data: existingVar } = await supabase
               .from('product_variations')
@@ -443,11 +572,11 @@ export async function pullProductsFromSquare(): Promise<{ upserted: number; erro
 
             if (existingVar) {
               await supabase.from('product_variations')
-                .update({ price, square_variation_id: variationId, updated_at: new Date().toISOString() })
+                .update({ price, square_variation_id: firstVariationId, updated_at: new Date().toISOString() })
                 .eq('id', existingVar.id)
             } else {
               await supabase.from('product_variations').insert({
-                product_id: existing.id, price, square_variation_id: variationId,
+                product_id: existing.id, price, square_variation_id: firstVariationId,
                 is_default: true, is_active: true, stock_count: 0,
               })
             }
@@ -470,7 +599,7 @@ export async function pullProductsFromSquare(): Promise<{ upserted: number; erro
           is_active: true,
           gallery_featured: false,
           square_catalog_id: squareCatalogId,
-          square_variation_id: variationId,
+          square_variation_id: firstVariationId,
           slug,
         })
       if (insertError) {
@@ -484,14 +613,69 @@ export async function pullProductsFromSquare(): Promise<{ upserted: number; erro
           const { data: newProduct } = await supabase
             .from('products').select('id').eq('square_catalog_id', squareCatalogId).single()
           if (newProduct) {
+            productIdForVariations = newProduct.id
             await supabase.from('product_variations').insert({
-              product_id: newProduct.id, price, square_variation_id: variationId,
+              product_id: newProduct.id, price, square_variation_id: firstVariationId,
               is_default: true, is_active: true, stock_count: 0,
             })
           }
         } catch {
           // Variation creation failure should not block product sync
         }
+      }
+    }
+
+    // Multi-variation pull: if Square item has multiple variations, sync them (best-effort)
+    if (hasMultipleVariations && productIdForVariations) {
+      try {
+        for (const sqVar of squareVariations) {
+          const sqVarId = sqVar.id
+          if (!sqVarId) continue
+
+          const varData = sqVar.itemVariationData
+          const varName = varData?.name ? sanitizeText(String(varData.name).trim()) : 'Unnamed'
+          const varPriceCents = varData?.priceMoney?.amount
+          const varPrice = varPriceCents != null ? Number(varPriceCents) / 100 : 0
+          const varSku = varData?.sku ? sanitizeText(String(varData.sku)) : null
+
+          // Check if we already have a variation with this square_variation_id
+          const { data: existingVar } = await supabase
+            .from('product_variations')
+            .select('id')
+            .eq('square_variation_id', sqVarId)
+            .single()
+
+          if (existingVar) {
+            await supabase.from('product_variations')
+              .update({
+                price: varPrice,
+                sku: varSku,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', existingVar.id)
+          } else {
+            // Check if this is the first variation (already created as default above)
+            const isFirst = sqVar === squareVariations[0]
+            if (!isFirst) {
+              await supabase.from('product_variations').insert({
+                product_id: productIdForVariations,
+                price: varPrice,
+                sku: varSku,
+                square_variation_id: sqVarId,
+                is_default: false,
+                is_active: true,
+                stock_count: 0,
+              })
+            }
+          }
+        }
+
+        // Set has_options = true on the product
+        await supabase.from('products')
+          .update({ has_options: true, updated_at: new Date().toISOString() })
+          .eq('id', productIdForVariations)
+      } catch {
+        // Multi-variation sync failure should not block product pull
       }
     }
   }
