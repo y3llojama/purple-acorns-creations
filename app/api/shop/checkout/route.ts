@@ -18,7 +18,7 @@ function checkRate(ip: string): boolean {
   return entry.count <= 10
 }
 
-interface LineItem { productId: string; quantity: number }
+interface LineItem { productId: string; variationId: string; quantity: number }
 
 export async function POST(request: Request) {
   const ip = getClientIp(request)
@@ -32,6 +32,9 @@ export async function POST(request: Request) {
   if (!cart.length) return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
   if (cart.some(i => !Number.isInteger(i.quantity) || i.quantity < 1)) {
     return NextResponse.json({ error: 'Invalid cart' }, { status: 400 })
+  }
+  if (cart.some(i => !i.variationId || typeof i.variationId !== 'string')) {
+    return NextResponse.json({ error: 'variationId required for each item' }, { status: 400 })
   }
   if (!sourceId) return NextResponse.json({ error: 'sourceId required' }, { status: 400 })
 
@@ -57,21 +60,29 @@ export async function POST(request: Request) {
 
   const supabase = createServiceRoleClient()
 
-  // Step 1: Fetch product data + shipping settings (prices only — no stock check here)
-  const [{ data: products }, { data: settingsRow }] = await Promise.all([
-    supabase.from('products').select('id,name,price,stock_count,square_variation_id').in('id', cart.map(i => i.productId)),
+  // Step 1: Fetch variation data + shipping settings (prices only — no stock check here)
+  const variationIds = cart.map(i => i.variationId)
+  const [{ data: variations }, { data: settingsRow }] = await Promise.all([
+    supabase.from('product_variations').select('id,product_id,price,square_variation_id,is_active,stock_count,stock_reserved').in('id', variationIds),
     supabase.from('settings').select('shipping_mode,shipping_value').limit(1).maybeSingle(),
   ])
+  if (!variations) return NextResponse.json({ error: 'Failed to validate cart' }, { status: 500 })
+
+  // Fetch product names for Square line items
+  const productIds = [...new Set(cart.map(i => i.productId))]
+  const { data: products } = await supabase.from('products').select('id,name').in('id', productIds)
   if (!products) return NextResponse.json({ error: 'Failed to validate cart' }, { status: 500 })
+
   for (const item of cart) {
-    if (!products.find(p => p.id === item.productId)) {
-      return NextResponse.json({ error: `Product not found: ${item.productId}` }, { status: 409 })
-    }
+    const v = variations.find(v => v.id === item.variationId)
+    if (!v) return NextResponse.json({ error: `Variation not found: ${item.variationId}` }, { status: 409 })
+    if (!v.is_active) return NextResponse.json({ error: `${products?.find(p => p.id === item.productId)?.name ?? item.productId} is no longer available` }, { status: 409 })
+    if (v.product_id !== item.productId) return NextResponse.json({ error: 'Invalid cart' }, { status: 400 })
   }
 
   const subtotal = cart.reduce((sum, item) => {
-    const p = products.find(p => p.id === item.productId)!
-    return sum + p.price * item.quantity
+    const v = variations!.find(v => v.id === item.variationId)!
+    return sum + v.price * item.quantity
   }, 0)
   const shippingCost = calculateShipping(subtotal, settingsRow ?? { shipping_mode: 'fixed', shipping_value: 0 })
   const shippingCents = Math.round(shippingCost * 100)
@@ -79,24 +90,24 @@ export async function POST(request: Request) {
 
   // Step 2: Atomically decrement stock BEFORE charging the card.
   // This prevents the double-charge race: if two concurrent requests for the last unit both
-  // pass a non-locking SELECT, only one will succeed the atomic UPDATE in decrement_stock.
+  // pass a non-locking SELECT, only one will succeed the atomic UPDATE in decrement_variation_stock.
   const decremented: LineItem[] = []
   for (const item of cart) {
-    const { data: rows, error: rpcError } = await supabase.rpc('decrement_stock', { product_id: item.productId, qty: item.quantity })
+    const { data: rows, error: rpcError } = await supabase.rpc('decrement_variation_stock', { var_id: item.variationId, qty: item.quantity })
     if (rpcError) {
-      console.error('[checkout] decrement_stock error:', rpcError.message)
+      console.error('[checkout] decrement_variation_stock error:', rpcError.message)
       for (const done of decremented) {
-        await supabase.rpc('increment_stock', { product_id: done.productId, qty: done.quantity })
-          .then(({ error }) => { if (error) console.error('[checkout] increment_stock rollback failed for', done.productId) })
+        await supabase.rpc('increment_variation_stock', { var_id: done.variationId, qty: done.quantity })
+          .then(({ error }) => { if (error) console.error('[checkout] increment_variation_stock rollback failed for', done.variationId) })
       }
       return NextResponse.json({ error: 'Failed to reserve stock. Please try again.' }, { status: 500 })
     }
     if (Array.isArray(rows) && rows.length === 0) {
       for (const done of decremented) {
-        await supabase.rpc('increment_stock', { product_id: done.productId, qty: done.quantity })
-          .then(({ error }) => { if (error) console.error('[checkout] increment_stock rollback failed for', done.productId) })
+        await supabase.rpc('increment_variation_stock', { var_id: done.variationId, qty: done.quantity })
+          .then(({ error }) => { if (error) console.error('[checkout] increment_variation_stock rollback failed for', done.variationId) })
       }
-      const label = products.find(p => p.id === item.productId)?.name ?? item.productId
+      const label = products?.find(p => p.id === item.productId)?.name ?? item.productId
       return NextResponse.json({ error: `${label} is sold out`, soldOut: item.productId }, { status: 409 })
     }
     decremented.push(item)
@@ -115,8 +126,9 @@ export async function POST(request: Request) {
         locationId,
         lineItems: [
           ...cart.map(item => {
-            const p = products.find(p => p.id === item.productId)!
-            return { name: p.name, quantity: String(item.quantity), basePriceMoney: { amount: BigInt(Math.round(p.price * 100)), currency: 'USD' as const } }
+            const p = products!.find(p => p.id === item.productId)!
+            const v = variations!.find(v => v.id === item.variationId)!
+            return { name: p.name, quantity: String(item.quantity), basePriceMoney: { amount: BigInt(Math.round(v.price * 100)), currency: 'USD' as const } }
           }),
           ...(shippingCents > 0 ? [{ name: 'Shipping & Handling', quantity: '1', basePriceMoney: { amount: BigInt(shippingCents), currency: 'USD' as const } }] : []),
         ],
@@ -153,8 +165,8 @@ export async function POST(request: Request) {
   } catch (err) {
     // Charge failed — re-increment all decremented stock
     for (const done of decremented) {
-      await supabase.rpc('increment_stock', { product_id: done.productId, qty: done.quantity })
-        .then(({ error }) => { if (error) console.error('[checkout] increment_stock rollback failed for', done.productId) })
+      await supabase.rpc('increment_variation_stock', { var_id: done.variationId, qty: done.quantity })
+        .then(({ error }) => { if (error) console.error('[checkout] increment_variation_stock rollback failed for', done.variationId) })
     }
     const { message, detail } = squarePaymentError(err)
     console.error('[checkout] Square error detail:', detail)
@@ -171,9 +183,9 @@ export async function POST(request: Request) {
   // Step 4: Fire-and-forget push to Square inventory (non-blocking)
   const squareItems = decremented
     .map(item => {
-      const p = products.find(p => p.id === item.productId)
-      return p?.square_variation_id
-        ? { squareVariationId: p.square_variation_id, quantity: item.quantity }
+      const v = variations!.find(v => v.id === item.variationId)
+      return v?.square_variation_id
+        ? { squareVariationId: v.square_variation_id, quantity: item.quantity }
         : null
     })
     .filter((x): x is { squareVariationId: string; quantity: number } => x !== null)

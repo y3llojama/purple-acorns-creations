@@ -6,13 +6,13 @@ import ImageCarousel from '@/components/shop/ImageCarousel'
 import ProductCard from '@/components/shop/ProductCard'
 import { sanitizeContent } from '@/lib/sanitize'
 import { useCart } from '@/components/shop/CartContext'
-import type { Product } from '@/lib/supabase/types'
+import type { Product, ProductWithDefault } from '@/lib/supabase/types'
 
 const HeartButton = dynamic(() => import('@/components/shop/HeartButton'), { ssr: false })
 import ShareButton from './ShareButton'
 
 interface Props {
-  product: Product
+  product: Product & Partial<Pick<ProductWithDefault, 'default_variation_id' | 'effective_price' | 'effective_stock' | 'any_in_stock'>>
   watermark?: string | null
 }
 
@@ -56,8 +56,8 @@ export default function ProductDetail({ product, watermark }: Props) {
       })
   }, [product.category_id, product.id])
 
-  const priceFormatted = `$${product.price.toFixed(2)}`
-  const inStock = product.stock_count > 0
+  const priceFormatted = `$${(product.effective_price ?? product.price).toFixed(2)}`
+  const inStock = product.any_in_stock ?? product.stock_count > 0
   // sanitizeContent is always called before injecting any HTML
   const sanitizedDescription = sanitizeContent(product.description ?? '')
 
@@ -122,7 +122,7 @@ export default function ProductDetail({ product, watermark }: Props) {
             {/* Add to Cart */}
             <button
               disabled={!inStock}
-              onClick={() => addToCart(product)}
+              onClick={() => addToCart(product, product.default_variation_id ?? undefined)}
               style={{
                 background: inStock ? 'var(--color-primary)' : 'var(--color-border)',
                 color: inStock ? 'var(--color-accent)' : 'var(--color-text-muted)',
