@@ -88,12 +88,25 @@ export async function syncAllProducts(): Promise<SyncResult[]> {
 async function logSyncResults(results: SyncResult[]): Promise<void> {
   const supabase = createServiceRoleClient()
   for (const r of results) {
-    await supabase.from('channel_sync_log').upsert({
+    const row = {
       product_id: r.productId,
       channel: r.channel,
       status: r.success ? 'synced' : 'error',
       synced_at: r.success ? new Date().toISOString() : null,
       error: r.error ?? null,
-    }, { onConflict: 'product_id,channel' })
+    }
+    // Use select+update/insert — PostgREST onConflict doesn't match partial unique indexes
+    const { data: existing } = await supabase
+      .from('channel_sync_log')
+      .select('id')
+      .eq('product_id', r.productId)
+      .eq('channel', r.channel)
+      .is('variation_id', null)
+      .maybeSingle()
+    if (existing) {
+      await supabase.from('channel_sync_log').update(row).eq('id', existing.id)
+    } else {
+      await supabase.from('channel_sync_log').insert(row)
+    }
   }
 }

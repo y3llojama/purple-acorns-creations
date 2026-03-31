@@ -72,11 +72,24 @@ export async function handleCatalogConflict(payload: unknown): Promise<void> {
     const { data: product } = await supabase
       .from('products').select('id').eq('square_catalog_id', squareCatalogId).single()
     if (!product) continue
-    await supabase.from('channel_sync_log').upsert({
+    // Use select+update/insert — PostgREST onConflict doesn't match partial unique indexes
+    const { data: existing } = await supabase
+      .from('channel_sync_log')
+      .select('id')
+      .eq('product_id', product.id)
+      .eq('channel', 'square')
+      .is('variation_id', null)
+      .maybeSingle()
+    const row = {
       product_id: product.id,
       channel: 'square',
       status: 'conflict',
       error: 'catalog.version.updated received — review and re-sync',
-    }, { onConflict: 'product_id,channel' })
+    }
+    if (existing) {
+      await supabase.from('channel_sync_log').update(row).eq('id', existing.id)
+    } else {
+      await supabase.from('channel_sync_log').insert(row)
+    }
   }
 }

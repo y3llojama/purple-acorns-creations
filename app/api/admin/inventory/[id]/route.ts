@@ -57,8 +57,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
   const { data, error: dbError } = await supabase.from('products').update(update).eq('id', id).select().single()
   if (dbError || !data) return NextResponse.json({ error: 'Failed to update' }, { status: 500 })
-  // Sync price/stock to default variation
-  if (body.price !== undefined || body.stock_count !== undefined) {
+  // Sync price/stock to default variation (only for simple products)
+  if (!data.has_options && (body.price !== undefined || body.stock_count !== undefined)) {
     const varUpdate: Record<string, unknown> = { updated_at: new Date().toISOString() }
     if (body.price !== undefined) varUpdate.price = update.price
     if (body.stock_count !== undefined) varUpdate.stock_count = update.stock_count
