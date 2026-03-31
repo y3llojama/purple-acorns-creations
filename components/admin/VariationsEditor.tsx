@@ -50,6 +50,10 @@ export default function VariationsEditor({ productId, productPrice, onDirtyChang
   const [newValueInputs, setNewValueInputs] = useState<Record<string, string>>({})
   const [confirmRemoveOption, setConfirmRemoveOption] = useState<string | null>(null)
   const [bulkPrice, setBulkPrice] = useState('')
+  const [showCreateOption, setShowCreateOption] = useState(false)
+  const [newOptionName, setNewOptionName] = useState('')
+  const [newOptionValues, setNewOptionValues] = useState('')
+  const [creatingOption, setCreatingOption] = useState(false)
 
   const markDirty = useCallback(() => {
     if (!dirty) { setDirty(true); onDirtyChange(true) }
@@ -124,6 +128,39 @@ export default function VariationsEditor({ productId, productPrice, onDirtyChang
     const added = newCombos.filter(c => !existingKeys.has(c.optionValueIds.sort().join(',')))
     setVariations([...variations, ...added])
     markDirty()
+  }
+
+  async function handleCreateOption() {
+    const name = newOptionName.trim()
+    const values = newOptionValues.split(',').map(v => v.trim()).filter(Boolean)
+    if (!name) return
+    setCreatingOption(true)
+    setError('')
+    try {
+      const res = await fetch('/api/admin/options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, values: values.map(v => ({ name: v })) }),
+      })
+      if (!res.ok) { setError('Failed to create option'); return }
+      const created = await res.json()
+      // Re-fetch all options to get the full object with values
+      const optRes = await fetch('/api/admin/options')
+      if (optRes.ok) {
+        const opts = await optRes.json()
+        setAllOptions(opts)
+        // Auto-attach the new option
+        const newOpt = opts.find((o: OptionWithValues) => o.id === created.id)
+        if (newOpt) handleAttachOption(newOpt.id)
+      }
+      setNewOptionName('')
+      setNewOptionValues('')
+      setShowCreateOption(false)
+    } catch {
+      setError('Failed to create option')
+    } finally {
+      setCreatingOption(false)
+    }
   }
 
   function handleRemoveOption(optionId: string) {
@@ -232,13 +269,55 @@ export default function VariationsEditor({ productId, productPrice, onDirtyChang
         <select
           style={{ ...inputStyle, width: '100%', minHeight: '48px' }}
           value=""
-          onChange={e => { if (e.target.value) handleAttachOption(e.target.value) }}
+          onChange={e => {
+            if (e.target.value === '__create__') { setShowCreateOption(true) }
+            else if (e.target.value) { handleAttachOption(e.target.value) }
+          }}
         >
           <option value="">Select an option...</option>
           {allOptions.filter(o => !attachedOptions.some(a => a.id === o.id)).map(o => (
             <option key={o.id} value={o.id}>{o.name} ({o.values.length} values)</option>
           ))}
+          <option value="__create__">+ Create new option...</option>
         </select>
+
+        {showCreateOption && (
+          <div style={{ marginTop: '12px', padding: '12px', background: 'var(--color-surface)', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+            <div style={{ marginBottom: '8px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Option Name</label>
+              <input
+                style={{ ...inputStyle, width: '100%' }}
+                placeholder="e.g. Size, Color, Material"
+                value={newOptionName}
+                onChange={e => setNewOptionName(e.target.value)}
+              />
+            </div>
+            <div style={{ marginBottom: '8px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Values (comma-separated)</label>
+              <input
+                style={{ ...inputStyle, width: '100%' }}
+                placeholder="e.g. Small, Medium, Large"
+                value={newOptionValues}
+                onChange={e => setNewOptionValues(e.target.value)}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                style={{ ...btnSmall, background: 'var(--color-primary)', color: '#fff', border: 'none' }}
+                onClick={handleCreateOption}
+                disabled={creatingOption || !newOptionName.trim()}
+              >
+                {creatingOption ? 'Creating...' : 'Create & Attach'}
+              </button>
+              <button
+                style={btnSmall}
+                onClick={() => { setShowCreateOption(false); setNewOptionName(''); setNewOptionValues('') }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Attached options with chip-based values */}
