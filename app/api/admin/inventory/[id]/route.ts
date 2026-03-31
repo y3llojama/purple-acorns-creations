@@ -40,8 +40,33 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   update.updated_at = new Date().toISOString()
   if (Object.keys(update).length <= 1) return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
   const supabase = createServiceRoleClient()
+  // Optimistic locking: check updated_at hasn't changed
+  if (body.updated_at) {
+    if (body.variationId) {
+      // Lock against variation's updated_at when variationId is provided
+      const { data: current } = await supabase.from('product_variations').select('updated_at').eq('id', body.variationId).single()
+      if (current && current.updated_at !== body.updated_at) {
+        return NextResponse.json({ error: 'Conflict: product was modified by another session' }, { status: 409 })
+      }
+    } else {
+      const { data: current } = await supabase.from('products').select('updated_at').eq('id', id).single()
+      if (current && current.updated_at !== body.updated_at) {
+        return NextResponse.json({ error: 'Conflict: product was modified by another session' }, { status: 409 })
+      }
+    }
+  }
   const { data, error: dbError } = await supabase.from('products').update(update).eq('id', id).select().single()
   if (dbError || !data) return NextResponse.json({ error: 'Failed to update' }, { status: 500 })
+  // Sync price/stock to default variation
+  if (body.price !== undefined || body.stock_count !== undefined) {
+    const varUpdate: Record<string, unknown> = { updated_at: new Date().toISOString() }
+    if (body.price !== undefined) varUpdate.price = update.price
+    if (body.stock_count !== undefined) varUpdate.stock_count = update.stock_count
+    await supabase.from('product_variations')
+      .update(varUpdate)
+      .eq('product_id', id)
+      .eq('is_default', true)
+  }
   syncProduct(data).catch(console.error)
   return NextResponse.json(data)
 }

@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   if (!VALID_SORTS.includes(sort)) return NextResponse.json({ error: 'invalid sort' }, { status: 400 })
   const offset = (page - 1) * 24
   const supabase = createServiceRoleClient()
-  let query = supabase.from('products').select('*', { count: 'exact' }).eq('is_active', true)
+  let query = supabase.from('products_with_default').select('*', { count: 'exact' }).eq('is_active', true)
   const parentCategoryId = searchParams.get('parent_category_id')
   if (parentCategoryId && UUID_RE.test(parentCategoryId)) {
     const { data: children } = await supabase
@@ -38,8 +38,8 @@ export async function GET(request: Request) {
   }
   switch (sort) {
     case 'popular': query = query.order('view_count', { ascending: false }); break
-    case 'price_asc': query = query.order('price', { ascending: true }); break
-    case 'price_desc': query = query.order('price', { ascending: false }); break
+    case 'price_asc': query = query.order('effective_price', { ascending: true }); break
+    case 'price_desc': query = query.order('effective_price', { ascending: false }); break
     default: query = query.order('created_at', { ascending: false })
   }
   const { data, count, error } = await query.range(offset, offset + 23)

@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   const categoryId = searchParams.get('category_id')
   const search = searchParams.get('search')
   const supabase = createServiceRoleClient()
-  let query = supabase.from('products').select('*').order('created_at', { ascending: false })
+  let query = supabase.from('products_with_default').select('*').order('created_at', { ascending: false })
   if (categoryId) query = query.eq('category_id', categoryId)
   if (search) query = query.ilike('name', `%${search}%`)
   const { data, error: dbError } = await query
@@ -39,6 +39,14 @@ export async function POST(request: Request) {
     gallery_sort_order: body.gallery_sort_order ? Number(body.gallery_sort_order) : null,
   }).select().single()
   if (dbError) return NextResponse.json({ error: 'Failed to create' }, { status: 500 })
+  // Create default variation (single stock authority)
+  await supabase.from('product_variations').insert({
+    product_id: data.id,
+    price,
+    stock_count: Number(body.stock_count) || 0,
+    is_default: true,
+    is_active: true,
+  })
   syncProduct(data).catch(console.error)
   return NextResponse.json(data, { status: 201 })
 }

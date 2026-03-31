@@ -72,7 +72,7 @@ export async function syncCategory(category: import('@/lib/supabase/types').Cate
 export async function syncAllProducts(): Promise<SyncResult[]> {
   const supabase = createServiceRoleClient()
   const { data: products } = await supabase
-    .from('products')
+    .from('products_with_default')
     .select('*')
     .eq('is_active', true)
   if (!products?.length) return []

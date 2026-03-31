@@ -6,16 +6,22 @@ const GBP_URL =
 const INSTAGRAM_URL = 'https://www.instagram.com/purpleacornz/'
 const LOGO_URL = `${BASE_URL}/og-image.jpg`
 
-export function buildProductSchema(product: Product, url: string): Record<string, unknown> {
+export function buildProductSchema(
+  product: Product,
+  url: string,
+  variation?: { effectivePrice: number; anyInStock: boolean }
+): Record<string, unknown> {
+  const price = variation?.effectivePrice ?? product.price
+  const inStock = product.is_active && (variation ? variation.anyInStock : product.stock_count > 0)
   const schema: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.name,
     offers: {
       '@type': 'Offer',
-      price: product.price,
+      price,
       priceCurrency: 'USD',
-      availability: product.is_active && product.stock_count > 0
+      availability: inStock
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',
       url,

@@ -96,6 +96,17 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
       // If category exists but has no square_category_id, sync proceeds without category link
     }
 
+    // Read price/stock from the default variation (single stock authority)
+    const { data: defaultVar } = await supabase
+      .from('product_variations')
+      .select('price,stock_count,square_variation_id')
+      .eq('product_id', product.id)
+      .eq('is_default', true)
+      .single()
+
+    const variationPrice = defaultVar?.price ?? product.price
+    const variationStock = defaultVar?.stock_count ?? product.stock_count
+
     // Delete-then-recreate to avoid VERSION_MISMATCH
     if (product.square_catalog_id) {
       try {
@@ -123,7 +134,7 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
               name: 'Regular',
               pricingType: 'FIXED_PRICING',
               priceMoney: {
-                amount: BigInt(Math.round(product.price * 100)),
+                amount: BigInt(Math.round(variationPrice * 100)),
                 currency: 'USD',
               },
               locationOverrides: [{ locationId, trackInventory: true }],
@@ -144,6 +155,14 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
       .eq('id', product.id)
     if (updateError) throw new Error(`Failed to update product square_catalog_id: ${updateError.message}`)
 
+    if (variationId && defaultVar) {
+      await supabase
+        .from('product_variations')
+        .update({ square_variation_id: variationId })
+        .eq('product_id', product.id)
+        .eq('is_default', true)
+    }
+
     if (variationId) {
       await client.inventory.batchCreateChanges({
         idempotencyKey: `inv-${product.id}-${crypto.randomUUID()}`,
@@ -152,7 +171,7 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
           physicalCount: {
             catalogObjectId: variationId,
             locationId,
-            quantity: String(product.stock_count),
+            quantity: String(variationStock),
             occurredAt: new Date().toISOString(),
             state: 'IN_STOCK',
           },
@@ -172,63 +191,62 @@ export async function fullSync(products: Product[]): Promise<SyncResult[]> {
 
 // ─── Inventory pull (Square → Supabase) ────────────────────────────────────
 
-/**
- * Pull inventory counts from Square and update matching products in Supabase.
- * Only products with a `square_variation_id` are touched.
- * Returns { updated, skipped, errors }.
- */
 export async function pullInventoryFromSquare(): Promise<{ updated: number; skipped: number; errors: string[] }> {
   const { client, locationId } = await getSquareClient()
   const supabase = createServiceRoleClient()
 
-  // Fetch all products that have a Square variation ID
-  const { data: products, error: fetchError } = await supabase
-    .from('products')
+  // Fetch all variations that have a Square variation ID
+  const { data: variations, error: fetchError } = await supabase
+    .from('product_variations')
     .select('id, square_variation_id, stock_count')
-  if (fetchError) throw new Error(`Failed to fetch products: ${fetchError.message}`)
+  if (fetchError) throw new Error(`Failed to fetch variations: ${fetchError.message}`)
 
-  const linked = (products ?? []).filter(p => p.square_variation_id)
+  const linked = (variations ?? []).filter(v => v.square_variation_id)
   if (linked.length === 0) return { updated: 0, skipped: 0, errors: [] }
 
-  const catalogObjectIds = linked.map(p => p.square_variation_id as string)
+  const catalogObjectIds = linked.map(v => v.square_variation_id as string)
 
-  // SDK v44: batchGetCounts (not batchRetrieveCounts)
   const countsResult = await client.inventory.batchGetCounts({
     catalogObjectIds,
     locationIds: [locationId],
   })
 
-  // Page<InventoryCount, BatchGetInventoryCountsResponse> — data is in .data
   const counts = countsResult.data ?? []
 
   let updated = 0
   let skipped = 0
   const errors: string[] = []
 
-  for (const product of linked) {
+  for (const variation of linked) {
     const count = counts.find(
-      c => c.catalogObjectId === product.square_variation_id && c.state === 'IN_STOCK'
+      c => c.catalogObjectId === variation.square_variation_id && c.state === 'IN_STOCK'
     )
-    if (!count) {
-      skipped++
-      continue
-    }
+    if (!count) { skipped++; continue }
 
     const newQty = Math.max(0, parseInt(count.quantity ?? '0', 10))
-    if (newQty === product.stock_count) {
-      skipped++
-      continue
-    }
+    if (newQty === variation.stock_count) { skipped++; continue }
 
     const { error: updateError } = await supabase
-      .from('products')
+      .from('product_variations')
       .update({ stock_count: newQty, updated_at: new Date().toISOString() })
-      .eq('id', product.id)
+      .eq('id', variation.id)
 
     if (updateError) {
-      errors.push(`Product ${product.id}: ${updateError.message}`)
+      errors.push(`Variation ${variation.id}: ${updateError.message}`)
     } else {
       updated++
+      // Write stock movement for audit trail (non-blocking)
+      const delta = newQty - variation.stock_count
+      try {
+        await supabase.from('stock_movements').insert({
+          variation_id: variation.id,
+          quantity_change: delta,
+          reason: 'sync_correction',
+          source: 'square',
+        })
+      } catch {
+        // Audit trail failure should not block sync
+      }
     }
   }
 
@@ -413,6 +431,30 @@ export async function pullProductsFromSquare(): Promise<{ upserted: number; erro
         errors.push(`Product ${squareCatalogId}: ${updateError.message}`)
       } else {
         upserted++
+        // Upsert default variation (best-effort — don't block pull on variation failures)
+        if (variationId) {
+          try {
+            const { data: existingVar } = await supabase
+              .from('product_variations')
+              .select('id')
+              .eq('product_id', existing.id)
+              .eq('is_default', true)
+              .single()
+
+            if (existingVar) {
+              await supabase.from('product_variations')
+                .update({ price, square_variation_id: variationId, updated_at: new Date().toISOString() })
+                .eq('id', existingVar.id)
+            } else {
+              await supabase.from('product_variations').insert({
+                product_id: existing.id, price, square_variation_id: variationId,
+                is_default: true, is_active: true, stock_count: 0,
+              })
+            }
+          } catch {
+            // Variation upsert failure should not block product sync
+          }
+        }
       }
     } else {
       const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
@@ -437,6 +479,19 @@ export async function pullProductsFromSquare(): Promise<{ upserted: number; erro
         }
       } else {
         upserted++
+        // Create default variation for new product (best-effort)
+        try {
+          const { data: newProduct } = await supabase
+            .from('products').select('id').eq('square_catalog_id', squareCatalogId).single()
+          if (newProduct) {
+            await supabase.from('product_variations').insert({
+              product_id: newProduct.id, price, square_variation_id: variationId,
+              is_default: true, is_active: true, stock_count: 0,
+            })
+          }
+        } catch {
+          // Variation creation failure should not block product sync
+        }
       }
     }
   }

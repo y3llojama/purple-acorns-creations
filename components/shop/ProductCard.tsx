@@ -3,14 +3,14 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { Product } from '@/lib/supabase/types'
+import type { Product, ProductWithDefault } from '@/lib/supabase/types'
 import { watermarkSrc } from '@/lib/image-url'
 
 const HeartButton = dynamic(() => import('./HeartButton'), { ssr: false })
 import ShareButton from './ShareButton'
 
 interface Props {
-  product: Product
+  product: Product | ProductWithDefault
   showPrice?: boolean
   watermark?: string | null
 }
@@ -36,7 +36,8 @@ export default function ProductCard({ product, showPrice = true, watermark }: Pr
               <span style={{ color: 'var(--color-text-muted)', fontSize: '14px' }}>No image</span>
             </div>
           )}
-          {product.stock_count === 0 && (
+          {(('any_in_stock' in product && product.any_in_stock === false) ||
+            (!('any_in_stock' in product) && product.stock_count === 0)) && (
             <div style={{ position: 'absolute', top: '8px', left: '8px', background: 'var(--color-text-muted)', color: 'var(--color-surface)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
               Sold out
             </div>
@@ -50,7 +51,9 @@ export default function ProductCard({ product, showPrice = true, watermark }: Pr
           </p>
           {showPrice && (
             <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-muted)' }}>
-              ${product.price.toFixed(2)}
+              ${'effective_price' in product
+                ? (product.effective_price as number).toFixed(2)
+                : product.price.toFixed(2)}
             </p>
           )}
         </div>

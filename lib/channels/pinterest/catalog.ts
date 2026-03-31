@@ -6,6 +6,17 @@ const PINTEREST_API = 'https://api.pinterest.com/v5'
 
 export async function pushProduct(product: Product): Promise<SyncResult> {
   try {
+    const supabase = createServiceRoleClient()
+    const { data: defaultVar } = await supabase
+      .from('product_variations')
+      .select('price,stock_count')
+      .eq('product_id', product.id)
+      .eq('is_default', true)
+      .single()
+
+    const effectivePrice = defaultVar?.price ?? product.price
+    const effectiveStock = defaultVar?.stock_count ?? product.stock_count
+
     const { headers, catalogId } = await getPinterestHeaders()
     if (!catalogId) throw new Error('Pinterest catalog ID not configured')
 
@@ -25,8 +36,8 @@ export async function pushProduct(product: Product): Promise<SyncResult> {
             description: product.description ?? '',
             link: `${process.env.NEXT_PUBLIC_APP_URL}/shop/${product.id}`,
             image_link: product.images[0] ?? '',
-            price: `${product.price.toFixed(2)} USD`,
-            availability: product.stock_count > 0 ? 'in stock' : 'out of stock',
+            price: `${effectivePrice.toFixed(2)} USD`,
+            availability: effectiveStock > 0 ? 'in stock' : 'out of stock',
             google_product_category: '188',
           },
         }],

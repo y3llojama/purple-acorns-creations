@@ -17,7 +17,24 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const { id } = await params
   const supabase = createServiceRoleClient()
-  const { data, error } = await supabase.from('products').select('*').eq('id', id).eq('is_active', true).single()
-  if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json(data)
+
+  // Fetch product from view + variations (safe public fields only)
+  const [{ data: product, error }, { data: variations }] = await Promise.all([
+    supabase.from('products_with_default').select('*').eq('id', id).eq('is_active', true).single(),
+    supabase.from('product_variations').select('id,price,is_default,is_active,image_url').eq('product_id', id).eq('is_active', true),
+  ])
+
+  if (error || !product) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // Compute in_stock boolean per variation (never expose stock_count publicly)
+  const safeVariations = (variations ?? []).map(v => ({
+    id: v.id,
+    price: v.price,
+    is_default: v.is_default,
+    is_active: v.is_active,
+    image_url: v.image_url,
+    in_stock: true,
+  }))
+
+  return NextResponse.json({ ...product, variations: safeVariations })
 }

@@ -27,11 +27,39 @@ export async function handleInventoryUpdate(payload: unknown): Promise<void> {
       console.warn('[square-webhook] invalid inventory quantity, skipping:', count.quantity)
       continue
     }
-    const { error } = await supabase
-      .from('products')
-      .update({ stock_count: qty })
+
+    // Read current stock to calculate delta
+    const { data: variation } = await supabase
+      .from('product_variations')
+      .select('id,stock_count')
       .eq('square_variation_id', count.catalog_object_id)
-    if (error) console.error('[square-webhook] failed to update stock for', count.catalog_object_id, error.message)
+      .maybeSingle()
+
+    if (!variation) {
+      console.warn('[square-webhook] no variation found for', count.catalog_object_id)
+      continue
+    }
+
+    const { error } = await supabase
+      .from('product_variations')
+      .update({ stock_count: qty, updated_at: new Date().toISOString() })
+      .eq('id', variation.id)
+
+    if (error) {
+      console.error('[square-webhook] failed to update stock for', count.catalog_object_id, error.message)
+      continue
+    }
+
+    // Write stock movement for audit trail
+    const delta = qty - variation.stock_count
+    if (delta !== 0) {
+      await supabase.from('stock_movements').insert({
+        variation_id: variation.id,
+        quantity_change: delta,
+        reason: 'sync_correction',
+        source: 'square',
+      })
+    }
   }
 }
 
