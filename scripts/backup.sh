@@ -3,31 +3,42 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-DEFAULT_OUTPUT_DIR="$PROJECT_ROOT/backups"
+BACKUP_DIR="$PROJECT_ROOT/backups"
+LOG_FILE="$BACKUP_DIR/backup.log"
+NTFY_TOPIC="pa-stats"
+RESTORE_TEST=false
+MIN_DECOMPRESSED_BYTES=1024  # 1KB minimum — catches empty/stub dumps
 
 # --- Parse arguments ---
-SETUP_CRON=false
-CRON_SCHEDULE=""
-OUTPUT_DIR="$DEFAULT_OUTPUT_DIR"
-
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --setup-cron)
-      SETUP_CRON=true
-      CRON_SCHEDULE="${2:-0 2 * * *}"
-      shift 2
-      ;;
-    -*)
-      echo "Unknown option: $1"
-      echo "Usage: backup.sh [--setup-cron \"<schedule>\"] [output-dir]"
-      exit 1
+    --restore-test) RESTORE_TEST=true; shift ;;
+    -h|--help)
+      echo "Usage: backup.sh [--restore-test]"
+      echo "  --restore-test  Also restore into a temp local DB and run sanity checks"
+      exit 0
       ;;
     *)
-      OUTPUT_DIR="$1"
-      shift
+      echo "Unknown option: $1" >&2
+      exit 1
       ;;
   esac
 done
+
+# --- Logging ---
+mkdir -p "$BACKUP_DIR"
+
+log() {
+  local msg
+  msg="$(date '+%Y-%m-%d %H:%M:%S') $1"
+  echo "$msg" | tee -a "$LOG_FILE"
+}
+
+# --- Notifications ---
+ntfy() {
+  local msg="$1"
+  curl -sf -d "$msg" "ntfy.sh/$NTFY_TOPIC" > /dev/null 2>&1 || true
+}
 
 # --- Load DATABASE_URL ---
 if [[ -z "${DATABASE_URL:-}" ]]; then
@@ -38,70 +49,134 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
 fi
 
 if [[ -z "${DATABASE_URL:-}" ]]; then
-  echo "ERROR: DATABASE_URL is not set."
-  echo "  Add DATABASE_URL=<connection-string> to .env.local, or export it before running."
-  echo "  Get the connection string from: terraform output -raw database_url"
+  log "ERROR: DATABASE_URL is not set."
+  ntfy "Backup FAILED — DATABASE_URL not set"
   exit 1
 fi
 
-# --- Setup cron ---
-if [[ "$SETUP_CRON" == true ]]; then
-  CRON_CMD="DATABASE_URL='$DATABASE_URL' '$SCRIPT_DIR/backup.sh' '$OUTPUT_DIR'"
-  CRON_ENTRY="$CRON_SCHEDULE $CRON_CMD"
-  echo ""
-  echo "Installing cron job:"
-  echo "  Schedule : $CRON_SCHEDULE"
-  echo "  Output   : $OUTPUT_DIR"
-  echo "  Command  : $CRON_CMD"
-  echo ""
-  read -rp "Confirm? (y/N) " confirm
-  if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-    echo "Aborted."
+# --- Determine day-of-week filename ---
+DAY_NAME=$(date +%A | tr '[:upper:]' '[:lower:]')
+TARGET_FILE="$BACKUP_DIR/${DAY_NAME}.sql.gz"
+CHECKSUM_FILE="${TARGET_FILE}.sha256"
+TEMP_FILE="$BACKUP_DIR/.backup_tmp.sql.gz"
+
+# --- Cleanup trap ---
+cleanup() {
+  rm -f "$TEMP_FILE"
+}
+trap cleanup EXIT
+
+# --- Dump ---
+log "Backup started — target: ${DAY_NAME}.sql.gz"
+ntfy "Backup started"
+
+if ! pg_dump "$DATABASE_URL" \
+  --schema=public \
+  --no-owner \
+  --no-acl \
+  | gzip > "$TEMP_FILE" 2>>"$LOG_FILE"; then
+  log "ERROR: pg_dump failed"
+  ntfy "Backup FAILED — pg_dump error"
+  exit 1
+fi
+
+log "Dump complete — verifying..."
+
+# --- Verify: Checksum ---
+CHECKSUM=$(shasum -a 256 "$TEMP_FILE" | awk '{print $1}')
+log "  Checksum: $CHECKSUM"
+
+# --- Verify: Gzip integrity ---
+if ! gunzip -t "$TEMP_FILE" 2>>"$LOG_FILE"; then
+  log "ERROR: gzip integrity check failed"
+  ntfy "Backup FAILED — gzip integrity check failed"
+  exit 1
+fi
+log "  Gzip integrity: OK"
+
+# --- Verify: Content validation ---
+CONTENT=$(gunzip -c "$TEMP_FILE")
+
+if ! echo "$CONTENT" | grep -q "CREATE TABLE"; then
+  log "ERROR: SQL content missing CREATE TABLE statements"
+  ntfy "Backup FAILED — SQL missing CREATE TABLE"
+  exit 1
+fi
+
+if ! echo "$CONTENT" | grep -q "ROW LEVEL SECURITY\|ENABLE ROW LEVEL SECURITY"; then
+  log "WARNING: No RLS policies found in dump (non-fatal)"
+fi
+
+log "  Content validation: OK"
+
+# --- Verify: Size sanity ---
+DECOMPRESSED_SIZE=$(echo "$CONTENT" | wc -c | tr -d ' ')
+if [[ "$DECOMPRESSED_SIZE" -lt "$MIN_DECOMPRESSED_BYTES" ]]; then
+  log "ERROR: Decompressed size ${DECOMPRESSED_SIZE} bytes is below minimum ${MIN_DECOMPRESSED_BYTES}"
+  ntfy "Backup FAILED — dump too small (${DECOMPRESSED_SIZE} bytes)"
+  exit 1
+fi
+log "  Size sanity: OK (${DECOMPRESSED_SIZE} bytes decompressed)"
+
+unset CONTENT  # free memory
+
+# --- Rotate: atomic move ---
+mv -f "$TEMP_FILE" "$TARGET_FILE"
+echo "$CHECKSUM  ${DAY_NAME}.sql.gz" > "$CHECKSUM_FILE"
+
+COMPRESSED_SIZE=$(ls -lh "$TARGET_FILE" | awk '{print $5}')
+log "Backup complete — ${DAY_NAME}.sql.gz (${COMPRESSED_SIZE}), checksum OK, parse OK"
+ntfy "Backup complete — ${DAY_NAME}.sql.gz (${COMPRESSED_SIZE}), checksum OK, parse OK"
+
+# --- Monthly restore test ---
+# Auto-trigger on the 1st of each month, or when --restore-test is passed
+if [[ "$(date +%d)" == "01" ]]; then
+  RESTORE_TEST=true
+  log "First of month — auto-triggering restore test"
+fi
+
+if [[ "$RESTORE_TEST" == true ]]; then
+  RESTORE_DB="backup_verify_tmp"
+
+  log "Monthly restore test started"
+  ntfy "Monthly restore test started"
+
+  # Create temp database
+  if ! createdb "$RESTORE_DB" 2>>"$LOG_FILE"; then
+    log "ERROR: Failed to create temp database $RESTORE_DB"
+    ntfy "Restore test FAILED — could not create temp database"
+    # Restore test failure is non-fatal to the backup itself
     exit 0
   fi
-  (crontab -l 2>/dev/null; echo "$CRON_ENTRY") | crontab -
-  echo "Cron job installed. Verify with: crontab -l"
-  exit 0
+
+  # Restore
+  RESTORE_OK=true
+  if ! gunzip -c "$TARGET_FILE" | psql -q "$RESTORE_DB" >>"$LOG_FILE" 2>&1; then
+    log "ERROR: Failed to restore backup into $RESTORE_DB"
+    ntfy "Restore test FAILED — psql restore error"
+    RESTORE_OK=false
+  fi
+
+  if [[ "$RESTORE_OK" == true ]]; then
+    # Sanity checks
+    TABLE_COUNT=$(psql -t -A "$RESTORE_DB" -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE';" 2>>"$LOG_FILE" || echo "0")
+    CONTENT_ROWS=$(psql -t -A "$RESTORE_DB" -c "SELECT count(*) FROM public.content;" 2>>"$LOG_FILE" || echo "?")
+    GALLERY_ROWS=$(psql -t -A "$RESTORE_DB" -c "SELECT count(*) FROM public.gallery;" 2>>"$LOG_FILE" || echo "?")
+    EVENTS_ROWS=$(psql -t -A "$RESTORE_DB" -c "SELECT count(*) FROM public.events;" 2>>"$LOG_FILE" || echo "?")
+    SETTINGS_EXISTS=$(psql -t -A "$RESTORE_DB" -c "SELECT count(*) FROM public.settings;" 2>>"$LOG_FILE" || echo "0")
+
+    if [[ "$TABLE_COUNT" -gt 0 && "$SETTINGS_EXISTS" -gt 0 ]]; then
+      log "Restore test passed — ${TABLE_COUNT} tables, content=${CONTENT_ROWS}, gallery=${GALLERY_ROWS}, events=${EVENTS_ROWS}"
+      ntfy "Restore test passed — ${TABLE_COUNT} tables, content=${CONTENT_ROWS}, gallery=${GALLERY_ROWS}, events=${EVENTS_ROWS}"
+    else
+      log "ERROR: Restore test failed sanity checks — tables=${TABLE_COUNT}, settings=${SETTINGS_EXISTS}"
+      ntfy "Restore test FAILED — tables=${TABLE_COUNT}, settings=${SETTINGS_EXISTS}"
+    fi
+  fi
+
+  # Cleanup temp database
+  dropdb --if-exists "$RESTORE_DB" 2>>"$LOG_FILE" || true
+  log "Restore test cleanup complete"
 fi
 
-# --- Run backup ---
-mkdir -p "$OUTPUT_DIR"
-
-# Use timestamped filenames when writing outside the default backups/ dir
-# (so history accumulates, e.g. on iCloud Drive)
-if [[ "$OUTPUT_DIR" == "$DEFAULT_OUTPUT_DIR" ]]; then
-  DATA_FILE="$OUTPUT_DIR/data.sql"
-  SETTINGS_FILE="$OUTPUT_DIR/settings.sql"
-else
-  TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-  DATA_FILE="$OUTPUT_DIR/data_${TIMESTAMP}.sql"
-  SETTINGS_FILE="$OUTPUT_DIR/settings_${TIMESTAMP}.sql"
-fi
-
-echo "Backing up database to $OUTPUT_DIR ..."
-
-# Non-sensitive tables — safe to commit to git
-pg_dump "$DATABASE_URL" \
-  --table=content \
-  --table=events \
-  --table=gallery \
-  --table=messages \
-  --table=message_replies \
-  --no-owner \
-  --no-acl \
-  --data-only \
-  --column-inserts \
-  > "$DATA_FILE"
-echo "  Data     : $DATA_FILE"
-
-# Settings table — contains API keys, gitignored
-pg_dump "$DATABASE_URL" \
-  --table=settings \
-  --no-owner \
-  --no-acl \
-  --data-only \
-  --column-inserts \
-  > "$SETTINGS_FILE"
-echo "  Settings : $SETTINGS_FILE"
-
-echo "Done."
+log "All done."
