@@ -1,6 +1,7 @@
 'use client'
 import { useState, useRef } from 'react'
 import ImageUploader from './ImageUploader'
+import VariationsEditor from './VariationsEditor'
 import type { Product, Category } from '@/lib/supabase/types'
 
 interface Props {
@@ -52,6 +53,8 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
   const [isActive, setIsActive] = useState(product?.is_active ?? true)
   const [galleryFeatured, setGalleryFeatured] = useState(product?.gallery_featured ?? false)
   const [gallerySortOrder, setGallerySortOrder] = useState(product?.gallery_sort_order ? String(product.gallery_sort_order) : '')
+  const [hasOptions, setHasOptions] = useState(Boolean((product as any)?.has_options))
+  const [variationsDirty, setVariationsDirty] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const dragIndexRef = useRef<number | null>(null)
@@ -94,6 +97,13 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
   function handleDragEnd() {
     dragIndexRef.current = null
     setDragOverIndex(null)
+  }
+
+  const handleCancel = () => {
+    if (variationsDirty) {
+      if (!confirm('You have unsaved variation changes. Discard them?')) return
+    }
+    onCancel()
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -165,6 +175,12 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
         />
       </div>
 
+      {hasOptions && (
+        <p style={{ padding: '10px', background: 'var(--color-surface)', borderRadius: '4px', fontSize: '14px', color: 'var(--color-text-muted)', margin: '0 0 8px' }}>
+          Prices and stock are managed per variation below.
+        </p>
+      )}
+      {!hasOptions && (
       <div>
         <label htmlFor="pf-price" style={labelStyle}>Price ($) <span aria-hidden="true">*</span></label>
         <input
@@ -179,6 +195,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
           style={inputStyle}
         />
       </div>
+      )}
 
       <div>
         <label htmlFor="pf-category" style={labelStyle}>Category</label>
@@ -203,6 +220,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
         </select>
       </div>
 
+      {!hasOptions && (
       <div>
         <label htmlFor="pf-stock" style={labelStyle}>Stock Count</label>
         <input
@@ -214,6 +232,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
           style={inputStyle}
         />
       </div>
+      )}
 
       <div>
         <p style={{ ...labelStyle, marginBottom: '8px' }}>Images</p>
@@ -339,11 +358,32 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
         <p role="alert" style={{ color: 'var(--color-error)', fontSize: '14px' }}>{error}</p>
       )}
 
+      {product?.id && (
+        <div style={{ marginTop: '16px' }}>
+          {!hasOptions && (
+            <button
+              type="button"
+              style={btnSecondaryStyle}
+              onClick={() => setHasOptions(true)}
+            >
+              Add Options (Size, Color, etc.)
+            </button>
+          )}
+          {hasOptions && (
+            <VariationsEditor
+              productId={product.id}
+              productPrice={parseFloat(price) || 0}
+              onDirtyChange={setVariationsDirty}
+            />
+          )}
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: '12px', paddingTop: '8px' }}>
         <button type="submit" style={btnStyle} disabled={saving}>
           {saving ? 'Saving…' : (product ? 'Update Product' : 'Create Product')}
         </button>
-        <button type="button" style={btnSecondaryStyle} onClick={onCancel}>
+        <button type="button" style={btnSecondaryStyle} onClick={handleCancel}>
           Cancel
         </button>
       </div>
