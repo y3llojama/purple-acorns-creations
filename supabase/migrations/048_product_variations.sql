@@ -99,7 +99,7 @@ ALTER TABLE channel_sync_log
   ADD COLUMN IF NOT EXISTS conflict_detail JSONB;
 
 -- Replace existing unique constraint with variation-aware ones
-DROP INDEX IF EXISTS channel_sync_log_product_id_channel_key;
+ALTER TABLE channel_sync_log DROP CONSTRAINT IF EXISTS channel_sync_log_product_id_channel_key;
 CREATE UNIQUE INDEX idx_csl_product_channel
   ON channel_sync_log(product_id, channel) WHERE variation_id IS NULL;
 CREATE UNIQUE INDEX idx_csl_variation_channel
