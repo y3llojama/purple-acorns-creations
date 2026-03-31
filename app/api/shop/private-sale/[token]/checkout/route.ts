@@ -164,16 +164,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
 
   // Decrement variation stock for each sale item (single stock authority)
   for (const item of sale.items) {
-    const i = item as { product_id: string; quantity: number; custom_price: number }
-    // Look up default variation for this product
-    const { data: defaultVar } = await supabase
-      .from('product_variations')
-      .select('id')
-      .eq('product_id', i.product_id)
-      .eq('is_default', true)
-      .maybeSingle()
-    if (defaultVar) {
-      await supabase.rpc('decrement_variation_stock', { var_id: defaultVar.id, qty: i.quantity })
+    const i = item as { product_id: string; quantity: number; custom_price: number; variation_id?: string }
+    let varId: string | undefined = i.variation_id ?? undefined
+    if (!varId) {
+      // Fallback to default variation for legacy sale items without variation_id
+      const { data: defaultVar } = await supabase
+        .from('product_variations')
+        .select('id')
+        .eq('product_id', i.product_id)
+        .eq('is_default', true)
+        .maybeSingle()
+      varId = defaultVar?.id
+    }
+    if (varId) {
+      await supabase.rpc('decrement_variation_stock', { var_id: varId, qty: i.quantity })
     }
   }
 
