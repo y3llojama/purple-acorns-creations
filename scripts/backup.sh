@@ -37,7 +37,7 @@ log() {
 # --- Notifications ---
 ntfy() {
   local msg="$1"
-  curl -sf -d "$msg" "ntfy.sh/$NTFY_TOPIC" > /dev/null 2>&1 || true
+  curl -sf -d "$msg" "https://ntfy.sh/$NTFY_TOPIC" > /dev/null 2>&1 || true
 }
 
 # --- Load DATABASE_URL ---
@@ -94,23 +94,21 @@ if ! gunzip -t "$TEMP_FILE" 2>>"$LOG_FILE"; then
 fi
 log "  Gzip integrity: OK"
 
-# --- Verify: Content validation ---
-CONTENT=$(gunzip -c "$TEMP_FILE")
-
-if ! echo "$CONTENT" | grep -q "CREATE TABLE"; then
+# --- Verify: Content validation (stream directly, avoid loading into memory) ---
+if ! gunzip -c "$TEMP_FILE" | grep -q "CREATE TABLE"; then
   log "ERROR: SQL content missing CREATE TABLE statements"
   ntfy "Backup FAILED — SQL missing CREATE TABLE"
   exit 1
 fi
 
 # pg_dump uses COPY (not INSERT INTO) by default
-if ! echo "$CONTENT" | grep -q "COPY .* FROM stdin"; then
+if ! gunzip -c "$TEMP_FILE" | grep -q "COPY .* FROM stdin"; then
   log "ERROR: SQL content missing COPY/data statements"
   ntfy "Backup FAILED — SQL missing data statements"
   exit 1
 fi
 
-if ! echo "$CONTENT" | grep -q "ROW LEVEL SECURITY\|ENABLE ROW LEVEL SECURITY"; then
+if ! gunzip -c "$TEMP_FILE" | grep -q "ROW LEVEL SECURITY\|ENABLE ROW LEVEL SECURITY"; then
   log "ERROR: SQL content missing ROW LEVEL SECURITY policies"
   ntfy "Backup FAILED — SQL missing RLS policies"
   exit 1
@@ -119,15 +117,13 @@ fi
 log "  Content validation: OK"
 
 # --- Verify: Size sanity ---
-DECOMPRESSED_SIZE=$(echo "$CONTENT" | wc -c | tr -d ' ')
+DECOMPRESSED_SIZE=$(gunzip -c "$TEMP_FILE" | wc -c | tr -d ' ')
 if [[ "$DECOMPRESSED_SIZE" -lt "$MIN_DECOMPRESSED_BYTES" ]]; then
   log "ERROR: Decompressed size ${DECOMPRESSED_SIZE} bytes is below minimum ${MIN_DECOMPRESSED_BYTES}"
   ntfy "Backup FAILED — dump too small (${DECOMPRESSED_SIZE} bytes)"
   exit 1
 fi
 log "  Size sanity: OK (${DECOMPRESSED_SIZE} bytes decompressed)"
-
-unset CONTENT  # free memory
 
 # --- Rotate: atomic move ---
 mv -f "$TEMP_FILE" "$TARGET_FILE"
