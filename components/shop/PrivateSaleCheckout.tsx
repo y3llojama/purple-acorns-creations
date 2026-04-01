@@ -1,15 +1,16 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { calculateShipping } from '@/lib/shipping'
+import { calculateShipping, resolveShippingTier } from '@/lib/shipping'
 import type { PrivateSaleItem, ShippingAddress } from '@/lib/supabase/types'
 import { sanitizeText } from '@/lib/sanitize'
 import { runVerifyBuyer, type SquareCard, type SquarePayments } from '@/lib/square/buyer-verification'
 
+interface ShippingTierData { mode: 'fixed' | 'percentage'; value: number }
 interface SaleData {
   items: PrivateSaleItem[]
   expiresAt: string
-  shipping: { mode: 'fixed' | 'percentage'; value: number }
+  shipping: { domestic: ShippingTierData; canada_mexico: ShippingTierData; intl: ShippingTierData }
 }
 
 export default function PrivateSaleCheckout({ sale, token }: { sale: SaleData; token: string }) {
@@ -72,17 +73,34 @@ export default function PrivateSaleCheckout({ sale, token }: { sale: SaleData; t
   }, [])
 
   const subtotal = sale.items.reduce((sum, item) => sum + (item.custom_price ?? 0) * item.quantity, 0)
-  const shippingCost = calculateShipping(subtotal, { shipping_mode: sale.shipping.mode, shipping_value: sale.shipping.value })
+  const shippingTier = resolveShippingTier(shipping.country, {
+    shipping_mode: sale.shipping.domestic.mode,
+    shipping_value: sale.shipping.domestic.value,
+    shipping_mode_canada_mexico: sale.shipping.canada_mexico.mode,
+    shipping_value_canada_mexico: sale.shipping.canada_mexico.value,
+    shipping_mode_intl: sale.shipping.intl.mode,
+    shipping_value_intl: sale.shipping.intl.value,
+  })
+  const shippingCost = calculateShipping(subtotal, shippingTier)
 
-  function shippingInput(field: keyof ShippingAddress, placeholder: string, required = true) {
+  const fieldStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '4px', fontSize: '14px', marginBottom: '8px', minHeight: '48px', boxSizing: 'border-box' }
+  const srOnly: React.CSSProperties = { position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }
+
+  function shippingInput(field: keyof ShippingAddress, label: string, required = true) {
+    const id = `ps-shipping-${field}`
     return (
-      <input
-        placeholder={placeholder}
-        value={shipping[field] ?? ''}
-        onChange={e => setShipping(prev => ({ ...prev, [field]: e.target.value }))}
-        required={required}
-        style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '4px', fontSize: '14px', marginBottom: '8px', minHeight: '48px', boxSizing: 'border-box' } as React.CSSProperties}
-      />
+      <div>
+        <label htmlFor={id} style={srOnly}>{label}</label>
+        <input
+          id={id}
+          placeholder={label + (required ? '' : ' (optional)')}
+          value={shipping[field] ?? ''}
+          onChange={e => setShipping(prev => ({ ...prev, [field]: e.target.value }))}
+          required={required}
+          aria-required={required}
+          style={fieldStyle}
+        />
+      </div>
     )
   }
 
@@ -90,6 +108,10 @@ export default function PrivateSaleCheckout({ sale, token }: { sale: SaleData; t
     if (!cardRef.current || !sdkReady) return
     const requiredFields: (keyof ShippingAddress)[] = ['name', 'address1', 'city', 'state', 'zip', 'country']
     if (requiredFields.some(f => !shipping[f])) { setError('Please fill in all shipping fields'); return }
+    if (!/^[A-Za-z]{2}$/.test(shipping.country.trim())) {
+      setError('Country must be a 2-letter code (e.g. US, CA, GB).')
+      return
+    }
     setLoading(true); setError(null)
     try {
       const result = await cardRef.current.tokenize()
@@ -123,8 +145,8 @@ export default function PrivateSaleCheckout({ sale, token }: { sale: SaleData; t
       }
       const data = await res.json()
       router.push(`/shop/confirmation/${data.orderId}`)
-    } catch (err) {
-      setError(String(err))
+    } catch {
+      setError('Something went wrong. Please try again or contact us if the problem persists.')
     } finally {
       setLoading(false)
     }
@@ -158,7 +180,7 @@ export default function PrivateSaleCheckout({ sale, token }: { sale: SaleData; t
       <h2 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: 'var(--color-primary)' }}>Shipping Address</h2>
       {shippingInput('name', 'Full name')}
       {shippingInput('address1', 'Address line 1')}
-      {shippingInput('address2', 'Address line 2 (optional)', false)}
+      {shippingInput('address2', 'Address line 2', false)}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '8px' }}>
         {shippingInput('city', 'City')}
         {shippingInput('state', 'State')}

@@ -45,6 +45,10 @@ export interface Settings {
   reply_email_footer: string | null
   shipping_mode: 'fixed' | 'percentage'
   shipping_value: number
+  shipping_mode_canada_mexico: 'fixed' | 'percentage'
+  shipping_value_canada_mexico: number
+  shipping_mode_intl: 'fixed' | 'percentage'
+  shipping_value_intl: number
 }
 
 export interface Category {

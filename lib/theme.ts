@@ -32,6 +32,10 @@ const DEFAULT_SETTINGS: Settings = {
   reply_email_footer: null,
   shipping_mode: 'fixed',
   shipping_value: 0,
+  shipping_mode_canada_mexico: 'fixed',
+  shipping_value_canada_mexico: 0,
+  shipping_mode_intl: 'fixed',
+  shipping_value_intl: 0,
 }
 
 async function _getSettings(): Promise<Settings> {

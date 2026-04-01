@@ -16,9 +16,19 @@ export async function GET(request: Request) {
   if (!checkRate(ip)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 
   const supabase = createServiceRoleClient()
-  const { data } = await supabase.from('settings').select('shipping_mode,shipping_value').limit(1).maybeSingle()
+  const { data } = await supabase.from('settings').select('shipping_mode,shipping_value,shipping_mode_canada_mexico,shipping_value_canada_mexico,shipping_mode_intl,shipping_value_intl').limit(1).maybeSingle()
   return NextResponse.json({
-    shipping_mode: data?.shipping_mode ?? 'fixed',
-    shipping_value: data?.shipping_value ?? 0,
+    domestic: {
+      shipping_mode: data?.shipping_mode ?? 'fixed',
+      shipping_value: data?.shipping_value ?? 0,
+    },
+    canada_mexico: {
+      shipping_mode: data?.shipping_mode_canada_mexico ?? 'fixed',
+      shipping_value: data?.shipping_value_canada_mexico ?? 0,
+    },
+    intl: {
+      shipping_mode: data?.shipping_mode_intl ?? 'fixed',
+      shipping_value: data?.shipping_value_intl ?? 0,
+    },
   })
 }

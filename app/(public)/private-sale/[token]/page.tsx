@@ -36,12 +36,16 @@ export default async function PrivateSalePage({ params }: PageProps) {
   }
 
   const { data: settings } = await supabase
-    .from('settings').select('shipping_mode,shipping_value').limit(1).maybeSingle()
+    .from('settings').select('shipping_mode,shipping_value,shipping_mode_canada_mexico,shipping_value_canada_mexico,shipping_mode_intl,shipping_value_intl').limit(1).maybeSingle()
 
   const saleData = {
     items: sale.items as any,  // Supabase join typing — shape validated by select string
     expiresAt: sale.expires_at,
-    shipping: { mode: (settings?.shipping_mode ?? 'fixed') as 'fixed' | 'percentage', value: settings?.shipping_value ?? 0 },
+    shipping: {
+      domestic: { mode: (settings?.shipping_mode ?? 'fixed') as 'fixed' | 'percentage', value: settings?.shipping_value ?? 0 },
+      canada_mexico: { mode: (settings?.shipping_mode_canada_mexico ?? 'fixed') as 'fixed' | 'percentage', value: settings?.shipping_value_canada_mexico ?? 0 },
+      intl: { mode: (settings?.shipping_mode_intl ?? 'fixed') as 'fixed' | 'percentage', value: settings?.shipping_value_intl ?? 0 },
+    },
   }
 
   return <PrivateSaleCheckout sale={saleData} token={token} />

@@ -39,11 +39,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
     return NextResponse.json({ error: 'This link is no longer available' }, { status: 410 })
   }
 
-  const { data: settings } = await supabase.from('settings').select('shipping_mode,shipping_value').limit(1).maybeSingle()
+  const { data: settings } = await supabase.from('settings').select('shipping_mode,shipping_value,shipping_mode_canada_mexico,shipping_value_canada_mexico,shipping_mode_intl,shipping_value_intl').limit(1).maybeSingle()
 
   return NextResponse.json({
     items: sale.items,
     expiresAt: sale.expires_at,
-    shipping: { mode: settings?.shipping_mode ?? 'fixed', value: settings?.shipping_value ?? 0 },
+    shipping: {
+      domestic: { mode: settings?.shipping_mode ?? 'fixed', value: settings?.shipping_value ?? 0 },
+      canada_mexico: { mode: settings?.shipping_mode_canada_mexico ?? 'fixed', value: settings?.shipping_value_canada_mexico ?? 0 },
+      intl: { mode: settings?.shipping_mode_intl ?? 'fixed', value: settings?.shipping_value_intl ?? 0 },
+    },
   })
 }
