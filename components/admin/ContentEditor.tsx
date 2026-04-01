@@ -367,6 +367,9 @@ export default function ContentEditor({
       <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '6px 0 0' }}>
         Variables: <code>{'${BUSINESS_NAME}'}</code> · <code>{'${CONTACT_FORM}'}</code>
       </p>
+      <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '4px 0 0' }}>
+        Classes: <code>content-highlight</code> · <code>content-muted</code> · <code>content-danger</code> · <code>content-bold</code> · <code>content-small</code>
+      </p>
 
       {/* Validation warning */}
       {warning && (
