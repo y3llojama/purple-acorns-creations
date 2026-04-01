@@ -60,18 +60,36 @@ export default function CheckoutForm({ onSuccess }: { onSuccess?: () => void }) 
     return () => { cancelled = true; if (timeoutId) clearTimeout(timeoutId) }
   }, [])
 
-  function shippingField(field: keyof typeof shipping) {
-    return {
-      value: shipping[field],
-      onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
-        setShipping(prev => ({ ...prev, [field]: e.target.value })),
-      required: field !== 'address2',
-      style: { width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '4px', fontSize: '14px', marginBottom: '8px', minHeight: '48px', boxSizing: 'border-box' } as React.CSSProperties,
-    }
+  const fieldStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '4px', fontSize: '14px', marginBottom: '8px', minHeight: '48px', boxSizing: 'border-box' }
+  const srOnly: React.CSSProperties = { position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }
+
+  function shippingField(field: keyof typeof shipping, label: string, required = true) {
+    const id = `shipping-${field}`
+    return (
+      <div>
+        <label htmlFor={id} style={srOnly}>{label}</label>
+        <input
+          id={id}
+          placeholder={label + (required ? '' : ' (optional)')}
+          value={shipping[field]}
+          onChange={e => setShipping(prev => ({ ...prev, [field]: e.target.value }))}
+          required={required}
+          aria-required={required}
+          style={fieldStyle}
+        />
+      </div>
+    )
   }
 
+  const shippingLoading = shippingCost === null
+
   async function handlePay() {
-    if (!cardRef.current || !sdkReady) return
+    if (!cardRef.current || !sdkReady || shippingLoading) return
+    const requiredFields: (keyof typeof shipping)[] = ['name', 'address1', 'city', 'state', 'zip', 'country']
+    if (requiredFields.some(f => !shipping[f].trim())) {
+      setError('Please fill in all required shipping fields.')
+      return
+    }
     setLoading(true); setError(null)
     try {
       const result = await cardRef.current.tokenize()
@@ -127,8 +145,8 @@ export default function CheckoutForm({ onSuccess }: { onSuccess?: () => void }) 
       onSuccess?.()
       router.push(`/shop/confirmation/${data.orderId}`)
       clearCart()
-    } catch (err) {
-      setError(String(err))
+    } catch {
+      setError('Something went wrong. Please try again or contact us if the problem persists.')
     } finally {
       setLoading(false)
     }
@@ -157,26 +175,51 @@ export default function CheckoutForm({ onSuccess }: { onSuccess?: () => void }) 
       </div>
       <div style={{ marginBottom: '24px' }}>
         <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: 'var(--color-primary)' }}>Shipping Address</h3>
-        <input placeholder="Full name" {...shippingField('name')} />
-        <input placeholder="Address line 1" {...shippingField('address1')} />
-        <input placeholder="Address line 2 (optional)" {...shippingField('address2')} required={false} />
+        {shippingField('name', 'Full name')}
+        {shippingField('address1', 'Address line 1')}
+        {shippingField('address2', 'Address line 2', false)}
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '8px' }}>
-          <input placeholder="City" {...shippingField('city')} />
-          <input placeholder="State" {...shippingField('state')} />
+          {shippingField('city', 'City')}
+          {shippingField('state', 'State')}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-          <input placeholder="ZIP code" {...shippingField('zip')} />
-          <input placeholder="Country" {...shippingField('country')} />
+          {shippingField('zip', 'ZIP code')}
+          <div>
+            <label htmlFor="shipping-country" style={srOnly}>Country</label>
+            <select
+              id="shipping-country"
+              value={shipping.country}
+              onChange={e => setShipping(prev => ({ ...prev, country: e.target.value }))}
+              required
+              aria-required
+              style={fieldStyle}
+            >
+              <option value="US">United States</option>
+              <option value="CA">Canada</option>
+              <option value="GB">United Kingdom</option>
+              <option value="AU">Australia</option>
+              <option value="DE">Germany</option>
+              <option value="FR">France</option>
+              <option value="JP">Japan</option>
+              <option value="MX">Mexico</option>
+              <option value="IT">Italy</option>
+              <option value="ES">Spain</option>
+              <option value="NL">Netherlands</option>
+              <option value="SE">Sweden</option>
+              <option value="NZ">New Zealand</option>
+              <option value="IE">Ireland</option>
+            </select>
+          </div>
         </div>
       </div>
       <div ref={containerRef} id="square-card-container" style={{ marginBottom: '24px', minHeight: '89px' }} />
       {error && <p role="alert" style={{ color: 'var(--color-error)', marginBottom: '16px', fontSize: '14px' }}>{error}</p>}
       <button
         onClick={handlePay}
-        disabled={loading || !sdkReady}
-        style={{ width: '100%', padding: '16px', background: 'var(--color-primary)', color: 'var(--color-accent)', border: 'none', borderRadius: '4px', fontSize: '18px', cursor: loading ? 'not-allowed' : 'pointer', minHeight: '48px', opacity: (!sdkReady || loading) ? 0.7 : 1 }}
+        disabled={loading || !sdkReady || shippingLoading}
+        style={{ width: '100%', padding: '16px', background: 'var(--color-primary)', color: 'var(--color-accent)', border: 'none', borderRadius: '4px', fontSize: '18px', cursor: (loading || shippingLoading) ? 'not-allowed' : 'pointer', minHeight: '48px', opacity: (!sdkReady || loading || shippingLoading) ? 0.7 : 1 }}
       >
-        {loading ? 'Processing...' : `Pay $${(total + (shippingCost ?? 0)).toFixed(2)}`}
+        {loading ? 'Processing...' : shippingLoading ? 'Calculating shipping…' : `Pay $${(total + (shippingCost ?? 0)).toFixed(2)}`}
       </button>
     </div>
   )

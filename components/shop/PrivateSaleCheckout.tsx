@@ -74,15 +74,24 @@ export default function PrivateSaleCheckout({ sale, token }: { sale: SaleData; t
   const subtotal = sale.items.reduce((sum, item) => sum + (item.custom_price ?? 0) * item.quantity, 0)
   const shippingCost = calculateShipping(subtotal, { shipping_mode: sale.shipping.mode, shipping_value: sale.shipping.value })
 
-  function shippingInput(field: keyof ShippingAddress, placeholder: string, required = true) {
+  const fieldStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '4px', fontSize: '14px', marginBottom: '8px', minHeight: '48px', boxSizing: 'border-box' }
+  const srOnly: React.CSSProperties = { position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }
+
+  function shippingInput(field: keyof ShippingAddress, label: string, required = true) {
+    const id = `ps-shipping-${field}`
     return (
-      <input
-        placeholder={placeholder}
-        value={shipping[field] ?? ''}
-        onChange={e => setShipping(prev => ({ ...prev, [field]: e.target.value }))}
-        required={required}
-        style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '4px', fontSize: '14px', marginBottom: '8px', minHeight: '48px', boxSizing: 'border-box' } as React.CSSProperties}
-      />
+      <div>
+        <label htmlFor={id} style={srOnly}>{label}</label>
+        <input
+          id={id}
+          placeholder={label + (required ? '' : ' (optional)')}
+          value={shipping[field] ?? ''}
+          onChange={e => setShipping(prev => ({ ...prev, [field]: e.target.value }))}
+          required={required}
+          aria-required={required}
+          style={fieldStyle}
+        />
+      </div>
     )
   }
 
@@ -123,8 +132,8 @@ export default function PrivateSaleCheckout({ sale, token }: { sale: SaleData; t
       }
       const data = await res.json()
       router.push(`/shop/confirmation/${data.orderId}`)
-    } catch (err) {
-      setError(String(err))
+    } catch {
+      setError('Something went wrong. Please try again or contact us if the problem persists.')
     } finally {
       setLoading(false)
     }
@@ -158,14 +167,39 @@ export default function PrivateSaleCheckout({ sale, token }: { sale: SaleData; t
       <h2 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: 'var(--color-primary)' }}>Shipping Address</h2>
       {shippingInput('name', 'Full name')}
       {shippingInput('address1', 'Address line 1')}
-      {shippingInput('address2', 'Address line 2 (optional)', false)}
+      {shippingInput('address2', 'Address line 2', false)}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '8px' }}>
         {shippingInput('city', 'City')}
         {shippingInput('state', 'State')}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
         {shippingInput('zip', 'ZIP code')}
-        {shippingInput('country', 'Country')}
+        <div>
+          <label htmlFor="ps-shipping-country" style={srOnly}>Country</label>
+          <select
+            id="ps-shipping-country"
+            value={shipping.country}
+            onChange={e => setShipping(prev => ({ ...prev, country: e.target.value }))}
+            required
+            aria-required
+            style={fieldStyle}
+          >
+            <option value="US">United States</option>
+            <option value="CA">Canada</option>
+            <option value="GB">United Kingdom</option>
+            <option value="AU">Australia</option>
+            <option value="DE">Germany</option>
+            <option value="FR">France</option>
+            <option value="JP">Japan</option>
+            <option value="MX">Mexico</option>
+            <option value="IT">Italy</option>
+            <option value="ES">Spain</option>
+            <option value="NL">Netherlands</option>
+            <option value="SE">Sweden</option>
+            <option value="NZ">New Zealand</option>
+            <option value="IE">Ireland</option>
+          </select>
+        </div>
       </div>
 
       {/* Square card widget */}
