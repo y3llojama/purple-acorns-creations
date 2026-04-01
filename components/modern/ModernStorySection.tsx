@@ -15,6 +15,7 @@ interface Props {
 
 export default function ModernStorySection({ teaser, images = [], watermark }: Props) {
   const photos = images
+  const hasPhotos = photos.length > 0
 
   return (
     <section>
@@ -23,7 +24,7 @@ export default function ModernStorySection({ teaser, images = [], watermark }: P
           padding: clamp(40px, 5vw, 64px) clamp(16px, 6vw, 80px);
           background: var(--color-surface);
           display: grid;
-          grid-template-columns: 40% 60%;
+          grid-template-columns: ${hasPhotos ? '40% 60%' : '1fr'};
           gap: 0;
         }
 
@@ -45,7 +46,7 @@ export default function ModernStorySection({ teaser, images = [], watermark }: P
 
       <div className="modern-story-section">
         {/* Left: text */}
-        <div style={{ paddingRight: 'clamp(0px, 4vw, 64px)' }}>
+        <div style={{ paddingRight: hasPhotos ? 'clamp(0px, 4vw, 64px)' : undefined, maxWidth: hasPhotos ? undefined : '720px' }}>
           <p
             style={{
               color: 'var(--color-secondary)',
@@ -84,21 +85,12 @@ export default function ModernStorySection({ teaser, images = [], watermark }: P
           </Link>
         </div>
 
-        {/* Right: animated photo mosaic */}
-        <div className="modern-story-right-panel">
-          {photos.length > 0 ? (
+        {/* Right: animated photo mosaic — hidden when no photos */}
+        {hasPhotos && (
+          <div className="modern-story-right-panel">
             <ModernStoryMosaic photos={photos} watermark={watermark} />
-          ) : (
-            <div
-              style={{
-                background: 'color-mix(in srgb, var(--color-primary) 8%, var(--color-surface) 92%)',
-                borderLeft: '4px solid var(--color-accent)',
-                minHeight: '280px',
-                height: '100%',
-              }}
-            />
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </section>
   )

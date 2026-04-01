@@ -82,45 +82,26 @@ export default function ModernHero({ tagline, subtext, slides, transition, inter
               }}
               dangerouslySetInnerHTML={{ __html: subtext }}
             />
-            <div style={{ position: 'relative', display: 'inline-block', marginTop: '32px' }}>
-              <Link
-                href="/shop"
-                className="modern-hero-cta-btn"
-                style={{
-                  display: 'inline-block',
-                  background: 'var(--color-accent)',
-                  color: 'var(--color-primary)',
-                  border: 'none',
-                  padding: '14px 32px',
-                  fontSize: '13px',
-                  letterSpacing: '0.1em',
-                  textTransform: 'uppercase',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  textDecoration: 'none',
-                }}
-              >
-                Shop Now
-              </Link>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/craft/sunflower-badge.png"
-                alt=""
-                aria-hidden="true"
-                style={{
-                  position: 'absolute',
-                  top: '-18px',
-                  right: '-20px',
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '50%',
-                  objectFit: 'cover',
-                  transform: 'rotate(12deg)',
-                  pointerEvents: 'none',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
-                }}
-              />
-            </div>
+            <Link
+              href="/shop"
+              className="modern-hero-cta-btn"
+              style={{
+                display: 'inline-block',
+                background: 'var(--color-accent)',
+                color: 'var(--color-primary)',
+                border: 'none',
+                padding: '14px 32px',
+                fontSize: '13px',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                fontWeight: 600,
+                marginTop: '32px',
+                cursor: 'pointer',
+                textDecoration: 'none',
+              }}
+            >
+              Shop Now
+            </Link>
           </div>
         </div>
 
