@@ -2,7 +2,7 @@ import { headers } from 'next/headers'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getAllContent } from '@/lib/content'
 import { getSettings } from '@/lib/theme'
-import { sanitizeText } from '@/lib/sanitize'
+import { sanitizeText, sanitizeContent } from '@/lib/sanitize'
 import { isValidHttpsUrl } from '@/lib/validate'
 import { interpolate, buildVars } from '@/lib/variables'
 import { JsonLd, buildOrganizationSchema } from '@/lib/seo'
@@ -60,7 +60,7 @@ export default async function HomePage() {
       <JsonLd schema={orgSchema} />
       <ModernHero
         tagline={sanitizeText(interpolate(content.hero_tagline ?? '', vars))}
-        subtext={sanitizeText(interpolate(content.hero_subtext ?? '', vars))}
+        subtext={sanitizeContent(interpolate(content.hero_subtext ?? '', vars))}
         slides={(heroSlides as HeroSlide[]).filter(s => isValidHttpsUrl(s.url))}
         transition={(settings.hero_transition ?? 'crossfade') as 'crossfade' | 'slide'}
         intervalMs={settings.hero_interval_ms ?? 5000}
@@ -79,7 +79,7 @@ export default async function HomePage() {
       })()}
       <GalleryScroller prefetchedFeatured={featured as Product[]} maxItems={settings.gallery_max_items ?? 8} watermark={settings.gallery_watermark ? interpolate(settings.gallery_watermark, vars) : null} />
       <ModernStorySection
-        teaser={sanitizeText(interpolate(content.story_teaser ?? '', vars))}
+        teaser={sanitizeContent(interpolate(content.story_teaser ?? '', vars))}
         images={gallery.length > 0
           ? gallery.map(g => ({
               url: g.url.startsWith('http') ? g.url : `${siteBase}${g.url}`,

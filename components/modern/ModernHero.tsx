@@ -73,16 +73,15 @@ export default function ModernHero({ tagline, subtext, slides, transition, inter
             >
               {tagline}
             </h1>
-            <p
+            <div
               style={{
                 color: 'var(--color-on-primary)',
                 opacity: 0.7,
                 fontSize: 'clamp(15px, 1.8vw, 18px)',
                 marginTop: '16px',
               }}
-            >
-              {subtext}
-            </p>
+              dangerouslySetInnerHTML={{ __html: subtext }}
+            />
             <Link
               href="/shop"
               className="modern-hero-cta-btn"

@@ -57,7 +57,7 @@ export default function ModernStorySection({ teaser, images = [], watermark }: P
           >
             Our Story
           </p>
-          <p
+          <div
             style={{
               fontFamily: 'var(--font-display)',
               fontSize: 'clamp(24px, 3vw, 40px)',
@@ -66,9 +66,8 @@ export default function ModernStorySection({ teaser, images = [], watermark }: P
               fontStyle: 'italic',
               margin: '0 0 24px 0',
             }}
-          >
-            {teaser}
-          </p>
+            dangerouslySetInnerHTML={{ __html: teaser }}
+          />
           <Link
             href="/our-story"
             style={{
