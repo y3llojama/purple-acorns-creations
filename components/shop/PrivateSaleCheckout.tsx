@@ -174,32 +174,7 @@ export default function PrivateSaleCheckout({ sale, token }: { sale: SaleData; t
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
         {shippingInput('zip', 'ZIP code')}
-        <div>
-          <label htmlFor="ps-shipping-country" style={srOnly}>Country</label>
-          <select
-            id="ps-shipping-country"
-            value={shipping.country}
-            onChange={e => setShipping(prev => ({ ...prev, country: e.target.value }))}
-            required
-            aria-required
-            style={fieldStyle}
-          >
-            <option value="US">United States</option>
-            <option value="CA">Canada</option>
-            <option value="GB">United Kingdom</option>
-            <option value="AU">Australia</option>
-            <option value="DE">Germany</option>
-            <option value="FR">France</option>
-            <option value="JP">Japan</option>
-            <option value="MX">Mexico</option>
-            <option value="IT">Italy</option>
-            <option value="ES">Spain</option>
-            <option value="NL">Netherlands</option>
-            <option value="SE">Sweden</option>
-            <option value="NZ">New Zealand</option>
-            <option value="IE">Ireland</option>
-          </select>
-        </div>
+        {shippingInput('country', 'Country')}
       </div>
 
       {/* Square card widget */}
