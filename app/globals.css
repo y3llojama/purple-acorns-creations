@@ -92,9 +92,10 @@
 /* Content utility classes — usable in admin-authored HTML via class="content-*" */
 .content-highlight { color: var(--color-accent); }
 .content-muted    { color: var(--color-text-muted); }
-.content-danger   { color: var(--color-danger); }
+.content-alert    { color: #ff6b6b; }
 .content-bold     { font-weight: 700; }
 .content-small    { font-size: 0.85em; }
+.content-link     { color: #ffffff; text-decoration: underline; }
 
 *, *::before, *::after {
   box-sizing: border-box;

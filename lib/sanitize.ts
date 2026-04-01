@@ -1,7 +1,7 @@
 import sanitizeHtml from 'sanitize-html'
 import { marked } from 'marked'
 
-const ALLOWED_CLASSES = ['content-highlight', 'content-muted', 'content-danger', 'content-bold', 'content-small']
+const ALLOWED_CLASSES = ['content-highlight', 'content-muted', 'content-alert', 'content-bold', 'content-small', 'content-link']
 
 const CONTENT_OPTIONS: sanitizeHtml.IOptions = {
   allowedTags: ['h1', 'h2', 'h3', 'h4', 'p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'a', 'blockquote', 'hr'],
