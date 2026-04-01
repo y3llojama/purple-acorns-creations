@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getSquareClient } from '@/lib/channels/square/client'
 import { pushInventoryToSquare } from '@/lib/channels/square/catalog'
-import { calculateShipping } from '@/lib/shipping'
+import { calculateShipping, resolveShippingTier } from '@/lib/shipping'
 import { sanitizeText } from '@/lib/sanitize'
 import type { ShippingAddress } from '@/lib/supabase/types'
 import { squarePaymentError } from '@/lib/square/payment-errors'
@@ -55,7 +55,10 @@ export async function POST(request: Request) {
     city:     sanitizeText(shipping.city).slice(0, 100),
     state:    sanitizeText(shipping.state).slice(0, 100),
     zip:      sanitizeText(shipping.zip).slice(0, 20),
-    country:  sanitizeText(shipping.country).slice(0, 10),
+    country:  sanitizeText(shipping.country).trim().toUpperCase().slice(0, 2),
+  }
+  if (!/^[A-Z]{2}$/.test(cleanShipping.country)) {
+    return NextResponse.json({ error: 'Country must be a 2-letter code (e.g. US, CA, GB)' }, { status: 400 })
   }
 
   const supabase = createServiceRoleClient()
@@ -64,7 +67,7 @@ export async function POST(request: Request) {
   const variationIds = cart.map(i => i.variationId)
   const [{ data: variations }, { data: settingsRow }] = await Promise.all([
     supabase.from('product_variations').select('id,product_id,price,square_variation_id,is_active,stock_count,stock_reserved,product:products(id,name)').in('id', variationIds),
-    supabase.from('settings').select('shipping_mode,shipping_value').limit(1).maybeSingle(),
+    supabase.from('settings').select('shipping_mode,shipping_value,shipping_mode_canada_mexico,shipping_value_canada_mexico,shipping_mode_intl,shipping_value_intl').limit(1).maybeSingle(),
   ])
   if (!variations) return NextResponse.json({ error: 'Failed to validate cart' }, { status: 500 })
 
@@ -82,7 +85,9 @@ export async function POST(request: Request) {
     const v = variations!.find(v => v.id === item.variationId)!
     return sum + v.price * item.quantity
   }, 0)
-  const shippingCost = calculateShipping(subtotal, settingsRow ?? { shipping_mode: 'fixed', shipping_value: 0 })
+  const shippingDefaults = { shipping_mode: 'fixed' as const, shipping_value: 0, shipping_mode_canada_mexico: 'fixed' as const, shipping_value_canada_mexico: 0, shipping_mode_intl: 'fixed' as const, shipping_value_intl: 0 }
+  const shippingTier = resolveShippingTier(cleanShipping.country, settingsRow ?? shippingDefaults)
+  const shippingCost = calculateShipping(subtotal, shippingTier)
   const shippingCents = Math.round(shippingCost * 100)
   const totalCents = Math.round(subtotal * 100) + shippingCents
 

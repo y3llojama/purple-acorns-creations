@@ -129,6 +129,24 @@ export async function POST(request: Request) {
     if (!isFinite(val) || val < 0 || val > 10000) return NextResponse.json({ error: 'shipping_value must be between 0 and 10000' }, { status: 400 })
     update.shipping_value = val.toFixed(2)
   }
+  if (body.shipping_mode_canada_mexico !== undefined) {
+    const mode = String(body.shipping_mode_canada_mexico)
+    update.shipping_mode_canada_mexico = ['fixed', 'percentage'].includes(mode) ? mode : 'fixed'
+  }
+  if (body.shipping_value_canada_mexico !== undefined) {
+    const val = parseFloat(String(body.shipping_value_canada_mexico))
+    if (!isFinite(val) || val < 0 || val > 10000) return NextResponse.json({ error: 'shipping_value_canada_mexico must be between 0 and 10000' }, { status: 400 })
+    update.shipping_value_canada_mexico = val.toFixed(2)
+  }
+  if (body.shipping_mode_intl !== undefined) {
+    const mode = String(body.shipping_mode_intl)
+    update.shipping_mode_intl = ['fixed', 'percentage'].includes(mode) ? mode : 'fixed'
+  }
+  if (body.shipping_value_intl !== undefined) {
+    const val = parseFloat(String(body.shipping_value_intl))
+    if (!isFinite(val) || val < 0 || val > 10000) return NextResponse.json({ error: 'shipping_value_intl must be between 0 and 10000' }, { status: 400 })
+    update.shipping_value_intl = val.toFixed(2)
+  }
   if (body.hero_transition !== undefined) {
     const val = String(body.hero_transition ?? '')
     if (!['crossfade', 'slide'].includes(val)) return NextResponse.json({ error: 'hero_transition must be crossfade or slide' }, { status: 400 })

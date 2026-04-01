@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useCart } from './CartContext'
 import { useRouter } from 'next/navigation'
-import { calculateShipping } from '@/lib/shipping'
+import { calculateShipping, resolveShippingTier } from '@/lib/shipping'
 import { runVerifyBuyer, type SquareCard, type SquarePayments } from '@/lib/square/buyer-verification'
 
 export default function CheckoutForm({ onSuccess }: { onSuccess?: () => void }) {
@@ -17,14 +17,25 @@ export default function CheckoutForm({ onSuccess }: { onSuccess?: () => void }) 
   const [shipping, setShipping] = useState({
     name: '', address1: '', address2: '', city: '', state: '', zip: '', country: 'US',
   })
-  const [shippingCost, setShippingCost] = useState<number | null>(null)
+  const [shippingTiers, setShippingTiers] = useState<Record<string, { shipping_mode: 'fixed' | 'percentage'; shipping_value: number }> | null>(null)
 
   useEffect(() => {
     fetch('/api/shop/shipping-config')
       .then(r => { if (!r.ok) throw new Error('fetch failed'); return r.json() })
-      .then(d => setShippingCost(calculateShipping(total, d)))
-      .catch(() => setShippingCost(0))
-  }, [total])
+      .then(d => setShippingTiers({ domestic: d.domestic, canada_mexico: d.canada_mexico, intl: d.intl }))
+      .catch(() => setShippingTiers({ domestic: { shipping_mode: 'fixed', shipping_value: 0 }, canada_mexico: { shipping_mode: 'fixed', shipping_value: 0 }, intl: { shipping_mode: 'fixed', shipping_value: 0 } }))
+  }, [])
+
+  const shippingCost = shippingTiers
+    ? calculateShipping(total, resolveShippingTier(shipping.country, {
+        shipping_mode: shippingTiers.domestic.shipping_mode,
+        shipping_value: shippingTiers.domestic.shipping_value,
+        shipping_mode_canada_mexico: shippingTiers.canada_mexico.shipping_mode,
+        shipping_value_canada_mexico: shippingTiers.canada_mexico.shipping_value,
+        shipping_mode_intl: shippingTiers.intl.shipping_mode,
+        shipping_value_intl: shippingTiers.intl.shipping_value,
+      }))
+    : null
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null
@@ -88,6 +99,10 @@ export default function CheckoutForm({ onSuccess }: { onSuccess?: () => void }) 
     const requiredFields: (keyof typeof shipping)[] = ['name', 'address1', 'city', 'state', 'zip', 'country']
     if (requiredFields.some(f => !shipping[f].trim())) {
       setError('Please fill in all required shipping fields.')
+      return
+    }
+    if (!/^[A-Za-z]{2}$/.test(shipping.country.trim())) {
+      setError('Country must be a 2-letter code (e.g. US, CA, GB).')
       return
     }
     setLoading(true); setError(null)
